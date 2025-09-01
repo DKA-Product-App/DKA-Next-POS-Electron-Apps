@@ -15,7 +15,7 @@ mac:
   icon: resources/icon.icns
 
 win:
-  icon: resources/icon.png
+  icon: resources/icon.ico
   target:
     - nsis
     - portable
@@ -25,8 +25,8 @@ nsis:
   oneClick: false
   perMachine: true
   allowToChangeInstallationDirectory: true
-  installerIcon: resources/icon.png
-  uninstallerIcon: resources/icon.png
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico
   uninstallDisplayName: "DKA Cashier POS Apps"
   shortcutName: "DKA Cashier POS"
   createDesktopShortcut: always
