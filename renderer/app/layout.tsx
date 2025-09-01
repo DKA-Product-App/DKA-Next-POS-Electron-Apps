@@ -1,5 +1,6 @@
 import clsx from 'clsx';
 import React from "react";
+import '../styles/globals.css';
 
 export default async function RootLayout({children}: Readonly<{ children: React.ReactNode; }>) {
 
