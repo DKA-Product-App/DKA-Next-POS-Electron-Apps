@@ -1,0 +1,71 @@
+name: Action Compile Development Windows CI/CD
+#
+on:
+  push:
+    branches:
+      - stage
+  pull_request:
+    branches:
+      - stage
+
+env:
+  WA_CHAT_ID: '120363038030543096@g.us'
+
+permissions:
+  contents: write  # dibutuhkan untuk ncipollo/release-action
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout code dari Git Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build Electron App
+        run: yarn build --win
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-setup
+          path: dist/*.exe
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [ windows ]
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-setup
+          path: ./artifacts
+
+      - name: Publish single Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: dev
+          name: "Development"
+          allowUpdates: true
+          draft: true
+          prerelease: true
+          artifacts: ./artifacts/**
+
+  cleanup:
+    runs-on: ubuntu-latest
+    needs: [ release ] # atau semua job lainnya
+    steps:
+      - name: Delete artifacts after build
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          name: |
+            windows-setup
