@@ -58,7 +58,7 @@ jobs:
       - name: Publish single Release
         uses: ncipollo/release-action@v1
         with:
-          tag: dev
+          tag: release
           name: "Development"
           allowUpdates: true
           draft: true
