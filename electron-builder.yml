@@ -17,9 +17,11 @@ mac:
 win:
   icon: resources/icon.ico
   target:
-    - nsis
-    - portable
-  artifactName: "DKA-POS.${ext}"
+    - target: nsis
+      arch: x64
+    - target: portable
+      arch: x64
+  artifactName: "DKA-POS-${target}-${arch}.${ext}"
 
 nsis:
   oneClick: false
