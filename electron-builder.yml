@@ -1,0 +1,60 @@
+appId: com.dkaapis.product.pos
+productName: DKA Cashier POS Apps
+copyright: Copyright © 2025 Yovangga Anandhika
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - from: .
+    filter:
+      - package.json
+      - app
+publish: null
+
+mac:
+  icon: resources/icon.icns
+
+win:
+  icon: resources/icon.png
+  target:
+    - nsis
+    - portable
+  artifactName: "DKA-Cashier-${version}.${ext}"
+
+nsis:
+  oneClick: false
+  perMachine: true
+  allowToChangeInstallationDirectory: true
+  installerIcon: resources/icon.png
+  uninstallerIcon: resources/icon.png
+  uninstallDisplayName: "DKA Cashier POS Apps"
+  shortcutName: "DKA Cashier POS"
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+
+linux:
+  category: Utility
+  icon: resources/icon.png
+  maintainer: "Yovangga Anandhika <dka.tech.dev@gmail.com>"
+  synopsis: "POS App untuk Kasir"
+  description: "DKA Cashier POS Apps"
+  target:
+    - AppImage
+    - snap
+    # - deb
+
+appImage:
+# systemIntegration: true
+
+deb:
+  depends:
+    - gconf2
+    - gconf-service
+  priority: optional
+
+snap:
+  confinement: strict
+  grade: stable
+  plugs:
+    - network
+    - desktop
