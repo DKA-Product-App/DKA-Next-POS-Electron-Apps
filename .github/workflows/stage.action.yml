@@ -64,10 +64,4 @@ jobs:
           draft: true
           prerelease: true
           artifacts: ./artifacts/**
-
-      - name: Delete artifacts after build
-        uses: geekyeggo/delete-artifact@v2
-        with:
-          name: |
-            windows-setup
       

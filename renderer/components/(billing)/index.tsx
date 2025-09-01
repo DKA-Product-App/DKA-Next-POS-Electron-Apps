@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useLayoutEffect } from "react";
 import dynamic from 'next/dynamic'
 import ResizableGrid from "./ResizableContainer";
