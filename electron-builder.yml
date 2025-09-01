@@ -19,7 +19,7 @@ win:
   target:
     - nsis
     - portable
-  artifactName: "DKA-Cashier-${version}.${ext}"
+  artifactName: "DKA-POS.${ext}"
 
 nsis:
   oneClick: false
