@@ -37,7 +37,7 @@ jobs:
       - name: Show Dir
         run: |
           cd dist
-          ls -lah
+          ls
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
