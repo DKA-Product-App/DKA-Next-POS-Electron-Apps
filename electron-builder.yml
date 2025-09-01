@@ -21,9 +21,11 @@ win:
       arch: x64
     - target: portable
       arch: x64
-  artifactName: "DKA-POS-${target}-${arch}.${ext}"
+  # Boleh ada default buat yang lain-lain
+  artifactName: "DKA-POS-${arch}-${version}.${ext}"
 
 nsis:
+  artifactName: "DKA-POS-Setup-${version}.${ext}"
   oneClick: false
   perMachine: true
   allowToChangeInstallationDirectory: true
@@ -33,6 +35,9 @@ nsis:
   shortcutName: "DKA Cashier POS"
   createDesktopShortcut: always
   createStartMenuShortcut: true
+
+portable:
+  artifactName: "DKA-POS-Portable-${version}.${ext}"
 
 linux:
   category: Utility
