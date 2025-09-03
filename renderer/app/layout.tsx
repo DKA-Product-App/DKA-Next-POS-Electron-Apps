@@ -1,22 +1,14 @@
-import clsx from 'clsx';
-import React from "react";
-import '../styles/globals.css';
+import * as React from 'react'
 
-export default async function RootLayout({children}: Readonly<{ children: React.ReactNode; }>) {
-
+export default function Layout({ children}) {
     return (
-        <html lang="en">
+        <html>
         <head>
-            <meta charSet="utf-8" />
-            <title>DKA Apps POS</title>
-            <meta
-                name="viewport"
-                content="width=device-width, initial-scale=1, shrink-to-fit=no"
-            />
+            <title>pos</title>
         </head>
         <body>
-        { children }
+            {children}
         </body>
         </html>
-    );
+    )
 }
