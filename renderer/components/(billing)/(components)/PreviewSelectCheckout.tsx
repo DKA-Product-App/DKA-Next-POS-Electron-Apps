@@ -17,7 +17,7 @@ import {
     Fade,
     Grow,
 } from "@mui/material";
-import { Add, DeleteForever, Remove } from "@mui/icons-material";
+import { Add, Block, Remove, Delete } from "@mui/icons-material";
 import PerfectScrollbar from "react-perfect-scrollbar";
 import "react-perfect-scrollbar/dist/css/styles.css";
 
@@ -71,7 +71,7 @@ const Actions = memo<{
     onDec: (k: string) => void;
     onRemove: (k: string) => void;
 }>(({ k, qty, onInc, onDec, onRemove }) => (
-    <Stack direction="row" alignItems="center" spacing={0.5} sx={{ justifyContent: "flex-end" }}>
+    <Stack direction="row" alignItems="center" spacing={0.2} sx={{ justifyContent: "flex-end" }}>
         <Tooltip title="Kurangi">
             <IconButton size="small" onClick={() => onDec(k)}><Remove fontSize="small" /></IconButton>
         </Tooltip>
@@ -80,7 +80,7 @@ const Actions = memo<{
             <IconButton size="small" onClick={() => onInc(k)}><Add fontSize="small" /></IconButton>
         </Tooltip>
         <Tooltip title="Hapus item">
-            <IconButton size="small" color="error" onClick={() => onRemove(k)}><DeleteForever fontSize="small" /></IconButton>
+            <IconButton size="small" color="error" onClick={() => onRemove(k)}><Delete fontSize="small" /></IconButton>
         </Tooltip>
     </Stack>
 ));
@@ -107,7 +107,7 @@ const HeaderBar: FC<{ count: number; onClear: () => void }> = ({ count, onClear 
             <Button
                 size="small"
                 color="error"
-                startIcon={<DeleteForever />}
+                startIcon={<Block />}
                 onClick={onClear}
                 variant="outlined"
                 sx={{ borderRadius: 1.5, textTransform: "none" }}

@@ -542,15 +542,14 @@ const PRODUCTS: Products[] = [
     },
 ]
 
-
 const PreviewSelectCheckout = dynamic(() => import('./(components)/PreviewSelectCheckout'), {
     loading: () => <ShimmerLoadingPreviewSelectCheckout />,
-    ssr : false
+    ssr: false,
 })
 
 const SelectMenuAndVariant = dynamic(() => import('./(components)/SelectMenuAndVariant'), {
     loading: () => <ShimmerLoadingSelectMenu />,
-    ssr : false
+    ssr: false,
 })
 
 export default function Billing() {
@@ -558,7 +557,8 @@ export default function Billing() {
     const [mode, setMode] = React.useState<'light'|'dark'>('light')
     const theme = React.useMemo(() => createTheme({ palette: { mode }, direction : 'ltr' }), [mode])
 
-    const addToCart = (p: Products, v?: ProductsVariants) => {
+    // ===== Stabilkan handler biar referensinya tidak berubah tiap render
+    const addToCart = React.useCallback((p: Products, v?: ProductsVariants) => {
         const key = `${p.id}:${v?.id ?? 'base'}`
         const unitPrice = (v?.price ?? 0)
         const variantLabel = v?.name
@@ -571,35 +571,49 @@ export default function Billing() {
             }
             return [...prev, { key, productId: p.id, name: p.name, variantLabel, unitPrice, qty: 1 }]
         })
-    }
+    }, [])
 
-    const inc = (key: string) =>
-        setItems(prev => prev.map(it => it.key === key ? { ...it, qty: it.qty + 1 } : it))
+    const inc = React.useCallback((key: string) =>
+            setItems(prev => prev.map(it => it.key === key ? { ...it, qty: it.qty + 1 } : it))
+        , [])
 
-    const dec = (key: string) =>
-        setItems(prev =>
-            prev
-                .map(it => it.key === key ? { ...it, qty: it.qty - 1 } : it)
-                .filter(it => it.qty > 0)
-        )
+    const dec = React.useCallback((key: string) =>
+            setItems(prev =>
+                prev
+                    .map(it => it.key === key ? { ...it, qty: it.qty - 1 } : it)
+                    .filter(it => it.qty > 0)
+            )
+        , [])
 
-    const remove = (key: string) =>
-        setItems(prev => prev.filter(it => it.key !== key))
+    const remove = React.useCallback((key: string) =>
+            setItems(prev => prev.filter(it => it.key !== key))
+        , [])
 
-    const clear = () => setItems([])
+    const clear = React.useCallback(() => setItems([]), [])
+
+    // ===== Memoize elemen kiri/kanan agar tidak re-create setiap render
+    const leftEl = React.useMemo(() => (
+        <SelectMenuAndVariant
+            product={PRODUCTS}
+            categories={CATEGORIES}
+            onAdd={addToCart}
+        />
+    ), [addToCart]) // products & categories konstanta → aman tidak dijadikan deps
+
+    const rightEl = React.useMemo(() => (
+        <PreviewSelectCheckout
+            items={items}
+            onInc={inc}
+            onDec={dec}
+            onRemove={remove}
+            onClear={clear}
+        />
+    ), [items, inc, dec, remove, clear])
 
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
-            <div
-                style={{
-                    height: '100vh',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    overflow: 'hidden'
-                }}
-            >
-                {/* Header tinggi tetap */}
+            <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <div style={{flexShrink: 0}}>
                     <Header
                         appName="DKA Cashier"
@@ -610,25 +624,10 @@ export default function Billing() {
                     />
                 </div>
 
-                {/* Billing ambil sisa */}
-                <div style={{ flex: 1, minHeight: 0}}>
+                <div style={{ flex: 1, minHeight: 0 }}>
                     <ResizableGrid
-                        left={
-                            <SelectMenuAndVariant
-                                product={PRODUCTS}
-                                categories={CATEGORIES}
-                                onAdd={addToCart}
-                            />
-                        }
-                        right={
-                            <PreviewSelectCheckout
-                                items={items}
-                                onInc={inc}
-                                onDec={dec}
-                                onRemove={remove}
-                                onClear={clear}
-                            />
-                        }
+                        left={leftEl}
+                        right={rightEl}
                     />
                 </div>
 
