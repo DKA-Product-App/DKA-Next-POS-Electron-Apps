@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- BASE STYLES --- */
+@layer base {
+    body {
+        @apply bg-gray-900 text-white antialiased;
+    }
+
+    /* 🔒 Disable text selection globally, termasuk form */
+    html, body, #__next, #root, * {
+        @apply select-none;
+    }
+
+    /* 🔒 Prevent image selection & drag */
+    img {
+        @apply select-none;
+        -webkit-user-drag: none;
+        user-drag: none;
+    }
+}
+
+/* --- COMPONENT STYLES --- */
+@layer components {
+    .btn-blue {
+        @apply text-white font-bold px-4 py-2 rounded bg-blue-600 hover:bg-blue-500;
+    }
+
+    /* Card default: tidak bisa di-highlight */
+    .card-view {
+        @apply select-none;
+    }
+
+    /* Overlay lock UI (opsional) */
+    .app-lock {
+        @apply fixed inset-0 z-[9999] bg-black/20 pointer-events-auto;
+    }
+}

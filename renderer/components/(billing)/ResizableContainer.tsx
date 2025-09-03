@@ -16,16 +16,19 @@ type ResizableGridProps = {
 }
 
 const PaneContent = styled(Paper)(({ theme }) => ({
-    backgroundColor: '#fff',
+    position: 'relative',            // <— ini penting buat rail kanan
+    backgroundColor: (theme.vars ?? theme).palette.background.paper,
     ...theme.typography.body2,
     padding: theme.spacing(1),
     textAlign: 'center',
     color: (theme.vars ?? theme).palette.text.secondary,
     height: '100%',
-    overflow: 'hidden', // <-- kunci: JANGAN auto di level ini
+    overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
+    borderRadius: 0,
 }))
+
 
 export default function ResizableGrid({
                                           left,
@@ -43,34 +46,36 @@ export default function ResizableGrid({
     }, [minSize])
 
     return (
-        <Box sx={{ height: '100vh', overflow: 'hidden' /* matiin outer scroll */ }}>
-            {/* @ts-expect-error */}
-            <SplitPane
-                split="vertical"
-                minSize={minSize}
-                maxSize={maxSize}
-                defaultSize={defaultSize}
-                style={{ height: '100%' }}              // <-- biar ngisi tinggi penuh
-                paneStyle={{ display: 'flex', flexDirection: 'column' }}
-                resizerStyle={{
-                    background: '#f1f0f0',
-                    cursor: 'col-resize',
-                    width: '4px',
-                    margin: '0 -2px',
-                    border: '1px solid #aaa',
-                }}
-            >
-                <PaneContent>
-                    {/* Scroll HANYA di sini */}
-                    <PerfectScrollbar options={{ suppressScrollX: true }}>
-                        <Box sx={{ p: 1, minHeight: '100%' }}>{left}</Box>
-                    </PerfectScrollbar>
-                </PaneContent>
+        <PerfectScrollbar
+            style={{ height: '100%' }}
+            options={{ suppressScrollX: true }} // ✅ opsi valid
+        >
+            <Box sx={{ height: '100%', overflow: 'hidden' /* matiin outer scroll */ }}>
+                {/* @ts-expect-error */}
+                <SplitPane
+                    split="vertical"
+                    minSize={minSize}
+                    maxSize={maxSize}
+                    defaultSize={defaultSize}
+                    style={{ height: '100%' }}              // <-- biar ngisi tinggi penuh
+                    paneStyle={{ display: 'flex', flexDirection: 'column' }}
+                    resizerStyle={{
+                        cursor: 'col-resize',
+                        width: '8px',
+                        margin: '0 -2px',
+                        border: '1px solid #aaa',
+                    }}
+                >
+                    <PaneContent>
+                        {/* Scroll HANYA di sini */}
+                        <Box sx={{ minHeight: '100%' }}>{left}</Box>
+                    </PaneContent>
 
-                <PaneContent>
-                    <Box sx={{ p: 1, minHeight: '100%' }}>{right}</Box>
-                </PaneContent>
-            </SplitPane>
-        </Box>
+                    <PaneContent>
+                        <Box sx={{ minHeight: '100%' }}>{right}</Box>
+                    </PaneContent>
+                </SplitPane>
+            </Box>
+        </PerfectScrollbar>
     )
 }

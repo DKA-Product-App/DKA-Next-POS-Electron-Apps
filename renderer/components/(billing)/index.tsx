@@ -1,12 +1,18 @@
+'use client';
+
 import React, { useLayoutEffect } from "react";
 import dynamic from 'next/dynamic'
 import ResizableGrid from "./ResizableContainer";
 import {CartItem} from "./(components)/PreviewSelectCheckout";
-import ShimmerLoadingSelectMenu from "./(helper)/ShimmerLoadingSelectMenu";
-import ShimmerLoadingPreviewSelectCheckout from "./(helper)/ShimmerLoadingPreviewSelectCheckout";
+import ShimmerLoadingSelectMenu from "./(loading)/ShimmerLoadingSelectMenu";
+import ShimmerLoadingPreviewSelectCheckout from "./(loading)/ShimmerLoadingPreviewSelectCheckout";
 import {Products} from "./types/products.type";
 import {ProductsCategories} from "./types/product.categories.type";
 import {ProductsVariants} from "./types/products.variants.type";
+import Header from "../_components/Header";
+import PerfectScrollbar from "react-perfect-scrollbar";
+import Footer from "../_components/Footer";
+import {createTheme, CssBaseline, ThemeProvider} from "@mui/material";
 
 // =======================
 // Categories
@@ -549,14 +555,8 @@ const SelectMenuAndVariant = dynamic(() => import('./(components)/SelectMenuAndV
 
 export default function Billing() {
     const [items, setItems] = React.useState<CartItem[]>([])
-
-    useLayoutEffect(() => {
-        document.documentElement.style.overflow = 'hidden'
-        document.documentElement.style.height = '100%'
-        document.body.style.overflow = 'hidden'
-        document.body.style.height = '100%'
-        document.body.style.margin = '0'
-    }, [])
+    const [mode, setMode] = React.useState<'light'|'dark'>('light')
+    const theme = React.useMemo(() => createTheme({ palette: { mode }, direction : 'ltr' }), [mode])
 
     const addToCart = (p: Products, v?: ProductsVariants) => {
         const key = `${p.id}:${v?.id ?? 'base'}`
@@ -589,23 +589,53 @@ export default function Billing() {
     const clear = () => setItems([])
 
     return (
-        <ResizableGrid
-            left={
-                <SelectMenuAndVariant
-                    product={PRODUCTS}
-                    categories={CATEGORIES}
-                    onAdd={addToCart}
-                />
-            }
-            right={
-                <PreviewSelectCheckout
-                    items={items}
-                    onInc={inc}
-                    onDec={dec}
-                    onRemove={remove}
-                    onClear={clear}
-                />
-            }
-        />
+        <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <div
+                style={{
+                    height: '100vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden'
+                }}
+            >
+                {/* Header tinggi tetap */}
+                <div style={{flexShrink: 0}}>
+                    <Header
+                        appName="DKA Cashier"
+                        cashierName="Yovangga Anandhika"
+                        mode={mode}
+                        onChangeMode={setMode}
+                        cashierPhotoUrl="#"
+                    />
+                </div>
+
+                {/* Billing ambil sisa */}
+                <div style={{ flex: 1, minHeight: 0}}>
+                    <ResizableGrid
+                        left={
+                            <SelectMenuAndVariant
+                                product={PRODUCTS}
+                                categories={CATEGORIES}
+                                onAdd={addToCart}
+                            />
+                        }
+                        right={
+                            <PreviewSelectCheckout
+                                items={items}
+                                onInc={inc}
+                                onDec={dec}
+                                onRemove={remove}
+                                onClear={clear}
+                            />
+                        }
+                    />
+                </div>
+
+                <div style={{flexShrink: 0}}>
+                    <Footer/>
+                </div>
+            </div>
+        </ThemeProvider>
     )
 }
