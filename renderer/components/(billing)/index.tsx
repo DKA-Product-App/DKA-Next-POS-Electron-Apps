@@ -2,16 +2,16 @@
 
 import React, { useLayoutEffect } from "react";
 import dynamic from 'next/dynamic'
-import ResizableGrid from "./ResizableContainer";
-import {CartItem} from "./(components)/PreviewSelectCheckout";
-import ShimmerLoadingSelectMenu from "./(loading)/ShimmerLoadingSelectMenu";
-import ShimmerLoadingPreviewSelectCheckout from "./(loading)/ShimmerLoadingPreviewSelectCheckout";
+import ResizableGrid from "./ui/ResizableContainer";
+import {CartItem} from "./ui/(pane)/PreviewSelectCheckout";
+import ShimmerLoadingSelectMenu from "./ui/(loading)/ShimmerLoadingSelectMenu";
+import ShimmerLoadingPreviewSelectCheckout from "./ui/(loading)/ShimmerLoadingPreviewSelectCheckout";
 import {Products} from "./types/products.type";
 import {ProductsCategories} from "./types/product.categories.type";
 import {ProductsVariants} from "./types/products.variants.type";
-import Header from "../_components/Header";
+import Header from "./ui/(components)/Header";
 import PerfectScrollbar from "react-perfect-scrollbar";
-import Footer from "../_components/Footer";
+import Footer from "./ui/(components)/Footer";
 import {createTheme, CssBaseline, ThemeProvider} from "@mui/material";
 
 // =======================
@@ -542,12 +542,12 @@ const PRODUCTS: Products[] = [
     },
 ]
 
-const PreviewSelectCheckout = dynamic(() => import('./(components)/PreviewSelectCheckout'), {
+const PreviewSelectCheckout = dynamic(() => import('./ui/(pane)/PreviewSelectCheckout'), {
     loading: () => <ShimmerLoadingPreviewSelectCheckout />,
     ssr: false,
 })
 
-const SelectMenuAndVariant = dynamic(() => import('./(components)/SelectMenuAndVariant'), {
+const SelectMenuAndVariant = dynamic(() => import('./ui/(pane)/SelectMenuAndVariant'), {
     loading: () => <ShimmerLoadingSelectMenu />,
     ssr: false,
 })

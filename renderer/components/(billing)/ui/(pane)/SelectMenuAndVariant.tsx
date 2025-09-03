@@ -27,9 +27,9 @@ import ClearRoundedIcon from '@mui/icons-material/ClearRounded'
 import TuneRoundedIcon from '@mui/icons-material/TuneRounded'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
-import {ProductsCategories} from "../types/product.categories.type";
-import {Products} from "../types/products.type";
-import {ProductsVariants} from "../types/products.variants.type";
+import {ProductsCategories} from "../../types/product.categories.type";
+import {Products} from "../../types/products.type";
+import {ProductsVariants} from "../../types/products.variants.type";
 
 export interface SelectMenuAndVariantProps {
     product : Array<Products>;
