@@ -1,7 +1,6 @@
 # dependencies
 node_modules
 .idea
-yarn.lock
 README.md
 # logs
 *.log
