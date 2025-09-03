@@ -8,21 +8,13 @@ export default async function RootLayout({children}: Readonly<{ children: React.
         <html lang="en">
         <head>
             <meta charSet="utf-8" />
+            <title>DKA Apps POS</title>
             <meta
                 name="viewport"
                 content="width=device-width, initial-scale=1, shrink-to-fit=no"
             />
-            <meta
-                name="theme-color"
-                content="#000000"
-            />
-            <base href="/" />
-            <noscript id="emotion-insertion-point" />
         </head>
-        <body
-            id="root"
-            className={clsx('loading')}
-        >
+        <body>
         { children }
         </body>
         </html>
