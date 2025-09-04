@@ -1,6 +1,5 @@
 import path from 'path'
 import {app, BrowserWindow, globalShortcut, ipcMain, Menu, screen} from 'electron'
-import serve from 'electron-serve'
 import { createWindow } from '../helpers'
 import moment from "moment-timezone";
 
@@ -93,13 +92,12 @@ export default async function MainWindow(){
     })
 
     if (isProd) {
-        await mainWindow.loadURL('app://./cashier')
-        Menu.setApplicationMenu(null)
+        await mainWindow.loadURL('app://-/cashier/'); // <- wajib trailing slash
+        Menu.setApplicationMenu(null);
         mainWindow.maximize();
     } else {
-        const port = process.argv[2]
-        await mainWindow.loadURL(`http://localhost:${port}/cashier`)
-        Menu.setApplicationMenu(null)
-        //mainWindow.webContents.openDevTools()
+        const port = process.argv[2];
+        await mainWindow.loadURL(`http://localhost:${port}/cashier/`); // <- slash
+        Menu.setApplicationMenu(null);
     }
 }

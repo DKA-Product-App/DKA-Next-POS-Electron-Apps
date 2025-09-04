@@ -47,7 +47,7 @@ linux:
   description: "DKA Cashier POS Apps"
   target:
     - AppImage
-    - snap
+    #- snap
     # - deb
 
 appImage:

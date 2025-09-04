@@ -32,6 +32,9 @@ import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
 import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded';
 
+// =====================
+// Types
+// =====================
 type ActionKey =
     | 'new_order'
     | 'open_orders'
@@ -54,12 +57,23 @@ type MenuItem = {
     icon: React.ReactNode;
     hint?: string;
     disabled?: boolean;
-    forward?: string; // 👈 segmen yang mau ditambahkan ke url sekarang
+    // segmen yang mau ditambahkan ke url sekarang
+    forward?: string;
 };
 
 type MenuGroup = {
     title: string;
     items: readonly MenuItem[];
+};
+
+// =====================
+// Utils
+// =====================
+const joinPath = (base: string, seg: string) => {
+    const cleanBase = base.endsWith('/') ? base : base + '/';
+    const cleanSeg = (seg ?? '').replace(/^\/+/, ''); // buang leading '/'
+    // hasil akhir SELALU pakai trailing slash
+    return (cleanBase + cleanSeg + '/').replace(/\/{2,}/g, '/');
 };
 
 const HeaderBar: FC = () => (
@@ -87,6 +101,9 @@ const HeaderBar: FC = () => (
     </Box>
 );
 
+// =====================
+// Component
+// =====================
 export const MenuSelect: FC = memo(function MenuSelect() {
     const router = useRouter();
     const pathname = usePathname();
@@ -101,57 +118,44 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                         action: 'new_order',
                         icon: <AddShoppingCartRoundedIcon />,
                         hint: 'Buat transaksi baru',
-                        forward: 'billing', // 👈 akan jadi `${pathname}/billing`
+                        forward: 'billing', // -> {pathname}/billing/
                     },
                     {
                         label: 'Pesanan Aktif',
                         action: 'open_orders',
                         icon: <ListAltRoundedIcon />,
                         hint: 'Lihat daftar pesanan berjalan',
+                        disabled : true,
                         forward: 'orders',
                     },
                     {
                         label: 'Tahan / Draft Pesanan',
                         action: 'hold_orders',
                         icon: <ReplayRoundedIcon />,
+                        disabled : true,
                         hint: 'Kelola pesanan ditahan',
                     },
                     {
                         label: 'Reservasi',
                         action: 'reservation',
                         icon: <EventSeatRoundedIcon />,
+                        disabled : true,
                         hint: 'Kelola reservasi meja / booking',
                     },
                     {
                         label: 'Retur / Refund',
                         action: 'refund',
                         icon: <ReceiptLongRoundedIcon />,
+                        disabled : true,
                         hint: 'Proses pengembalian transaksi',
                     },
                     {
                         label: 'Cetak Ulang Struk',
                         action: 'reprint',
                         icon: <PrintRoundedIcon />,
+                        disabled : true,
                         hint: 'Reprint struk transaksi',
                     },
-                ],
-            },
-            {
-                title: 'Kasir & Laci',
-                items: [
-                    { label: 'Buka Laci', action: 'open_drawer', icon: <LockOpenRoundedIcon /> },
-                    { label: 'Tutup Shift', action: 'close_shift', icon: <LocalAtmRoundedIcon /> },
-                    { label: 'X-Report (Mid Shift)', action: 'x_report', icon: <AssessmentRoundedIcon /> },
-                    { label: 'Z-Report (End Shift)', action: 'z_report', icon: <AssessmentRoundedIcon /> },
-                ],
-            },
-            {
-                title: 'Sistem',
-                items: [
-                    { label: 'Sinkronisasi', action: 'sync', icon: <SyncRoundedIcon /> },
-                    { label: 'Pengaturan', action: 'settings', icon: <SettingsRoundedIcon />, forward: 'settings' },
-                    { label: 'Ganti Kasir', action: 'switch_cashier', icon: <PersonRoundedIcon /> },
-                    { label: 'Bantuan', action: 'help', icon: <HelpOutlineRoundedIcon />, forward: 'help' },
                 ],
             },
         ],
@@ -159,13 +163,19 @@ export const MenuSelect: FC = memo(function MenuSelect() {
     );
 
     const handleClick = (item: MenuItem) => {
-        if (item.forward) {
-            const newPath =
-                pathname.endsWith('/')
-                    ? `${pathname}${item.forward}`
-                    : `${pathname}/${item.forward}`;
-            router.push(newPath);
+        if (!item.forward) return;
+
+        const newPath = joinPath(pathname, item.forward);
+
+        // Hindari push ke URL yang sama → mencegah retrigger render yang bisa bikin fallback “ngebatu”
+        if (newPath === pathname || newPath === pathname + '/') return;
+
+        if (process.env.NODE_ENV === 'development') {
+            // Debug lokal aja
+            console.log('[navigate]', { from: pathname, forward: item.forward, to: newPath });
         }
+
+        router.push(newPath);
     };
 
     return (

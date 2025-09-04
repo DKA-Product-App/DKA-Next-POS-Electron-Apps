@@ -6,7 +6,6 @@ export default function Layout({ children}) {
         <html lang={'id'}>
         <head>
             <title>DKA Cashier POS Application</title>
-            <base href={'.'}/>
         </head>
         <body>
             <LayoutContainer>

@@ -3,13 +3,25 @@
 import React from "react";
 import dynamic from 'next/dynamic'
 import ResizableGrid from "./ui/ResizableContainer";
-import {CartItem} from "./ui/(pane)/PreviewSelectCheckout";
 import ShimmerLoadingSelectMenu from "./ui/(loading)/ShimmerLoadingSelectMenu";
 import ShimmerLoadingPreviewSelectCheckout from "./ui/(loading)/ShimmerLoadingPreviewSelectCheckout";
 import {Products} from "./types/products.type";
 import {ProductsCategories} from "./types/product.categories.type";
 import {ProductsVariants} from "./types/products.variants.type";
 import {createTheme} from "@mui/material";
+import ErrorBoundary from "../ErrorBoundary";
+import SelectMenuAndVariant from "./ui/(pane)/SelectMenuAndVariant";
+import PreviewSelectCheckout from "./ui/(pane)/PreviewSelectCheckout";
+
+export type CartItem = {
+    key: string;
+    productId: string;
+    name: string;
+    variantLabel?: string;
+    unitPrice: number;
+    qty: number;
+    description?: string;
+};
 
 // =======================
 // Categories
@@ -539,78 +551,71 @@ const PRODUCTS: Products[] = [
     },
 ]
 
-const PreviewSelectCheckout = dynamic(() => import('./ui/(pane)/PreviewSelectCheckout'), {
-    loading: () => <ShimmerLoadingPreviewSelectCheckout />,
-    ssr : false,
-})
+/*const PreviewSelectCheckout = dynamic(() => import('./ui/(pane)/PreviewSelectCheckout'), {
+    ssr: false,
+    loading: () => <ShimmerLoadingPreviewSelectCheckout />
+});
 
 const SelectMenuAndVariant = dynamic(() => import('./ui/(pane)/SelectMenuAndVariant'), {
-    loading: () => <ShimmerLoadingSelectMenu />,
-    ssr : false,
-})
+    loading: () => <ShimmerLoadingSelectMenu />
+});*/
 
 export default function Billing() {
-    const [items, setItems] = React.useState<CartItem[]>([])
-    const [mode, setMode] = React.useState<'light'|'dark'>('dark')
-    const theme = React.useMemo(() => createTheme({ palette: { mode }, direction : 'ltr' }), [mode])
+    const [items, setItems] = React.useState<CartItem[]>([]);
 
-    // ===== Stabilkan handler biar referensinya tidak berubah tiap render
+    // === handlers stabil ===
     const addToCart = React.useCallback((p: Products, v?: ProductsVariants) => {
-        const key = `${p.id}:${v?.id ?? 'base'}`
-        const unitPrice = (v?.price ?? 0)
-        const variantLabel = v?.name
+        const key = `${p.id}:${v?.id ?? 'base'}`;
+        const unitPrice = (v?.price ?? 0);
+        const variantLabel = v?.name;
+
         setItems(prev => {
-            const idx = prev.findIndex(it => it.key === key)
+            const idx = prev.findIndex(it => it.key === key);
             if (idx >= 0) {
-                const updated = [...prev]
-                updated[idx] = { ...updated[idx], qty: updated[idx].qty + 1 }
-                return updated
+                const updated = [...prev];
+                updated[idx] = { ...updated[idx], qty: updated[idx].qty + 1 };
+                return updated;
             }
-            return [...prev, { key, productId: p.id, name: p.name, variantLabel, unitPrice, qty: 1 }]
-        })
-    }, [])
+            return [...prev, { key, productId: p.id, name: p.name, variantLabel, unitPrice, qty: 1 }];
+        });
+    }, []);
 
     const inc = React.useCallback((key: string) =>
-            setItems(prev => prev.map(it => it.key === key ? { ...it, qty: it.qty + 1 } : it))
-        , [])
+        setItems(prev => prev.map(it => it.key === key ? { ...it, qty: it.qty + 1 } : it)), []);
 
     const dec = React.useCallback((key: string) =>
-            setItems(prev =>
-                prev
-                    .map(it => it.key === key ? { ...it, qty: it.qty - 1 } : it)
-                    .filter(it => it.qty > 0)
-            )
-        , [])
+        setItems(prev => prev
+            .map(it => it.key === key ? { ...it, qty: it.qty - 1 } : it)
+            .filter(it => it.qty > 0)), []);
 
     const remove = React.useCallback((key: string) =>
-            setItems(prev => prev.filter(it => it.key !== key))
-        , [])
+        setItems(prev => prev.filter(it => it.key !== key)), []);
 
-    const clear = React.useCallback(() => setItems([]), [])
+    const clear = React.useCallback(() => setItems([]), []);
 
-    // ===== Memoize elemen kiri/kanan agar tidak re-create setiap render
-    const leftEl = React.useMemo(() => (
-        <SelectMenuAndVariant
-            product={PRODUCTS}
-            categories={CATEGORIES}
-            onAdd={addToCart}
-        />
-    ), [addToCart]) // products & categories konstanta → aman tidak dijadikan deps
+    // === props berat dimemoize jadi objek, bukan elemen ===
+    const leftProps = React.useMemo(() => ({
+        product: PRODUCTS,
+        categories: CATEGORIES,
+        onAdd: addToCart
+    }), [addToCart]); // ⛔ Gak perlu masukin PRODUCTS/CATEGORIES
 
-    const rightEl = React.useMemo(() => (
-        <PreviewSelectCheckout
-            items={items}
-            onInc={inc}
-            onDec={dec}
-            onRemove={remove}
-            onClear={clear}
-        />
-    ), [items, inc, dec, remove, clear])
+    const rightProps = React.useMemo(() => ({
+        items, onInc: inc, onDec: dec, onRemove: remove, onClear: clear
+    }), [items, inc, dec, remove, clear]);
 
     return (
         <ResizableGrid
-            left={leftEl}
-            right={rightEl}
+            left={
+                <ErrorBoundary>
+                    <SelectMenuAndVariant {...leftProps} />
+                </ErrorBoundary>
+            }
+            right={
+                <ErrorBoundary>
+                    <PreviewSelectCheckout {...rightProps} />
+                </ErrorBoundary>
+            }
         />
-    )
+    );
 }

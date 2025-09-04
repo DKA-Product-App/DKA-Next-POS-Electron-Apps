@@ -1,3 +1,5 @@
+'use client';
+
 import React, { FC, memo, useMemo } from "react";
 import {
     Box,
@@ -18,16 +20,7 @@ import {
 import { Add, Block, Remove, Delete } from "@mui/icons-material";
 import PerfectScrollbar from "react-perfect-scrollbar";
 import "react-perfect-scrollbar/dist/css/styles.css";
-
-export type CartItem = {
-    key: string;
-    productId: string;
-    name: string;
-    variantLabel?: string;
-    unitPrice: number;
-    qty: number;
-    description?: string;
-};
+import type { CartItem } from "../..";
 
 export interface PreviewSelectCheckoutProps {
     items: CartItem[];
