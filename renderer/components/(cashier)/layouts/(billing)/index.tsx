@@ -10,8 +10,8 @@ import {ProductsCategories} from "./types/product.categories.type";
 import {ProductsVariants} from "./types/products.variants.type";
 import {createTheme} from "@mui/material";
 import ErrorBoundary from "../ErrorBoundary";
-import SelectMenuAndVariant from "./ui/(pane)/SelectMenuAndVariant";
 import PreviewSelectCheckout from "./ui/(pane)/PreviewSelectCheckout";
+import SelectMenuAndVariant from "./ui/(pane)/SelectMenuAndVariant";
 
 export type CartItem = {
     key: string;
@@ -552,70 +552,82 @@ const PRODUCTS: Products[] = [
 ]
 
 /*const PreviewSelectCheckout = dynamic(() => import('./ui/(pane)/PreviewSelectCheckout'), {
-    ssr: false,
-    loading: () => <ShimmerLoadingPreviewSelectCheckout />
-});
+    loading: () => <ShimmerLoadingPreviewSelectCheckout />,
+    ssr : false,
+})
 
 const SelectMenuAndVariant = dynamic(() => import('./ui/(pane)/SelectMenuAndVariant'), {
-    loading: () => <ShimmerLoadingSelectMenu />
-});*/
+    loading: () => <ShimmerLoadingSelectMenu />,
+    ssr : false,
+})*/
 
 export default function Billing() {
-    const [items, setItems] = React.useState<CartItem[]>([]);
+    const [items, setItems] = React.useState<CartItem[]>([])
 
-    // === handlers stabil ===
+    // ===== Stabilkan handler biar referensinya tidak berubah tiap render
     const addToCart = React.useCallback((p: Products, v?: ProductsVariants) => {
-        const key = `${p.id}:${v?.id ?? 'base'}`;
-        const unitPrice = (v?.price ?? 0);
-        const variantLabel = v?.name;
-
+        const key = `${p.id}:${v?.id ?? 'base'}`
+        const unitPrice = (v?.price ?? 0)
+        const variantLabel = v?.name
         setItems(prev => {
-            const idx = prev.findIndex(it => it.key === key);
+            const idx = prev.findIndex(it => it.key === key)
             if (idx >= 0) {
-                const updated = [...prev];
-                updated[idx] = { ...updated[idx], qty: updated[idx].qty + 1 };
-                return updated;
+                const updated = [...prev]
+                updated[idx] = { ...updated[idx], qty: updated[idx].qty + 1 }
+                return updated
             }
-            return [...prev, { key, productId: p.id, name: p.name, variantLabel, unitPrice, qty: 1 }];
-        });
-    }, []);
+            return [...prev, { key, productId: p.id, name: p.name, variantLabel, unitPrice, qty: 1 }]
+        })
+    }, [])
 
     const inc = React.useCallback((key: string) =>
-        setItems(prev => prev.map(it => it.key === key ? { ...it, qty: it.qty + 1 } : it)), []);
+            setItems(prev => prev.map(it => it.key === key ? { ...it, qty: it.qty + 1 } : it))
+        , [])
 
-    const dec = React.useCallback((key: string) =>
-        setItems(prev => prev
-            .map(it => it.key === key ? { ...it, qty: it.qty - 1 } : it)
-            .filter(it => it.qty > 0)), []);
+    const dec = React.useCallback(
+        (key: string) => {
+            return setItems(prev =>
+                prev.map(it => it.key === key ? { ...it, qty: it.qty - 1 } : it)
+                    .filter(it => it.qty > 0))
+        }, [])
 
     const remove = React.useCallback((key: string) =>
-        setItems(prev => prev.filter(it => it.key !== key)), []);
+            setItems(prev => prev.filter(it => it.key !== key))
+        , [])
 
-    const clear = React.useCallback(() => setItems([]), []);
+    const clear = React.useCallback(() => setItems([]), [])
 
-    // === props berat dimemoize jadi objek, bukan elemen ===
-    const leftProps = React.useMemo(() => ({
-        product: PRODUCTS,
-        categories: CATEGORIES,
-        onAdd: addToCart
-    }), [addToCart]); // ⛔ Gak perlu masukin PRODUCTS/CATEGORIES
+    // ===== Memoize elemen kiri/kanan agar tidak re-create setiap render
+    const leftEl = React.useMemo(() => (
+        <SelectMenuAndVariant
+            product={PRODUCTS}
+            categories={CATEGORIES}
+            onAdd={addToCart}
+        />
+    ), [addToCart]) // products & categories konstanta → aman tidak dijadikan deps
 
-    const rightProps = React.useMemo(() => ({
-        items, onInc: inc, onDec: dec, onRemove: remove, onClear: clear
-    }), [items, inc, dec, remove, clear]);
+    const rightEl = React.useMemo(() => (
+        <PreviewSelectCheckout
+            items={items}
+            onInc={inc}
+            onDec={dec}
+            onRemove={remove}
+            onClear={clear}
+        />
+    ), [items, inc, dec, remove, clear])
 
     return (
         <ResizableGrid
             left={
-                <ErrorBoundary>
-                    <SelectMenuAndVariant {...leftProps} />
-                </ErrorBoundary>
+            <ErrorBoundary>
+                { leftEl }
+            </ErrorBoundary>
             }
             right={
-                <ErrorBoundary>
-                    <PreviewSelectCheckout {...rightProps} />
-                </ErrorBoundary>
+            <ErrorBoundary>
+                { rightEl }
+            </ErrorBoundary>
             }
         />
-    );
+    )
 }
