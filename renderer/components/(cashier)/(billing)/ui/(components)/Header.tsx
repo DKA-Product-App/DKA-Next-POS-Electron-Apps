@@ -1,10 +1,9 @@
 'use client'
 
 import * as React from 'react'
-import moment from 'moment-timezone'
 import {
     Box, Avatar, Typography, Stack, IconButton, Tooltip, Menu, MenuItem, Divider,
-    Chip, Badge, Select, FormControl
+    Chip, Badge
 } from '@mui/material'
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import SyncRoundedIcon from '@mui/icons-material/SyncRounded'
@@ -14,6 +13,7 @@ import PrintRoundedIcon from '@mui/icons-material/PrintRounded'
 import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded'
 import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded'
 import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded'
+import {useEffect, useState} from "react";
 
 type HeaderProps = {
     appName?: string
@@ -38,18 +38,6 @@ type HeaderProps = {
     onLogout?: () => void
 }
 
-function useClock() {
-    const [time, setTime] = React.useState(() =>
-        moment().tz('Asia/Makassar').format('HH:mm:ss')
-    )
-    React.useEffect(() => {
-        const id = setInterval(() => {
-            setTime(moment().tz('Asia/Makassar').format('HH:mm:ss'))
-        }, 1000)
-        return () => clearInterval(id)
-    }, [])
-    return time
-}
 
 const noop = () => {}
 
@@ -61,7 +49,6 @@ export default function Header({
                                    registerName = 'REG-01',
                                    shiftLabel = 'Shift',
                                    printerOnline = true,
-                                   online = true,
                                    syncing = false,
                                    mode = 'light',
                                    onChangeMode = noop,
@@ -71,14 +58,33 @@ export default function Header({
                                    onOpenSettings = noop,
                                    onLogout = noop,
                                }: HeaderProps) {
-    const time = useClock()
+
 
     // state menu profil
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const open = Boolean(anchorEl)
 
-    const ConnectionIcon = online ? CloudDoneRoundedIcon : CloudOffRoundedIcon
+    const [NetworkIndicator, setNetworkIndicator] = useState<React.JSX.Element>(<CloudOffRoundedIcon fontSize={'small'}/>)
+
     const ModeIcon = mode === 'dark' ? DarkModeRoundedIcon : LightModeRoundedIcon
+    const [timeNow, setTimeNow] = useState<string>('-')
+
+    useEffect(() => {
+        window.ipc.send('ping', '');
+
+    }, []);
+
+    useEffect(() => {
+        window.ipc.on('pong', (args) => {
+            setNetworkIndicator(<CloudDoneRoundedIcon fontSize={'small'} />);
+        })
+    }, []);
+
+    useEffect(() => {
+        window.ipc.on('time_sync', (args : any) => {
+            setTimeNow(args.humanize);
+        })
+    }, []);
 
     return (
         <Box
@@ -133,16 +139,16 @@ export default function Header({
                     userSelect: 'none',
                 }}
             >
-                {time}
+                {timeNow}
             </Typography>
 
             {/* KANAN: Status + Mode + Kasir */}
             <Stack direction="row" spacing={1} sx={{ justifySelf: 'end', alignItems: 'center', minWidth: 0 }}>
                 {/* Status online/offline */}
-                <Tooltip title={online ? 'Online' : 'Offline'}>
+                <Tooltip title={true ? 'Online' : 'Offline'}>
           <span>
             <IconButton size="small" disabled>
-              <ConnectionIcon fontSize="small" />
+              { NetworkIndicator }
             </IconButton>
           </span>
                 </Tooltip>

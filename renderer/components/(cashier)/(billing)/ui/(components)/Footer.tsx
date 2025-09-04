@@ -2,6 +2,8 @@
 
 import * as React from 'react'
 import { Box, Typography, Stack, Chip } from '@mui/material'
+import {useEffect} from "react";
+import {IpcRendererEvent} from "electron";
 
 type Shortcut = {
     key: string
@@ -9,14 +11,18 @@ type Shortcut = {
 }
 
 const SHORTCUTS: Shortcut[] = [
-    { key: 'F2', label: 'Tambah Item' },
-    { key: 'F3', label: 'Cari Produk' },
-    { key: 'F4', label: 'Diskon' },
-    { key: 'F5', label: 'Pembayaran' },
-    { key: 'ESC', label: 'Batal / Keluar' },
+    { key: 'F7', label: 'Layar Penuh' },
+    { key: 'F8', label: 'Dev Mode' },
 ]
 
 export default function Footer() {
+
+    useEffect(() => {
+        window.ipc.on('function-key', (args: any) => {
+            window.ipc.send('function-key', args)
+        });
+    }, []);
+
     return (
         <Box
             component="footer"
