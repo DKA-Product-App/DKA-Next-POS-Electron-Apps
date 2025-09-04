@@ -1,18 +1,12 @@
 'use client';
 
 import React from "react";
-import ResizableGrid from "./ui/ResizableContainer";
+import Header from "./(components)/Header";
+import Footer from "./(components)/Footer";
 import {createTheme, CssBaseline, ThemeProvider} from "@mui/material";
-import Header from "./ui/(components)/Header";
-import Footer from "./ui/(components)/Footer";
-import dynamic from "next/dynamic";
 
-const MenuSelect = dynamic(() => import('./ui/(pane)/MenuSelect'), {
-    loading: () => <></>,
-    ssr: false,
-})
 
-export default function Billing() {
+export default function LayoutContainer({ children }) {
 
     const [mode, setMode] = React.useState<'light'|'dark'>('dark')
     const theme = React.useMemo(() => createTheme({ palette: { mode }, direction : 'ltr' }), [mode])
@@ -32,10 +26,7 @@ export default function Billing() {
                 </div>
 
                 <div style={{ flex: 1, minHeight: 0 }}>
-                    <ResizableGrid
-                        left={<></>}
-                        right={<MenuSelect/>}
-                    />
+                    { children }
                 </div>
 
                 <div style={{flexShrink: 0}}>

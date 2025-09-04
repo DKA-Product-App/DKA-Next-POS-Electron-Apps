@@ -1,5 +1,3 @@
-'use client';
-
 import React, { FC, memo, useMemo } from "react";
 import {
     Box,
@@ -184,21 +182,15 @@ const FooterBar: FC<{
     </Box>
 );
 
-export const PreviewSelectCheckout: FC<PreviewSelectCheckoutProps> = ({
-                                                                          items,
-                                                                          onInc,
-                                                                          onDec,
-                                                                          onRemove,
-                                                                          onClear,
-                                                                          taxRate = 0.11,
-                                                                      }) => {
-    const subtotal = useMemo(() => items.reduce((acc, it) => acc + it.unitPrice * it.qty, 0), [items]);
+export const PreviewSelectCheckout: FC<PreviewSelectCheckoutProps> = (props) => {
+
+    const subtotal = useMemo(() => props.items.reduce((acc, it) => acc + it.unitPrice * it.qty, 0), [props.items]);
     const rupiahFmt = useMemo(
         () => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }),
         []
     );
     const rupiah = (n: number) => rupiahFmt.format(n);
-    const tax = Math.round(subtotal * taxRate);
+    const tax = Math.round(subtotal * (props.taxRate ?? 0.11));
     const total = subtotal + tax;
 
     return (
@@ -214,12 +206,12 @@ export const PreviewSelectCheckout: FC<PreviewSelectCheckoutProps> = ({
                         : `linear-gradient(180deg, ${t.palette.background.paper} 0%, ${t.palette.background.default} 100%)`,
             }}
         >
-            <HeaderBar count={items.length} onClear={onClear} />
+            <HeaderBar count={props.items.length} onClear={props.onClear} />
 
             <Box sx={{ flex: 1, minHeight: 0 }}>
                 <PerfectScrollbar style={{ height: "100%" }} options={{ suppressScrollX: true }}>
                     <List disablePadding>
-                        {items.map((it, idx) => {
+                        {props.items.map((it, idx) => {
                             const lineTotal = it.unitPrice * it.qty;
 
                             return (
@@ -230,9 +222,9 @@ export const PreviewSelectCheckout: FC<PreviewSelectCheckoutProps> = ({
                                                 <Actions
                                                     k={it.key}
                                                     qty={it.qty}
-                                                    onInc={onInc}
-                                                    onDec={onDec}
-                                                    onRemove={onRemove}
+                                                    onInc={props.onInc}
+                                                    onDec={props.onDec}
+                                                    onRemove={props.onRemove}
                                                 />
                                             }
                                             sx={{
@@ -282,13 +274,13 @@ export const PreviewSelectCheckout: FC<PreviewSelectCheckoutProps> = ({
                                                 }
                                             />
                                         </ListItem>
-                                        {idx < items.length - 1 && <Divider sx={{ mx: 1.5 }} />}
+                                        {idx < props.items.length - 1 && <Divider sx={{ mx: 1.5 }} />}
                                     </Box>
                                 </Fade>
                             );
                         })}
 
-                        {items.length === 0 && (
+                        {props.items.length === 0 && (
                             <Grow in timeout={200}>
                                 <Box sx={{ p: 2, color: "text.secondary" }}>
                                     Keranjang masih kosong. Ayo jualan—biar mesin EDC nggak nganggur 😄
@@ -303,9 +295,9 @@ export const PreviewSelectCheckout: FC<PreviewSelectCheckoutProps> = ({
                 subtotal={subtotal}
                 tax={tax}
                 total={total}
-                taxRatePct={Math.round(taxRate * 100)}
+                taxRatePct={Math.round((props.taxRate ?? 0.11) * 100)}
                 rupiah={rupiah}
-                disabled={items.length === 0}
+                disabled={props.items.length === 0}
             />
         </Paper>
     );

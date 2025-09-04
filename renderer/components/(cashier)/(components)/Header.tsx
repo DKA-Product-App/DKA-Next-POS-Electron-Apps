@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import {
     Box, Avatar, Typography, Stack, IconButton, Tooltip, Menu, MenuItem, Divider,
     Chip, Badge
@@ -31,13 +32,11 @@ type HeaderProps = {
     mode?: 'light' | 'dark'
     onChangeMode?: (m: 'light' | 'dark') => void
 
-    onBack?: () => void
     onOpenProfile?: () => void
     onSwitchCashier?: () => void
     onOpenSettings?: () => void
     onLogout?: () => void
 }
-
 
 const noop = () => {}
 
@@ -52,39 +51,46 @@ export default function Header({
                                    syncing = false,
                                    mode = 'light',
                                    onChangeMode = noop,
-                                   onBack = noop,
                                    onOpenProfile = noop,
                                    onSwitchCashier = noop,
                                    onOpenSettings = noop,
                                    onLogout = noop,
                                }: HeaderProps) {
-
+    const router = useRouter()
+    const pathname = usePathname()
 
     // state menu profil
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const open = Boolean(anchorEl)
 
     const [NetworkIndicator, setNetworkIndicator] = useState<React.JSX.Element>(<CloudOffRoundedIcon fontSize={'small'}/>)
-
-    const ModeIcon = mode === 'dark' ? DarkModeRoundedIcon : LightModeRoundedIcon
     const [timeNow, setTimeNow] = useState<string>('-')
 
     useEffect(() => {
-        window.ipc.send('ping', '');
-
-    }, []);
-
-    useEffect(() => {
-        window.ipc.on('pong', (args) => {
-            setNetworkIndicator(<CloudDoneRoundedIcon fontSize={'small'} />);
-        })
-    }, []);
+        window.ipc?.send('ping', '')
+    }, [])
 
     useEffect(() => {
-        window.ipc.on('time_sync', (args : any) => {
-            setTimeNow(args.humanize);
+        window.ipc?.on('pong', () => {
+            setNetworkIndicator(<CloudDoneRoundedIcon fontSize={'small'} />)
         })
-    }, []);
+    }, [])
+
+    useEffect(() => {
+        window.ipc?.on('time_sync', (args : any) => {
+            setTimeNow(args.humanize)
+        })
+    }, [])
+
+    const handleBack = () => {
+        const segments = pathname.split('/').filter(Boolean)
+        if (segments.length > 1) {
+            const newPath = '/' + segments.slice(0, -1).join('/')
+            router.push(newPath)
+        } else {
+            router.back()
+        }
+    }
 
     return (
         <Box
@@ -106,7 +112,7 @@ export default function Header({
             {/* KIRI: Back + App / Branch / Register */}
             <Stack direction="row" alignItems="center" spacing={1.25} sx={{ minWidth: 0 }}>
                 <Tooltip title="Kembali">
-                    <IconButton size="small" onClick={onBack}>
+                    <IconButton size="small" onClick={handleBack}>
                         <ArrowBackRoundedIcon fontSize="small" />
                     </IconButton>
                 </Tooltip>
@@ -144,39 +150,39 @@ export default function Header({
 
             {/* KANAN: Status + Mode + Kasir */}
             <Stack direction="row" spacing={1} sx={{ justifySelf: 'end', alignItems: 'center', minWidth: 0 }}>
-                {/* Status online/offline */}
-                <Tooltip title={true ? 'Online' : 'Offline'}>
-          <span>
-            <IconButton size="small" disabled>
-              { NetworkIndicator }
-            </IconButton>
-          </span>
+                <Tooltip title={'Online'}>
+                    <span>
+                        <IconButton size="small" disabled>
+                            { NetworkIndicator }
+                        </IconButton>
+                    </span>
                 </Tooltip>
 
-                {/* Status printer */}
                 <Tooltip title={printerOnline ? 'Printer Online' : 'Printer Offline'}>
-          <span>
-            <IconButton size="small" disabled>
-              <Badge
-                  variant="dot"
-                  color={printerOnline ? 'success' : 'error'}
-                  overlap="circular"
-                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              >
-                <PrintRoundedIcon fontSize="small" />
-              </Badge>
-            </IconButton>
-          </span>
+                    <span>
+                        <IconButton size="small" disabled>
+                            <Badge
+                                variant="dot"
+                                color={printerOnline ? 'success' : 'error'}
+                                overlap="circular"
+                                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                            >
+                                <PrintRoundedIcon fontSize="small" />
+                            </Badge>
+                        </IconButton>
+                    </span>
                 </Tooltip>
 
-                {/* Status sinkronisasi */}
                 <Tooltip title={syncing ? 'Sedang Sinkronisasi' : 'Tersinkron'}>
                     <IconButton size="small" disabled>
                         <SyncRoundedIcon
                             fontSize="small"
                             sx={{
                                 animation: syncing ? 'spin 1.2s linear infinite' : 'none',
-                                '@keyframes spin': { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } },
+                                '@keyframes spin': {
+                                    from: { transform: 'rotate(0deg)' },
+                                    to: { transform: 'rotate(360deg)' }
+                                },
                             }}
                         />
                     </IconButton>
@@ -187,15 +193,12 @@ export default function Header({
                         size="small"
                         onClick={() => onChangeMode(mode === 'dark' ? 'light' : 'dark')}
                     >
-                        {mode === 'dark' ? (
-                            <DarkModeRoundedIcon fontSize="small" />
-                        ) : (
-                            <LightModeRoundedIcon fontSize="small" />
-                        )}
+                        {mode === 'dark'
+                            ? <DarkModeRoundedIcon fontSize="small" />
+                            : <LightModeRoundedIcon fontSize="small" />}
                     </IconButton>
                 </Tooltip>
 
-                {/* Nama kasir + Avatar */}
                 <Typography
                     variant="body2"
                     sx={{
@@ -218,7 +221,6 @@ export default function Header({
                     onClick={(e) => setAnchorEl(e.currentTarget)}
                 />
 
-                {/* Menu Profil */}
                 <Menu
                     anchorEl={anchorEl}
                     open={open}

@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
+import { useRouter, usePathname } from 'next/navigation';
 
 // ==== Icons ====
 import AddShoppingCartRoundedIcon from '@mui/icons-material/AddShoppingCartRounded';
@@ -53,6 +54,7 @@ type MenuItem = {
     icon: React.ReactNode;
     hint?: string;
     disabled?: boolean;
+    forward?: string; // 👈 segmen yang mau ditambahkan ke url sekarang
 };
 
 type MenuGroup = {
@@ -86,6 +88,9 @@ const HeaderBar: FC = () => (
 );
 
 export const MenuSelect: FC = memo(function MenuSelect() {
+    const router = useRouter();
+    const pathname = usePathname();
+
     const groups: readonly MenuGroup[] = useMemo(
         () => [
             {
@@ -96,12 +101,14 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                         action: 'new_order',
                         icon: <AddShoppingCartRoundedIcon />,
                         hint: 'Buat transaksi baru',
+                        forward: 'billing', // 👈 akan jadi `${pathname}/billing`
                     },
                     {
                         label: 'Pesanan Aktif',
                         action: 'open_orders',
                         icon: <ListAltRoundedIcon />,
                         hint: 'Lihat daftar pesanan berjalan',
+                        forward: 'orders',
                     },
                     {
                         label: 'Tahan / Draft Pesanan',
@@ -132,56 +139,34 @@ export const MenuSelect: FC = memo(function MenuSelect() {
             {
                 title: 'Kasir & Laci',
                 items: [
-                    {
-                        label: 'Buka Laci',
-                        action: 'open_drawer',
-                        icon: <LockOpenRoundedIcon />,
-                    },
-                    {
-                        label: 'Tutup Shift',
-                        action: 'close_shift',
-                        icon: <LocalAtmRoundedIcon />,
-                    },
-                    {
-                        label: 'X-Report (Mid Shift)',
-                        action: 'x_report',
-                        icon: <AssessmentRoundedIcon />,
-                    },
-                    {
-                        label: 'Z-Report (End Shift)',
-                        action: 'z_report',
-                        icon: <AssessmentRoundedIcon />,
-                    },
+                    { label: 'Buka Laci', action: 'open_drawer', icon: <LockOpenRoundedIcon /> },
+                    { label: 'Tutup Shift', action: 'close_shift', icon: <LocalAtmRoundedIcon /> },
+                    { label: 'X-Report (Mid Shift)', action: 'x_report', icon: <AssessmentRoundedIcon /> },
+                    { label: 'Z-Report (End Shift)', action: 'z_report', icon: <AssessmentRoundedIcon /> },
                 ],
             },
             {
                 title: 'Sistem',
                 items: [
-                    {
-                        label: 'Sinkronisasi',
-                        action: 'sync',
-                        icon: <SyncRoundedIcon />,
-                    },
-                    {
-                        label: 'Pengaturan',
-                        action: 'settings',
-                        icon: <SettingsRoundedIcon />,
-                    },
-                    {
-                        label: 'Ganti Kasir',
-                        action: 'switch_cashier',
-                        icon: <PersonRoundedIcon />,
-                    },
-                    {
-                        label: 'Bantuan',
-                        action: 'help',
-                        icon: <HelpOutlineRoundedIcon />,
-                    },
+                    { label: 'Sinkronisasi', action: 'sync', icon: <SyncRoundedIcon /> },
+                    { label: 'Pengaturan', action: 'settings', icon: <SettingsRoundedIcon />, forward: 'settings' },
+                    { label: 'Ganti Kasir', action: 'switch_cashier', icon: <PersonRoundedIcon /> },
+                    { label: 'Bantuan', action: 'help', icon: <HelpOutlineRoundedIcon />, forward: 'help' },
                 ],
             },
         ],
         []
     );
+
+    const handleClick = (item: MenuItem) => {
+        if (item.forward) {
+            const newPath =
+                pathname.endsWith('/')
+                    ? `${pathname}${item.forward}`
+                    : `${pathname}/${item.forward}`;
+            router.push(newPath);
+        }
+    };
 
     return (
         <Paper
@@ -213,6 +198,7 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                                     <Tooltip key={it.action} title={it.hint || ''} placement="right" arrow>
                                         <ListItemButton
                                             disabled={it.disabled}
+                                            onClick={() => handleClick(it)}
                                             sx={{
                                                 px: 1.5,
                                                 py: 2,
@@ -223,9 +209,7 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                                         >
                                             <ListItemIcon>{it.icon}</ListItemIcon>
                                             <ListItemText
-                                                primary={
-                                                    <Typography fontWeight={600}>{it.label}</Typography>
-                                                }
+                                                primary={<Typography fontWeight={600}>{it.label}</Typography>}
                                             />
                                         </ListItemButton>
                                     </Tooltip>

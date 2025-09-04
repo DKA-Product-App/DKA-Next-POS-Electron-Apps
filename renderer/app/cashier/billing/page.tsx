@@ -1,11 +1,5 @@
-'use client'
-import React from 'react'
-import dynamic from "next/dynamic";
+'use client';
 
-const Billing = dynamic(() => import("../../../components/(cashier)/(billing)"), { ssr : false });
+import Billing from "../../../components/(cashier)/layouts/(billing)";
 
-export default function HomePage() {
-    return (
-        <Billing/>
-    )
-}
+export default Billing

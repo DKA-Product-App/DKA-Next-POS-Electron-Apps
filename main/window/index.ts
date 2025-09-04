@@ -9,6 +9,7 @@ const isProd = process.env.NODE_ENV === 'production'
 let mainWindow : BrowserWindow | undefined = undefined;
 // --- Variable faktor skala (ubah sesuka hati: 0.5, 1, 1.5, 2, dll)
 const scaleFactor = 0.8
+let TimeNow : NodeJS.Timeout | undefined = undefined;
 
 export default async function MainWindow(){
     // Ambil resolusi layar utama
@@ -31,9 +32,6 @@ export default async function MainWindow(){
         },
     });
 
-    let TimeNow : NodeJS.Timeout | undefined = undefined;
-
-
     mainWindow.on('ready-to-show', () => {
         mainWindow.show();
     });
@@ -48,8 +46,8 @@ export default async function MainWindow(){
         //#####################################################################################################
         TimeNow = setInterval(() => {
             const timeNow = moment(moment.now());
-            if (mainWindow !== undefined){
-                mainWindow?.webContents.send('time_sync', {
+            if (mainWindow !== undefined && mainWindow.webContents !== undefined){
+                mainWindow?.webContents?.send('time_sync', {
                     humanize : timeNow.format('HH:mm:ss:SS')
                 })
             }
@@ -73,7 +71,6 @@ export default async function MainWindow(){
                     break;
             }
         })
-        globalShortcut.unregisterAll();
         // Register semua F1–F12
         Array.from({ length: 12 }, (_, i) => i + 1).forEach((n) => {
             const key = `F${n}`;
@@ -85,19 +82,24 @@ export default async function MainWindow(){
 
     });
 
+    app.on('quit', () => {
+        clearInterval(TimeNow);
+        globalShortcut.unregisterAll();
+    });
+
     mainWindow.webContents.on('destroyed', () => {
         clearInterval(TimeNow);
         globalShortcut.unregisterAll();
     })
 
     if (isProd) {
-        await mainWindow.loadURL('app://./cashier/billing')
-        //Menu.setApplicationMenu(null)
+        await mainWindow.loadURL('app://./cashier')
+        Menu.setApplicationMenu(null)
         mainWindow.maximize();
     } else {
         const port = process.argv[2]
-        await mainWindow.loadURL(`http://localhost:${port}/cashier/billing`)
-        //Menu.setApplicationMenu(null)
-        // mainWindow.webContents.openDevTools()
+        await mainWindow.loadURL(`http://localhost:${port}/cashier`)
+        Menu.setApplicationMenu(null)
+        //mainWindow.webContents.openDevTools()
     }
 }

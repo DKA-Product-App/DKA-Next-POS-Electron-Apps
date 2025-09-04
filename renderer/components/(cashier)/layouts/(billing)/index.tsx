@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useLayoutEffect } from "react";
+import React from "react";
 import dynamic from 'next/dynamic'
 import ResizableGrid from "./ui/ResizableContainer";
 import {CartItem} from "./ui/(pane)/PreviewSelectCheckout";
@@ -9,10 +9,7 @@ import ShimmerLoadingPreviewSelectCheckout from "./ui/(loading)/ShimmerLoadingPr
 import {Products} from "./types/products.type";
 import {ProductsCategories} from "./types/product.categories.type";
 import {ProductsVariants} from "./types/products.variants.type";
-import Header from "./ui/(components)/Header";
-import PerfectScrollbar from "react-perfect-scrollbar";
-import Footer from "./ui/(components)/Footer";
-import {createTheme, CssBaseline, ThemeProvider} from "@mui/material";
+import {createTheme} from "@mui/material";
 
 // =======================
 // Categories
@@ -544,17 +541,17 @@ const PRODUCTS: Products[] = [
 
 const PreviewSelectCheckout = dynamic(() => import('./ui/(pane)/PreviewSelectCheckout'), {
     loading: () => <ShimmerLoadingPreviewSelectCheckout />,
-    ssr: false,
+    ssr : false,
 })
 
 const SelectMenuAndVariant = dynamic(() => import('./ui/(pane)/SelectMenuAndVariant'), {
     loading: () => <ShimmerLoadingSelectMenu />,
-    ssr: false,
+    ssr : false,
 })
 
 export default function Billing() {
     const [items, setItems] = React.useState<CartItem[]>([])
-    const [mode, setMode] = React.useState<'light'|'dark'>('light')
+    const [mode, setMode] = React.useState<'light'|'dark'>('dark')
     const theme = React.useMemo(() => createTheme({ palette: { mode }, direction : 'ltr' }), [mode])
 
     // ===== Stabilkan handler biar referensinya tidak berubah tiap render
@@ -611,30 +608,9 @@ export default function Billing() {
     ), [items, inc, dec, remove, clear])
 
     return (
-        <ThemeProvider theme={theme}>
-            <CssBaseline />
-            <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <div style={{flexShrink: 0}}>
-                    <Header
-                        appName="DKA Cashier"
-                        cashierName="Yovangga Anandhika"
-                        mode={mode}
-                        onChangeMode={setMode}
-                        cashierPhotoUrl="#"
-                    />
-                </div>
-
-                <div style={{ flex: 1, minHeight: 0 }}>
-                    <ResizableGrid
-                        left={leftEl}
-                        right={rightEl}
-                    />
-                </div>
-
-                <div style={{flexShrink: 0}}>
-                    <Footer/>
-                </div>
-            </div>
-        </ThemeProvider>
+        <ResizableGrid
+            left={leftEl}
+            right={rightEl}
+        />
     )
 }
