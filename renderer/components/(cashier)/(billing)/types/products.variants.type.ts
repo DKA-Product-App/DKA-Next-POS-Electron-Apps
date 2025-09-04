@@ -1,5 +1,5 @@
-import {Accounts} from "../../../types/Accounts.type";
-import {Organization, Project} from "../../../types/Enterprises.type";
+import {Accounts} from "../../../../types/Accounts.type";
+import {Organization, Project} from "../../../../types/Enterprises.type";
 import {Products} from "./products.type";
 
 export type UUID = string;

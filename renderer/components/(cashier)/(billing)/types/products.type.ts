@@ -1,5 +1,5 @@
-import {Accounts} from "../../../types/Accounts.type";
-import {Organization, Project} from "../../../types/Enterprises.type";
+import {Accounts} from "../../../../types/Accounts.type";
+import {Organization, Project} from "../../../../types/Enterprises.type";
 import {ProductsCategories} from "./product.categories.type";
 import {ProductsVariants} from "./products.variants.type";
 

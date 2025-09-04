@@ -6,7 +6,7 @@ const handler = {
   },
   on(channel: string, callback: (...args: unknown[]) => void) {
     const subscription = (_event: IpcRendererEvent, ...args: unknown[]) =>
-      callback(...args)
+      callback( ...args)
     ipcRenderer.on(channel, subscription)
 
     return () => {
@@ -16,5 +16,6 @@ const handler = {
 }
 
 contextBridge.exposeInMainWorld('ipc', handler)
+contextBridge.exposeInMainWorld('function-key', handler)
 
 export type IpcHandler = typeof handler
