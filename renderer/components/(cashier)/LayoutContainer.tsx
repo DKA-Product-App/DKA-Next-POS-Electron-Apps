@@ -1,10 +1,21 @@
 'use client';
 
 import React from "react";
-import Header from "./(components)/Header";
-import Footer from "./(components)/Footer";
 import {createTheme, CssBaseline, ThemeProvider} from "@mui/material";
+import dynamic from "next/dynamic";
+import ShimmerHeaderLoading from "./(components)/(loading)/ShimmerHeaderLoading";
+import ShimmerFooterLoading from "./(components)/(loading)/ShimmerFooterLoading";
 
+
+const Header = dynamic(() => import('./(components)/Header'), {
+    loading : () => <ShimmerHeaderLoading/>,
+    ssr : false,
+})
+
+const Footer = dynamic(() => import('./(components)/Footer'), {
+    loading: () => <ShimmerFooterLoading/>,
+    ssr : false,
+})
 
 export default function LayoutContainer({ children }) {
 

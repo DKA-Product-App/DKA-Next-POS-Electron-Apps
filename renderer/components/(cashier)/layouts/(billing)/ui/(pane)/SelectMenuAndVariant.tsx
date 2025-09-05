@@ -27,24 +27,26 @@ import ClearRoundedIcon from '@mui/icons-material/ClearRounded'
 import TuneRoundedIcon from '@mui/icons-material/TuneRounded'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
+
 import {ProductsCategories} from "../../types/product.categories.type";
 import {Products} from "../../types/products.type";
 import {ProductsVariants} from "../../types/products.variants.type";
+import { useCartActions } from "../../context/CartContext";
 
 export interface SelectMenuAndVariantProps {
     product : Array<Products>;
-    categories : readonly ProductsCategories[]
-    onAdd : (p: Products, v?: ProductsVariants) => void
+    categories : readonly ProductsCategories[];
 }
 
-export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, categories, onAdd }) => {
+export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, categories }) => {
+    const { add } = useCartActions()
+
     const [q, setQ] = React.useState('')
     const [tab, setTab] = React.useState(0)
     const [sortBy, setSortBy] = React.useState<'name-asc' | 'price-asc' | 'price-desc'>('name-asc')
     const [openVariant, setOpenVariant] = React.useState<Record<string, string>>({})
     const searchRef = React.useRef<HTMLInputElement>(null)
 
-    // hotkeys: Ctrl/Cmd+K fokus cari, Alt+1..n pindah tab
     React.useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -65,20 +67,19 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
 
     const activeCategory = tab === 0 ? 'All' : categories[tab - 1]
 
-    // count per category untuk badge di Tab
     const counts = React.useMemo(() => {
         const map = new Map<string, number>()
-        for (const p of product) {
+        product.forEach(p => {
             const id = p.category?.id ?? '__uncat'
             map.set(id, (map.get(id) ?? 0) + 1)
-        }
+        })
         return map
     }, [product])
 
     const filteredBase = React.useMemo(
         () =>
             product.filter(p =>
-                (activeCategory === 'All' || p.category?.id === activeCategory.id) &&
+                (activeCategory === 'All' || p.category?.id === (activeCategory as ProductsCategories).id) &&
                 (q.trim() === '' || p.name.toLowerCase().includes(q.toLowerCase()))
             ),
         [product, activeCategory, q]
@@ -89,7 +90,6 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
         if (sortBy === 'name-asc') {
             arr.sort((a, b) => a.name.localeCompare(b.name))
         } else {
-            // cari harga “representatif”: varian pertama kalau ada, fallback p.price, lalu 0
             const priceOf = (p: Products) => p.variants?.[0]?.price ?? (p as any).price ?? 0
             arr.sort((a, b) => {
                 const da = priceOf(a)
@@ -109,14 +109,12 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
         return `uploads:///${s.replace(/^\/+/, '')}`
     }
 
-    // loader untuk ext:// biar next/image gak error
     const uploadsLoader: ImageLoader = ({ src }) => src
 
     const ImgWithSkeleton: FC<{ src: string; alt: string; priority?: boolean }> = ({ src, alt, priority }) => {
         const [loaded, setLoaded] = React.useState(false)
         const [err, setErr] = React.useState(false)
 
-        // kalau error, fallback ke placeholder
         const finalSrc = err
             ? 'https://placehold.co/600x400/png?text=No%20Image'
             : src
@@ -149,12 +147,7 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
         )
     }
 
-
-
-    // Sebelumnya pakai placehold.co
     const placeholderOf = (p: Products) => toUploadUrl(p.image) ?? `https://placehold.co/600x400/png?text=${encodeURIComponent(p.name)}`
-
-
 
     return (
         <Paper sx={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} elevation={0}>
@@ -170,7 +163,7 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
                     p: 1,
                 }}
             >
-                {/* Bar atas: Search + Sort + result count */}
+                {/* Search + Sort */}
                 <Stack direction="row" spacing={1} alignItems="center">
                     <TextField
                         inputRef={searchRef}
@@ -195,7 +188,7 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
                         }}
                     />
                     <Select
-                        variant={'outlined'}
+                        variant="outlined"
                         size="small"
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value as any)}
@@ -252,7 +245,7 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
                 </Tabs>
             </Box>
 
-            {/* List */}
+            {/* Grid list */}
             <PerfectScrollbar options={{ suppressScrollX: true }}>
                 <Box sx={{ p: 2, overflowX: 'hidden' }}>
                     <Box
@@ -272,7 +265,6 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
                             const hasVariants = Array.isArray(p.variants) && p.variants.length > 0
                             const selectedVarId = openVariant[p.id] ?? p.variants?.[0]?.id
                             const selectedVar = p.variants?.find(v => v.id === selectedVarId)
-                            // FIX: fallback ke p.price, bukan akses selectedVar dua kali
                             const price = selectedVar?.price ?? (p as any).price ?? 0
 
                             return (
@@ -354,7 +346,8 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
                                                     return <span style={{ opacity: 0.7 }}>Tidak ada varian</span>;
                                                 }
                                                 const v = p.variants!.find((x) => String(x.id) === String(selected));
-                                                return v ? `${v.code} — ${rupiah(v.price)}` : 'Pilih varian';
+                                                return v ? `${v.code} — ${rupiah(v.price)}`
+                                                    : 'Pilih varian';
                                             }}
                                             sx={{
                                                 mt: 0.5,
@@ -388,7 +381,7 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
                                                 boxShadow: 'none',
                                                 '&:hover': { boxShadow: 2 }
                                             }}
-                                            onClick={() => onAdd(p, hasVariants ? selectedVar : undefined)}
+                                            onClick={() => add(p, hasVariants ? selectedVar : undefined)}
                                         >
                                             Tambah
                                         </Button>
@@ -403,4 +396,4 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
     )
 }
 
-export default SelectMenuAndVariant;
+export default SelectMenuAndVariant

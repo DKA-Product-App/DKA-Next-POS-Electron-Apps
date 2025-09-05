@@ -8,19 +8,10 @@ import {
 } from '@mui/material'
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import SyncRoundedIcon from '@mui/icons-material/SyncRounded'
-import CloudDoneRoundedIcon from '@mui/icons-material/CloudDoneRounded'
-import CloudOffRoundedIcon from '@mui/icons-material/CloudOffRounded'
-import PrintRoundedIcon from '@mui/icons-material/PrintRounded'
-import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded'
 import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded'
 import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded'
 import {useEffect, useState} from "react";
-import PrinterWidget from './(ui)/PrinterWidget'
-import NetworkWidget from "./(ui)/NetworkWidget";
-import ProfileWidget from "./(ui)/ProfileWidget";
-import TimeWidget from "./(ui)/TimeWidget";
-import BranchWidget from './(ui)/BranchWidget'
-import ShiftWidget from "./(ui)/ShiftWidget";
+import dynamic from "next/dynamic";
 
 type HeaderProps = {
     appName?: string
@@ -45,6 +36,30 @@ type HeaderProps = {
 }
 
 const noop = () => {}
+
+const PrinterWidget = dynamic(() => import('./(ui)/PrinterWidget'), {
+    ssr : false,
+})
+
+const NetworkWidget = dynamic(() => import('./(ui)/NetworkWidget'), {
+    ssr : false,
+})
+
+const ProfileWidget = dynamic(() => import('./(ui)/ProfileWidget'), {
+    ssr : false,
+})
+
+const TimeWidget = dynamic(() => import('./(ui)/TimeWidget'), {
+    ssr : false,
+})
+
+const BranchWidget = dynamic(() => import('./(ui)/BranchWidget'), {
+    ssr : false,
+})
+
+const ShiftWidget = dynamic(() => import('./(ui)/ShiftWidget'), {
+    ssr : false,
+})
 
 export default function Header({
                                    appName = 'DKA Cashier POS',

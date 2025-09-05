@@ -1,6 +1,12 @@
-'use client';
+import dynamic from "next/dynamic";
+import ShimmerLoading from "../../components/(loading)/ShimmerLoading";
 
-import Overview from "../../components/(cashier)/layouts/(overview)";
-
-
-export default Overview
+const Overview = dynamic(() => import("../../components/(cashier)/layouts/(overview)"), {
+    loading : () => <ShimmerLoading/>,
+    ssr : false,
+})
+export default function OverviewLayout(){
+    return (
+        <Overview/>
+    )
+};

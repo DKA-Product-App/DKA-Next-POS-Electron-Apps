@@ -8,7 +8,6 @@ module.exports = {
   output: 'export',
   distDir: process.env.NODE_ENV === 'production' ? '../app' : '.next',
   trailingSlash: true,
-  assetPrefix: undefined,     // JANGAN './' untuk Electron + nested route
   images: {
     unoptimized: true,
   },

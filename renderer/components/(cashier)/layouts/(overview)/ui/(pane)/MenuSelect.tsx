@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 // ==== Icons ====
 import AddShoppingCartRoundedIcon from '@mui/icons-material/AddShoppingCartRounded';
@@ -24,13 +24,6 @@ import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import ReplayRoundedIcon from '@mui/icons-material/ReplayRounded';
 import PrintRoundedIcon from '@mui/icons-material/PrintRounded';
 import EventSeatRoundedIcon from '@mui/icons-material/EventSeatRounded';
-import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded';
-import LocalAtmRoundedIcon from '@mui/icons-material/LocalAtmRounded';
-import AssessmentRoundedIcon from '@mui/icons-material/AssessmentRounded';
-import SyncRoundedIcon from '@mui/icons-material/SyncRounded';
-import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
-import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
-import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded';
 
 // =====================
 // Types
@@ -69,12 +62,12 @@ type MenuGroup = {
 // =====================
 // Utils
 // =====================
-const joinPath = (base: string, seg: string) => {
-    const cleanBase = base.endsWith('/') ? base : base + '/';
-    const cleanSeg = (seg ?? '').replace(/^\/+/, ''); // buang leading '/'
-    // hasil akhir SELALU pakai trailing slash
-    return (cleanBase + cleanSeg + '/').replace(/\/{2,}/g, '/');
+const joinPath = (base: string, seg?: string) => {
+    const b = base.replace(/\/+$/, '');
+    const s = (seg ?? '').replace(/^\/+/, '');
+    return `${b}/${s}/`.replace(/\/{2,}/g, '/'); // SELALU pakai trailing slash
 };
+
 
 const HeaderBar: FC = () => (
     <Box
@@ -167,6 +160,8 @@ export const MenuSelect: FC = memo(function MenuSelect() {
 
         const newPath = joinPath(pathname, item.forward);
 
+        console.log(newPath);
+        console.log(pathname);
         // Hindari push ke URL yang sama → mencegah retrigger render yang bisa bikin fallback “ngebatu”
         if (newPath === pathname || newPath === pathname + '/') return;
 

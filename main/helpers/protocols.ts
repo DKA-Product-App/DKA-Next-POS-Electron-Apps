@@ -11,6 +11,7 @@ const sanitize = (p: string) =>
 export async function registerDataProtocol() {
     const dataDir = getExternalDataDir()
 
+
     protocol.handle("uploads", async (req) => {
         const raw = decodeURIComponent(req.url.replace("uploads://", ""))
         const rel = sanitize(raw.replace(/^\/+/, "")) // "images/a.png"

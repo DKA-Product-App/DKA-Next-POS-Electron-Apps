@@ -1,8 +1,13 @@
-'use client';
-
 import React from "react";
+import dynamic from "next/dynamic";
 import ResizableGrid from "./ui/ResizableContainer";
-import MenuSelect from "./ui/(pane)/MenuSelect";
+import ShimmerMenuSelectLoading from "./ui/(loading)/ShimmerMenuSelectLoading";
+
+
+const MenuSelect = dynamic(() => import('./ui/(pane)/MenuSelect'), {
+    loading : () => <ShimmerMenuSelectLoading/>,
+    ssr: false,
+})
 
 export default function Overview() {
 

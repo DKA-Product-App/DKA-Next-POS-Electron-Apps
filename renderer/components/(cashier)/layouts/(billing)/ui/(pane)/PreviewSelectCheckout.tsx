@@ -20,17 +20,8 @@ import {
 import { Add, Block, Remove, Delete } from "@mui/icons-material";
 import PerfectScrollbar from "react-perfect-scrollbar";
 import "react-perfect-scrollbar/dist/css/styles.css";
-import type { CartItem } from "../..";
 
-export interface PreviewSelectCheckoutProps {
-    items: CartItem[];
-    onInc: (key: string) => void;
-    onDec: (key: string) => void;
-    onRemove: (key: string) => void;
-    onClear: () => void;
-    taxRate?: number;
-    onEditDescription?: (key: string, description: string) => void; // keep for future
-}
+import { useCart, useCartActions, useCartMoney } from "../../context/CartContext";
 
 const Qty = memo<{ n: number }>(
     ({ n }) => (
@@ -175,16 +166,10 @@ const FooterBar: FC<{
     </Box>
 );
 
-export const PreviewSelectCheckout: FC<PreviewSelectCheckoutProps> = (props) => {
-
-    const subtotal = useMemo(() => props.items.reduce((acc, it) => acc + it.unitPrice * it.qty, 0), [props.items]);
-    const rupiahFmt = useMemo(
-        () => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }),
-        []
-    );
-    const rupiah = (n: number) => rupiahFmt.format(n);
-    const tax = Math.round(subtotal * (props.taxRate ?? 0.11));
-    const total = subtotal + tax;
+const PreviewSelectCheckout: React.FC = () => {
+    const { items } = useCart()
+    const { inc, dec, remove, clear } = useCartActions()
+    const { subtotal, tax, total, rupiah, taxRatePct } = useCartMoney()
 
     return (
         <Paper
@@ -199,14 +184,13 @@ export const PreviewSelectCheckout: FC<PreviewSelectCheckoutProps> = (props) => 
                         : `linear-gradient(180deg, ${t.palette.background.paper} 0%, ${t.palette.background.default} 100%)`,
             }}
         >
-            <HeaderBar count={props.items.length} onClear={props.onClear} />
+            <HeaderBar count={items.length} onClear={clear} />
 
             <Box sx={{ flex: 1, minHeight: 0 }}>
                 <PerfectScrollbar style={{ height: "100%" }} options={{ suppressScrollX: true }}>
                     <List disablePadding>
-                        {props.items.map((it, idx) => {
-                            const lineTotal = it.unitPrice * it.qty;
-
+                        {items.map((it, idx) => {
+                            const lineTotal = it.unitPrice * it.qty
                             return (
                                 <Fade in key={it.key} timeout={180}>
                                     <Box>
@@ -215,9 +199,9 @@ export const PreviewSelectCheckout: FC<PreviewSelectCheckoutProps> = (props) => 
                                                 <Actions
                                                     k={it.key}
                                                     qty={it.qty}
-                                                    onInc={props.onInc}
-                                                    onDec={props.onDec}
-                                                    onRemove={props.onRemove}
+                                                    onInc={inc}
+                                                    onDec={dec}
+                                                    onRemove={remove}
                                                 />
                                             }
                                             sx={{
@@ -267,13 +251,13 @@ export const PreviewSelectCheckout: FC<PreviewSelectCheckoutProps> = (props) => 
                                                 }
                                             />
                                         </ListItem>
-                                        {idx < props.items.length - 1 && <Divider sx={{ mx: 1.5 }} />}
+                                        {idx < items.length - 1 && <Divider sx={{ mx: 1.5 }} />}
                                     </Box>
                                 </Fade>
-                            );
+                            )
                         })}
 
-                        {props.items.length === 0 && (
+                        {items.length === 0 && (
                             <Grow in timeout={200}>
                                 <Box sx={{ p: 2, color: "text.secondary" }}>
                                     Keranjang masih kosong. Ayo jualan—biar mesin EDC nggak nganggur 😄
@@ -288,12 +272,12 @@ export const PreviewSelectCheckout: FC<PreviewSelectCheckoutProps> = (props) => 
                 subtotal={subtotal}
                 tax={tax}
                 total={total}
-                taxRatePct={Math.round((props.taxRate ?? 0.11) * 100)}
+                taxRatePct={taxRatePct}
                 rupiah={rupiah}
-                disabled={props.items.length === 0}
+                disabled={items.length === 0}
             />
         </Paper>
-    );
-};
+    )
+}
 
-export default PreviewSelectCheckout;
+export default PreviewSelectCheckout

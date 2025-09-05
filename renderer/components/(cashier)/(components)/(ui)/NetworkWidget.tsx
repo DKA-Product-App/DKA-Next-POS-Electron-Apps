@@ -100,7 +100,6 @@ export default function NetworkWidget({
             setLastUpdated(new Date().toLocaleTimeString())
             onAfterRefresh?.(payload)
         }
-        window.ipc.on('network:status:result', onStatus)
         return () => {
             /*window.ipc?.off?.('network:status:result', onStatus)*/
         }
