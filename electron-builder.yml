@@ -24,9 +24,11 @@ electronLanguages: []
 
 mac:
   icon: resources/icon.icns
+  executableName: "DKA-POS"     # ⬅️ nama .exe final, bebas spasi/uppercase
 
 win:
   icon: resources/icon.ico
+  executableName: "DKA-Cashier-POS-Application"     # ⬅️ nama .exe final, bebas spasi/uppercase
   target:
     - target: nsis
       arch: x64
@@ -51,6 +53,7 @@ portable:
 
 linux:
   category: Utility
+  executableName: "DKA-Cashier-POS"     # ⬅️ nama .exe final, bebas spasi/uppercase
   icon: resources/icon.png
   maintainer: "Yovangga Anandhika <dka.tech.dev@gmail.com>"
   synopsis: "POS App untuk Kasir"

@@ -15,6 +15,12 @@ import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded'
 import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded'
 import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded'
 import {useEffect, useState} from "react";
+import PrinterWidget from './(ui)/PrinterWidget'
+import NetworkWidget from "./(ui)/NetworkWidget";
+import ProfileWidget from "./(ui)/ProfileWidget";
+import TimeWidget from "./(ui)/TimeWidget";
+import BranchWidget from './(ui)/BranchWidget'
+import ShiftWidget from "./(ui)/ShiftWidget";
 
 type HeaderProps = {
     appName?: string
@@ -63,20 +69,11 @@ export default function Header({
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const open = Boolean(anchorEl)
 
-    const [NetworkIndicator, setNetworkIndicator] = useState<React.JSX.Element>(<CloudOffRoundedIcon fontSize={'small'}/>)
     const [timeNow, setTimeNow] = useState<string>('-')
 
     useEffect(() => {
         if (window !== undefined && window.ipc !== undefined){
             window.ipc?.send('ping', '')
-        }
-    }, [])
-
-    useEffect(() => {
-        if (window !== undefined && window.ipc !== undefined){
-            window.ipc?.on('pong', () => {
-                setNetworkIndicator(<CloudDoneRoundedIcon fontSize={'small'}/>)
-            })
         }
     }, [])
 
@@ -102,8 +99,8 @@ export default function Header({
         <Box
             component="header"
             sx={{
-                height: 64,
-                px: 1.5,
+                height: 80,
+                px: 3,
                 display: 'grid',
                 alignItems: 'center',
                 gridTemplateColumns: '1fr auto 1fr',
@@ -123,61 +120,50 @@ export default function Header({
                     </IconButton>
                 </Tooltip>
 
-                <Stack sx={{ minWidth: 0 }}>
-                    <Typography
-                        variant="subtitle1"
-                        sx={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                        title={appName}
-                    >
-                        {appName}
-                    </Typography>
-
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }}>
-                        <Chip size="small" icon={<StorefrontRoundedIcon sx={{ fontSize: 16 }} />} label={branchName} variant="outlined" />
-                        <Chip size="small" label={registerName} variant="outlined" />
-                        <Chip size="small" label={shiftLabel} variant="outlined" />
-                    </Stack>
+                <Stack direction="row" spacing={2} sx={{ justifySelf: 'start', alignItems: 'center', minWidth: 0 }}>
+                    <ShiftWidget
+                        label={shiftLabel}
+                        description={'08:00–16:00'}
+                    />
+                    <BranchWidget
+                        branchName={"Cabang"}
+                        registerName={"Center Point Indonesia"}
+                    />
                 </Stack>
             </Stack>
 
             {/* TENGAH: JAM */}
-            <Typography
-                variant="h5"
-                sx={{
-                    justifySelf: 'center',
-                    fontWeight: 500,
-                    letterSpacing: 1,
-                    fontVariantNumeric: 'tabular-nums',
-                    userSelect: 'none',
-                }}
-            >
-                {timeNow}
-            </Typography>
+            <Stack direction="row" spacing={3} sx={{ justifySelf: 'center', alignItems: 'center', minWidth: 0 }}>
+                {/* Center: Time */}
+                <TimeWidget timeVariant="h5" justifySelf="center" />
+            </Stack>
 
             {/* KANAN: Status + Mode + Kasir */}
             <Stack direction="row" spacing={1} sx={{ justifySelf: 'end', alignItems: 'center', minWidth: 0 }}>
-                <Tooltip title={'Online'}>
-                    <span>
-                        <IconButton size="small" disabled>
-                            { NetworkIndicator }
-                        </IconButton>
-                    </span>
-                </Tooltip>
 
-                <Tooltip title={printerOnline ? 'Printer Online' : 'Printer Offline'}>
-                    <span>
-                        <IconButton size="small" disabled>
-                            <Badge
-                                variant="dot"
-                                color={printerOnline ? 'success' : 'error'}
-                                overlap="circular"
-                                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                            >
-                                <PrintRoundedIcon fontSize="small" />
-                            </Badge>
-                        </IconButton>
-                    </span>
-                </Tooltip>
+                {/* Status/Koneksi popover */}
+                <NetworkWidget
+                    online={true /* atau state kamu */}
+                    width={420}
+                    maxHeight={360}
+                    onAfterRefresh={(p) => {
+                        // contoh: kalau server offline, kasih snackbar atau badge merah di tempat lain
+                        // console.log('Network status', p)
+                    }}
+                />
+
+                {/* Ganti ikon printer lama dengan ini */}
+                <PrinterWidget
+                    printerOnline={printerOnline}
+                    onDefaultChanged={(name) => {
+                        // optional: snackbar atau update state lain
+                        // console.log('Default printer changed to', name)
+                    }}
+                    onTestPrint={(name) => {
+                        // optional: logging/snackbar
+                        // console.log('Test print sent to', name)
+                    }}
+                />
 
                 <Tooltip title={syncing ? 'Sedang Sinkronisasi' : 'Tersinkron'}>
                     <IconButton size="small" disabled>
@@ -205,42 +191,14 @@ export default function Header({
                     </IconButton>
                 </Tooltip>
 
-                <Typography
-                    variant="body2"
-                    sx={{
-                        fontWeight: 500,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        maxWidth: 220,
-                        display: { xs: 'none', sm: 'block' },
-                    }}
-                    title={cashierName}
-                >
-                    {cashierName}
-                </Typography>
-
-                <Avatar
-                    src={cashierPhotoUrl}
-                    alt={cashierName}
-                    sx={{ width: 36, height: 36, border: '2px solid', borderColor: 'divider', cursor: 'pointer' }}
-                    onClick={(e) => setAnchorEl(e.currentTarget)}
+                <ProfileWidget
+                    cashierName={cashierName}
+                    cashierPhotoUrl={cashierPhotoUrl}
+                    subInfo={`${branchName} · ${registerName}`} // opsional
+                    onOpenSettings={onOpenSettings}
+                    onSwitchCashier={onSwitchCashier}
+                    onLogout={onLogout}
                 />
-
-                <Menu
-                    anchorEl={anchorEl}
-                    open={open}
-                    onClose={() => setAnchorEl(null)}
-                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                    keepMounted
-                >
-                    <MenuItem onClick={() => { setAnchorEl(null); onOpenProfile() }}>Profil Kasir</MenuItem>
-                    <MenuItem onClick={() => { setAnchorEl(null); onSwitchCashier() }}>Ganti Kasir</MenuItem>
-                    <Divider />
-                    <MenuItem onClick={() => { setAnchorEl(null); onOpenSettings() }}>Pengaturan</MenuItem>
-                    <MenuItem onClick={() => { setAnchorEl(null); onLogout() }}>Keluar</MenuItem>
-                </Menu>
             </Stack>
         </Box>
     )
