@@ -8,78 +8,68 @@ type TimeWidgetProps = {
     timeVariant?: 'h4' | 'h5' | 'h6' | 'subtitle1'
     /** Align di container grid Header */
     justifySelf?: 'start' | 'center' | 'end'
+    /** Opsional: IANA timezone, default: lokal browser */
+    timeZone?: string
 }
 
 export default function TimeWidget({
                                        timeVariant = 'h5',
                                        justifySelf = 'center',
+                                       timeZone,
                                    }: TimeWidgetProps) {
-    const [timeNow, setTimeNow] = React.useState(() =>
-        new Intl.DateTimeFormat('id-ID', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-        }).format(new Date()),
-    )
+    // Jangan render waktu saat SSR → biar gak mismatch
+    const [mounted, setMounted] = React.useState(false)
 
-    const [dateNow, setDateNow] = React.useState(() => {
-        const now = new Date()
-        const hari = new Intl.DateTimeFormat('id-ID', { weekday: 'long' }).format(now)
+    // Mulai dengan string kosong; isi setelah mounted
+    const [timeNow, setTimeNow] = React.useState('')
+    const [dateNow, setDateNow] = React.useState('')
+
+    const fmtTime = React.useCallback((d: Date) =>
+            new Intl.DateTimeFormat('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                ...(timeZone ? { timeZone } : {}),
+            }).format(d)
+        , [timeZone])
+
+    const fmtDate = React.useCallback((d: Date) => {
+        const hari = new Intl.DateTimeFormat('id-ID', { weekday: 'long', ...(timeZone ? { timeZone } : {}) }).format(d)
         const tanggal = new Intl.DateTimeFormat('id-ID', {
             day: '2-digit',
             month: 'long',
             year: 'numeric',
-        }).format(now)
+            ...(timeZone ? { timeZone } : {}),
+        }).format(d)
         return `${hari} - (${tanggal})`
-    })
+    }, [timeZone])
 
-    // Dengarkan IPC time_sync jika tersedia (format humanize dikirim dari main)
     React.useEffect(() => {
-        if (typeof window === 'undefined') return
+        setMounted(true)
 
+        // Tick function (sekali langsung jalan biar gak nunggu 1 detik)
         const tick = () => {
             const now = new Date()
-            setTimeNow(
-                new Intl.DateTimeFormat('id-ID', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                }).format(now),
-            )
-            const hari = new Intl.DateTimeFormat('id-ID', { weekday: 'long' }).format(now)
-            const tanggal = new Intl.DateTimeFormat('id-ID', {
-                day: '2-digit',
-                month: 'long',
-                year: 'numeric',
-            }).format(now)
-            setDateNow(`${hari} - ${tanggal}`)
+            setTimeNow(fmtTime(now))
+            setDateNow(fmtDate(now))
         }
-
-        // Fallback interval (1s)
+        tick()
         const id = setInterval(tick, 1000)
 
-        // IPC overrides time if available
+        // IPC time_sync (opsional). Kalau ada, override jamnya.
         const onTime = (args: any) => {
-            // args.humanize di server kamu: "HH:mm:ss:SS" → tetep kita tampilkan apa adanya
-            if (args?.humanize) setTimeNow(args.humanize)
-            // tetap update date tiap event supaya sinkron
+            if (args?.humanize) setTimeNow(args.humanize) // ex: "HH:mm:ss:SS"
+            // tetap sinkronkan tanggal
             const now = new Date()
-            const hari = new Intl.DateTimeFormat('id-ID', { weekday: 'long' }).format(now)
-            const tanggal = new Intl.DateTimeFormat('id-ID', {
-                day: '2-digit',
-                month: 'long',
-                year: 'numeric',
-            }).format(now)
-            setDateNow(`${hari} - ${tanggal}`)
+            setDateNow(fmtDate(now))
         }
-
         window.ipc?.on?.('time_sync', onTime)
 
         return () => {
             clearInterval(id)
-            /*window.ipc?.off?.('time_sync', onTime)*/
+           /* window.ipc?.off?.('time_sync', onTime)*/
         }
-    }, [])
+    }, [fmtTime, fmtDate])
 
     return (
         <Box
@@ -92,21 +82,23 @@ export default function TimeWidget({
         >
             <Typography
                 variant={timeVariant}
+                // suppressHydrationWarning penting kalau somehow masih ada text saat SSR
+                suppressHydrationWarning
                 sx={{
-                    fontSize : 18,
                     fontWeight: 600,
                     letterSpacing: 1,
                     fontVariantNumeric: 'tabular-nums',
                 }}
             >
-                {timeNow}
+                {mounted ? (timeNow || '--:--:--') : '' /* kosong saat SSR */}
             </Typography>
 
             <Typography
                 variant="caption"
+                suppressHydrationWarning
                 sx={{ display: 'block', color: 'text.secondary', mt: 0.25 }}
             >
-                {dateNow}
+                {mounted ? (dateNow || '') : ''}
             </Typography>
         </Box>
     )
