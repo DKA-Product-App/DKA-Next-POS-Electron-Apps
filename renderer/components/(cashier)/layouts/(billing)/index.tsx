@@ -83,7 +83,7 @@ const PRODUCTS: Products[] = [
         "category": CAT.coffee,
         "sku": "AMERICANO",
         "description": "Americano",
-        "image": "/uploads/images/americano.jpeg",
+        "image": "/images/americano.jpeg",
         "variants": [
             {
                 "name": "Hot", "id": "00000000-0000-5000-a000-000000000001.00000000-0000-5000-a000-000000000001",
@@ -105,7 +105,7 @@ const PRODUCTS: Products[] = [
         "category": CAT.coffee,
         "sku": "LATTE",
         "description": "Latte",
-        "image": "/uploads/images/late.jpeg",
+        "image": "/images/late.jpeg",
         "variants": [
             { "name": "Regular", "id": "00000000-0000-5000-a000-000000000002.00000000-0000-5000-a000-000000000001", "code": "REG", "description": "Ukuran Reguler", "price": 25000, "time_created": TC, "status": true },
             { "name": "XL",      "id": "00000000-0000-5000-a000-000000000002.00000000-0000-5000-a000-000000000002", "code": "XL",  "description": "Ukuran Besar",   "price": 30000, "time_created": TC, "status": true },
@@ -122,7 +122,7 @@ const PRODUCTS: Products[] = [
         "category": CAT.tea,
         "sku": "MATCHA_LATTE",
         "description": "Matcha Latte",
-        "image": "/uploads/images/matcha.jpg",
+        "image": "/images/matcha.jpg",
         "variants": [
             { "name": "Hot",  "id": "00000000-0000-5000-a000-000000000003.00000000-0000-5000-a000-000000000001", "code": "HOT", "description": "Panas",  "price": 22000, "time_created": TC, "status": true },
             { "name": "Iced", "id": "00000000-0000-5000-a000-000000000003.00000000-0000-5000-a000-000000000002", "code": "ICE", "description": "Dingin", "price": 25000, "time_created": TC, "status": true }
@@ -138,7 +138,7 @@ const PRODUCTS: Products[] = [
         "category": CAT.coffee,
         "sku": "CAPPUCCINO_ITALIANO",
         "description": "Cappuccino Italiano",
-        "image": "/uploads/images/cappucino.jpg",
+        "image": "/images/cappucino.jpg",
         "variants": [
             { "name": "Hot",         "id": "00000000-0000-5000-a000-000000000006.00000000-0000-5000-a000-000000000001", "code": "HOT", "description": "Panas",        "price": 27000, "time_created": TC, "status": true },
             { "name": "Iced",        "id": "00000000-0000-5000-a000-000000000006.00000000-0000-5000-a000-000000000002", "code": "ICE", "description": "Dingin",       "price": 30000, "time_created": TC, "status": true },
@@ -155,7 +155,7 @@ const PRODUCTS: Products[] = [
         "category": CAT.coffee,
         "sku": "ESPRESSO",
         "description": "Espresso",
-        "image": "/uploads/images/espresso.jpg",
+        "image": "/images/espresso.jpg",
         "variants": [
             { "name": "Single", "id": "00000000-0000-5000-a000-000000000007.00000000-0000-5000-a000-000000000001", "code": "SGL", "description": "Single", "price": 18000, "time_created": TC, "status": true },
             { "name": "Double", "id": "00000000-0000-5000-a000-000000000007.00000000-0000-5000-a000-000000000002", "code": "DBL", "description": "Double", "price": 21000, "time_created": TC, "status": true }
@@ -171,7 +171,7 @@ const PRODUCTS: Products[] = [
         "category": CAT.coffee,
         "sku": "MOCHA",
         "description": "Mocha",
-        "image": "/uploads/images/mocca.jpg",
+        "image": "/images/mocca.jpg",
         "variants": [
             { "name": "Hot",  "id": "00000000-0000-5000-a000-000000000008.00000000-0000-5000-a000-000000000001", "code": "HOT", "description": "Panas",  "price": 29000, "time_created": TC, "status": true },
             { "name": "Iced", "id": "00000000-0000-5000-a000-000000000008.00000000-0000-5000-a000-000000000002", "code": "ICE", "description": "Dingin", "price": 32000, "time_created": TC, "status": true }
@@ -187,7 +187,7 @@ const PRODUCTS: Products[] = [
         "category": CAT.coffee,
         "sku": "CARAMEL_MACCHIATO",
         "description": "Caramel Macchiato",
-        "image": "/uploads/images/caramel_macchiato.webp",
+        "image": "/images/caramel_macchiato.webp",
         "variants": [
             { "name": "Hot",      "id": "00000000-0000-5000-a000-000000000009.00000000-0000-5000-a000-000000000001", "code": "HOT", "description": "Panas",      "price": 32000, "time_created": TC, "status": true },
             { "name": "Iced",     "id": "00000000-0000-5000-a000-000000000009.00000000-0000-5000-a000-000000000002", "code": "ICE", "description": "Dingin",     "price": 35000, "time_created": TC, "status": true },
@@ -204,7 +204,7 @@ const PRODUCTS: Products[] = [
         "category": CAT.coffee,
         "sku": "COLD_BREW",
         "description": "Cold Brew",
-        "image": "/uploads/images/cold_brew.jpeg",
+        "image": "/images/cold_brew.jpeg",
         "variants": [
             { "name": "Regular", "id": "00000000-0000-5000-a000-000000000010.00000000-0000-5000-a000-000000000001", "code": "REG", "description": "Reguler", "price": 26000, "time_created": TC, "status": true },
             { "name": "Vanilla", "id": "00000000-0000-5000-a000-000000000010.00000000-0000-5000-a000-000000000002", "code": "VAN", "description": "Vanilla", "price": 30000, "time_created": TC, "status": true }
@@ -220,7 +220,7 @@ const PRODUCTS: Products[] = [
         "category": CAT.coffee,
         "sku": "VIETNAMESE_DRIP",
         "description": "Vietnamese Drip",
-        "image": "/uploads/images/vietnam_drip.avif",
+        "image": "/images/vietnam_drip.avif",
         "variants": [
             { "name": "Condensed Milk", "id": "00000000-0000-5000-a000-000000000011.00000000-0000-5000-a000-000000000001", "code": "COND", "description": "Susu Kental", "price": 28000, "time_created": TC, "status": true },
             { "name": "Black",          "id": "00000000-0000-5000-a000-000000000011.00000000-0000-5000-a000-000000000002", "code": "BLK",  "description": "Hitam",       "price": 24000, "time_created": TC, "status": true }
@@ -236,7 +236,7 @@ const PRODUCTS: Products[] = [
         "category": CAT.coffee,
         "sku": "AFFOGATO",
         "description": "Affogato",
-        "image": "/uploads/images/affogato.jpeg",
+        "image": "/images/affogato.jpeg",
         "variants": [
             { "name": "Standard",    "id": "00000000-0000-5000-a000-000000000012.00000000-0000-5000-a000-000000000001", "code": "STD", "description": "Standar",      "price": 32000, "time_created": TC, "status": true },
             { "name": "Double Shot", "id": "00000000-0000-5000-a000-000000000012.00000000-0000-5000-a000-000000000002", "code": "DBL", "description": "Double Shot",  "price": 36000, "time_created": TC, "status": true }

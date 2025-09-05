@@ -1,6 +1,7 @@
-import {app, BrowserWindow} from 'electron'
+import {app, BrowserWindow, protocol} from 'electron'
 import serve from 'electron-serve'
 import mainWindow from "./window";
+import {registerDataProtocol} from "./helpers/protocols";
 
 const isProd = process.env.NODE_ENV === 'production'
 
@@ -11,13 +12,14 @@ if (isProd) {
 }
 
 (async () => {
-  await app.whenReady()
-      .then(async (ready) => {
-        await mainWindow();
-      })
-      .catch((error) => {
-        app.quit();
-      })
+      await app.whenReady()
+          .then(async () => {
+              await registerDataProtocol()
+              await mainWindow();
+          })
+          .catch(() => {
+            app.quit();
+          })
 })();
 
 app.on('window-all-closed', () => {

@@ -2,4 +2,4 @@
 
 import Billing from "../../../components/(cashier)/layouts/(billing)";
 
-export default Billing
+export default Billing;

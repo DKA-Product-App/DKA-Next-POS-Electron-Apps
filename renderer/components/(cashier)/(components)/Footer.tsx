@@ -18,9 +18,11 @@ const SHORTCUTS: Shortcut[] = [
 export default function Footer() {
 
     useEffect(() => {
-        window.ipc.on('function-key', (args: any) => {
-            window.ipc.send('function-key', args)
-        });
+        if (window !== undefined && window.ipc !== undefined){
+            window.ipc.on('function-key', (args: any) => {
+                window.ipc.send('function-key', args)
+            });
+        }
     }, []);
 
     return (

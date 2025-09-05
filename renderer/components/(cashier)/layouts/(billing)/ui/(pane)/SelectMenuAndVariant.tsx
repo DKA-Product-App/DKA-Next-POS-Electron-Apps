@@ -1,7 +1,7 @@
 'use client'
 
 import React, {FC} from "react";
-import Image from 'next/image';
+import Image, {ImageLoader} from 'next/image';
 import {
     Box,
     Button,
@@ -103,18 +103,37 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
     const rupiah = (n: number) =>
         new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n)
 
+    const toUploadUrl = (s?: string) => {
+        if (!s) return undefined
+        if (/^(uploads|http|https):\/\//i.test(s)) return s
+        return `uploads:///${s.replace(/^\/+/, '')}`
+    }
+
+    // loader untuk ext:// biar next/image gak error
+    const uploadsLoader: ImageLoader = ({ src }) => src
+
     const ImgWithSkeleton: FC<{ src: string; alt: string; priority?: boolean }> = ({ src, alt, priority }) => {
-        const [loaded, setLoaded] = React.useState(false);
+        const [loaded, setLoaded] = React.useState(false)
+        const [err, setErr] = React.useState(false)
+
+        // kalau error, fallback ke placeholder
+        const finalSrc = err
+            ? 'https://placehold.co/600x400/png?text=No%20Image'
+            : src
+
         return (
             <Box sx={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', bgcolor: 'action.hover', overflow: 'hidden' }}>
                 {!loaded && <Skeleton variant="rectangular" sx={{ position: 'absolute', inset: 0 }} />}
                 <Image
-                    src={src}
+                    loader={uploadsLoader}
+                    src={finalSrc}
                     alt={alt}
                     fill
+                    unoptimized
                     loading={priority ? 'eager' : 'lazy'}
                     sizes="(max-width: 600px) 50vw, (max-width: 1200px) 25vw, 200px"
                     onLoad={() => setLoaded(true)}
+                    onError={() => { setErr(true); setLoaded(true) }}
                     style={{ objectFit: 'cover', opacity: loaded ? 1 : 0, transition: 'opacity .2s ease' }}
                 />
                 <Box
@@ -127,10 +146,15 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
                     }}
                 />
             </Box>
-        );
-    };
+        )
+    }
 
-    const placeholderOf = (p: Products) => p.image ?? `https://placehold.co/600x400/png?text=${encodeURIComponent(p.name)}`;
+
+
+    // Sebelumnya pakai placehold.co
+    const placeholderOf = (p: Products) => toUploadUrl(p.image) ?? `https://placehold.co/600x400/png?text=${encodeURIComponent(p.name)}`
+
+
 
     return (
         <Paper sx={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} elevation={0}>

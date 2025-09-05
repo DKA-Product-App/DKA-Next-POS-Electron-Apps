@@ -67,19 +67,25 @@ export default function Header({
     const [timeNow, setTimeNow] = useState<string>('-')
 
     useEffect(() => {
-        window.ipc?.send('ping', '')
+        if (window !== undefined && window.ipc !== undefined){
+            window.ipc?.send('ping', '')
+        }
     }, [])
 
     useEffect(() => {
-        window.ipc?.on('pong', () => {
-            setNetworkIndicator(<CloudDoneRoundedIcon fontSize={'small'} />)
-        })
+        if (window !== undefined && window.ipc !== undefined){
+            window.ipc?.on('pong', () => {
+                setNetworkIndicator(<CloudDoneRoundedIcon fontSize={'small'}/>)
+            })
+        }
     }, [])
 
     useEffect(() => {
-        window.ipc?.on('time_sync', (args : any) => {
-            setTimeNow(args.humanize)
-        })
+        if (window !== undefined && window.ipc !== undefined){
+            window.ipc?.on('time_sync', (args: any) => {
+                setTimeNow(args.humanize)
+            })
+        }
     }, [])
 
     const handleBack = () => {

@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "pos",
+  "name": "DKA-Cashier-POS-Application",
   "description": "DKA POS Application",
   "version": "1.0.0",
   "author": "Yovangga Anandhika <dka.tech.dev@gmail.com>",
@@ -17,11 +17,16 @@
     "@mui/icons-material": "^7.3.1",
     "@mui/material": "^7.3.1",
     "@mui/styled-engine-sc": "^7.3.1",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/schematics": "^11.0.7",
     "electron-serve": "^1.3.0",
     "electron-store": "^8.2.0",
+    "mime": "^4.0.7",
     "moment-timezone": "^0.6.0",
     "react-perfect-scrollbar": "^1.5.8",
     "react-split-pane": "^0.1.92",
+    "reflect-metadata": "^0.2.2",
     "styled-components": "^6.1.19"
   },
   "devDependencies": {
