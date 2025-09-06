@@ -53,6 +53,10 @@ const TimeWidget = dynamic(() => import('./(ui)/TimeWidget'), {
     ssr : false,
 })
 
+const BackWidget = dynamic(() => import('./(ui)/BackWidget'), {
+    ssr : false,
+})
+
 
 
 export default function Header({
@@ -105,11 +109,7 @@ export default function Header({
         >
             {/* KIRI: Back + App / Branch / Register */}
             <Stack direction="row" alignItems="center" spacing={1.25} sx={{ minWidth: 0 }}>
-                <Tooltip title="Kembali">
-                    <IconButton size="small" onClick={handleBack}>
-                        <ArrowBackRoundedIcon fontSize="small" />
-                    </IconButton>
-                </Tooltip>
+                <BackWidget />
 
                 <Stack direction="row" spacing={2} sx={{ justifySelf: 'start', alignItems: 'center', minWidth: 0 }}>
                     {/*<ShiftWidget
