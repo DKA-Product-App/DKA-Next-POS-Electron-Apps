@@ -21,12 +21,19 @@ export default function BranchWidget({
                 textAlign: 'center',
                 lineHeight: 1.1,
                 userSelect: 'none',
+                px: 2,
+                py: 1,
+                bgcolor: 'background.paper',
+                boxShadow: 2,
+                border: '1px solid',
+                borderColor: 'divider',
             }}
         >
             <Typography
                 variant="body1"
                 sx={{
-                    fontWeight: 600,
+                    fontSize: 14,
+                    fontWeight: 700,
                     letterSpacing: 0.5,
                 }}
             >
@@ -34,7 +41,15 @@ export default function BranchWidget({
             </Typography>
 
             {registerName && (
-                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 0.25 }}>
+                <Typography
+                    variant="caption"
+                    sx={{
+                        fontSize: 12,
+                        display: 'block',
+                        color: 'text.secondary',
+                        mt: 0.25,
+                    }}
+                >
                     {registerName}
                 </Typography>
             )}

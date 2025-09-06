@@ -53,13 +53,7 @@ const TimeWidget = dynamic(() => import('./(ui)/TimeWidget'), {
     ssr : false,
 })
 
-const BranchWidget = dynamic(() => import('./(ui)/BranchWidget'), {
-    ssr : false,
-})
 
-const ShiftWidget = dynamic(() => import('./(ui)/ShiftWidget'), {
-    ssr : false,
-})
 
 export default function Header({
                                    appName = 'DKA Cashier POS',
@@ -80,30 +74,12 @@ export default function Header({
     const router = useRouter()
     const pathname = usePathname()
 
-    // state menu profil
-    const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
-    const open = Boolean(anchorEl)
-
-    const [timeNow, setTimeNow] = useState<string>('-')
-
-    useEffect(() => {
-        if (window !== undefined && window.ipc !== undefined){
-            window.ipc?.send('ping', '')
-        }
-    }, [])
-
-    useEffect(() => {
-        if (window !== undefined && window.ipc !== undefined){
-            window.ipc?.on('time_sync', (args: any) => {
-                setTimeNow(args.humanize)
-            })
-        }
-    }, [])
 
     const handleBack = () => {
         const segments = pathname.split('/').filter(Boolean)
         if (segments.length > 1) {
             const newPath = '/' + segments.slice(0, -1).join('/')
+            console.log(newPath);
             router.push(newPath)
         } else {
             router.back()
@@ -114,7 +90,7 @@ export default function Header({
         <Box
             component="header"
             sx={{
-                height: 80,
+                height: 65,
                 px: 3,
                 display: 'grid',
                 alignItems: 'center',
@@ -136,14 +112,14 @@ export default function Header({
                 </Tooltip>
 
                 <Stack direction="row" spacing={2} sx={{ justifySelf: 'start', alignItems: 'center', minWidth: 0 }}>
-                    <ShiftWidget
+                    {/*<ShiftWidget
                         label={shiftLabel}
                         description={'08:00–16:00'}
                     />
                     <BranchWidget
                         branchName={"Cabang"}
                         registerName={"Center Point Indonesia"}
-                    />
+                    />*/}
                 </Stack>
             </Stack>
 

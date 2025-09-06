@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { Box, Typography, Stack, Chip } from '@mui/material'
 import {useEffect} from "react";
-import {IpcRendererEvent} from "electron";
+import dynamic from "next/dynamic";
 
 type Shortcut = {
     key: string
@@ -14,6 +14,19 @@ const SHORTCUTS: Shortcut[] = [
     { key: 'F7', label: 'Layar Penuh' },
     { key: 'F8', label: 'Dev Mode' },
 ]
+
+const UptimeWidget = dynamic(() => import('./(ui)/UptimeWidget'), {
+    ssr : false,
+})
+
+
+const BranchWidget = dynamic(() => import('./(ui)/BranchWidget'), {
+    ssr : false,
+})
+
+const ShiftWidget = dynamic(() => import('./(ui)/ShiftWidget'), {
+    ssr : false,
+})
 
 export default function Footer() {
 
@@ -29,7 +42,7 @@ export default function Footer() {
         <Box
             component="footer"
             sx={{
-                height: 50,
+                height: 60,
                 px: 2,
                 display: 'flex',
                 alignItems: 'center',
@@ -80,13 +93,41 @@ export default function Footer() {
                 ))}
             </Stack>
 
-            {/* kanan: copyright */}
-            <Typography
-                variant="caption"
-                sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}
+            <Stack direction="row" spacing={0} sx={{ justifySelf: 'center', alignItems: 'center', minWidth: 0 }}>
+                {/* Center: Time */}
+                <UptimeWidget
+                    name={"Uptime"}
+                    description={"00:00:00"}
+                />
+                <BranchWidget
+                    branchName={"Cabang"}
+                    registerName={"Center Point Indonesia"}
+                />
+                <ShiftWidget
+                    label={'Pagi'}
+                    description={'08:00–16:00'}
+                />
+            </Stack>
+
+            <Stack
+                direction="row"
+                spacing={2}
+                sx={{
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                }}
             >
-                © {new Date().getFullYear()} DKA Cashier POS
-            </Typography>
+                {/* kanan: copyright */}
+                <Typography
+                    variant="caption"
+                    sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}
+                >
+                    © {new Date().getFullYear()} DKA Cashier POS
+                </Typography>
+            </Stack>
+
+
+
         </Box>
     )
 }

@@ -48,12 +48,12 @@ export default async function MainWindow(){
     })
 
     if (isProd) {
-        await mainWindow.loadURL('app://-/cashier/'); // <- wajib trailing slash
+        await mainWindow.loadURL('app://-/cashier'); // <- wajib trailing slash
         Menu.setApplicationMenu(null);
         mainWindow.maximize();
     } else {
         const port = process.argv[2];
-        await mainWindow.loadURL(`http://localhost:${port}/cashier/`); // <- slash
+        await mainWindow.loadURL(`http://localhost:${port}/cashier`); // <- slash
         Menu.setApplicationMenu(null);
     }
 }

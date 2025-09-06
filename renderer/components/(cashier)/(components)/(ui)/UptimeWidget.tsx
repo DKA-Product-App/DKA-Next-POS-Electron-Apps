@@ -3,21 +3,17 @@
 import * as React from 'react'
 import { Box, Typography } from '@mui/material'
 
-type ShiftWidgetProps = {
-    /** Nama shift, misal: "Shift Siang" */
-    label?: string
-
-    /** Deskripsi jam kerja, misal: "13:00 – 21:00" */
-    description?: string
-
+type BranchWidgetProps = {
+    name?: string     // contoh: "Main Branch"
+    description?: string   // contoh: "REG-01"
     justifySelf?: 'start' | 'center' | 'end'
 }
 
-export default function ShiftWidget({
-                                        label = 'Shift',
-                                        description,
-                                        justifySelf = 'center',
-                                    }: ShiftWidgetProps) {
+export default function UptimeWidget({
+                                         name = '-',
+                                         description,
+                                         justifySelf = 'center',
+                                     }: BranchWidgetProps) {
     return (
         <Box
             sx={{
@@ -28,12 +24,11 @@ export default function ShiftWidget({
                 px: 2,
                 py: 1,
                 bgcolor: 'background.paper',
+                boxShadow: 2,
                 border: '1px solid',
-                borderColor: 'divider',
-                boxShadow: 1,
+                borderColor: 'divider'
             }}
         >
-            {/* Nama Shift */}
             <Typography
                 variant="body1"
                 sx={{
@@ -42,10 +37,9 @@ export default function ShiftWidget({
                     letterSpacing: 0.5,
                 }}
             >
-                {label}
+                {name}
             </Typography>
 
-            {/* Deskripsi jam */}
             {description && (
                 <Typography
                     variant="caption"
