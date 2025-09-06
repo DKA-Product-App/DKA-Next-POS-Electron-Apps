@@ -19,12 +19,15 @@ export default class IpcEvents {
         });
         //#####################################################################################################
         this.TimeNow = setInterval(() => {
-            const timeNow = moment(moment.now());
-            if (this.mainWindow !== undefined && this.mainWindow.webContents !== undefined){
-                this.mainWindow?.webContents?.send('time_sync', {
-                    humanize : timeNow.format('HH:mm:ss:SS')
-                })
-            }
+            try {
+                const timeNow = moment(moment.now());
+                if (this.mainWindow !== undefined && this.mainWindow.webContents !== undefined){
+                    this.mainWindow?.webContents?.send('time_sync', {
+                        humanize : timeNow.format('HH:mm:ss:SS')
+                    })
+                }
+            }catch (e) {}
+
         }, 10)
         //#####################################################################################################
         ipcMain.on("function-key", (event, args) => {
@@ -49,7 +52,10 @@ export default class IpcEvents {
         Array.from({ length: 12 }, (_, i) => i + 1).forEach((n) => {
             const key = `F${n}`;
             globalShortcut.register(key, () => {
-                this.mainWindow?.webContents.send("function-key", key);
+                try {
+                    this.mainWindow?.webContents.send("function-key", key);
+                }catch (e) {}
+
             });
         });
     }
