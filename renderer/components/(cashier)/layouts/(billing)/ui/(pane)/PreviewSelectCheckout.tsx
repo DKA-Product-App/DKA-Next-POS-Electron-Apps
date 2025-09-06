@@ -22,6 +22,7 @@ import PerfectScrollbar from "react-perfect-scrollbar";
 import "react-perfect-scrollbar/dist/css/styles.css";
 
 import { useCart, useCartActions, useCartMoney } from "../../context/CartContext";
+import dynamic from "next/dynamic";
 
 const Qty = memo<{ n: number }>(
     ({ n }) => (
@@ -100,6 +101,23 @@ const HeaderBar: FC<{ count: number; onClear: () => void }> = ({ count, onClear 
     </Box>
 );
 
+
+const DiningModeWidget = dynamic(() => import("./components/DiningModeWidget"), {
+    loading: () => <></>,
+    ssr : false,
+})
+
+const DiscountWidget = dynamic(() => import("./components/DiscountWidget"), {
+    loading: () => <></>,
+    ssr : false,
+})
+
+
+const PromoWidget = dynamic(() => import("./components/PromoWidget"), {
+    loading: () => <></>,
+    ssr : false,
+})
+
 const FooterBar: FC<{
     subtotal: number;
     tax: number;
@@ -122,6 +140,17 @@ const FooterBar: FC<{
         }}
     >
         <Stack spacing={0.5}>
+            <Stack direction="row" justifyContent="space-between" sx={{ width : '100%'}}>
+                <DiningModeWidget
+                    onChange={()=> undefined}
+                />
+            </Stack>
+            <Stack direction="row" justifyContent="space-between" sx={{ width : '100%'}}>
+                <PromoWidget/>
+            </Stack>
+            {/*<Stack direction="row" justifyContent="space-between" sx={{ width : '100%'}}>
+                <DiscountWidget/>
+            </Stack>*/}
             <Stack direction="row" justifyContent="space-between">
                 <Typography color="text.secondary">Subtotal</Typography>
                 <Typography sx={{ fontVariantNumeric: "tabular-nums" }}>{rupiah(subtotal)}</Typography>
@@ -159,7 +188,7 @@ const FooterBar: FC<{
             disabled={disabled}
             onClick={() => alert(`Lanjut pembayaran: ${rupiah(total)}`)}
         >
-          Bayar
+          Order
         </Button>
       </span>
         </Tooltip>
