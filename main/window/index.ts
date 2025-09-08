@@ -2,6 +2,8 @@ import path from 'path'
 import {app, Menu, screen} from 'electron'
 import { createWindow } from '../helpers'
 import IpcEvents from "../events/ipcEvents";
+import {Connector} from "../database/connector";
+import {Services} from "../services";
 
 const isProd = process.env.NODE_ENV === 'production'
 // --- Variable faktor skala (ubah sesuka hati: 0.5, 1, 1.5, 2, dll)
@@ -33,6 +35,9 @@ export default async function MainWindow(){
 
     mainWindow.on('ready-to-show', () => {
         mainWindow.show();
+        Services.OrganizationRepository.create({ name : 'PT. DKA Research Center'}).then((r) => {
+            console.log(r);
+        })
     });
 
     mainWindow.webContents.on('did-finish-load', () => {

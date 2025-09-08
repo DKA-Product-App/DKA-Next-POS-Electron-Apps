@@ -1,7 +1,7 @@
 import dynamic from "next/dynamic";
-import ShimmerLoading from "../../components/(loading)/ShimmerLoading";
+import ShimmerLoading from "../../../components/(loading)/ShimmerLoading";
 
-const Overview = dynamic(() => import("../../components/(cashier)/layouts/(overview)"), {
+const Overview = dynamic(() => import("../../../components/(cashier)/layouts/(overview)"), {
     loading : () => <ShimmerLoading/>,
     ssr : false,
 })
