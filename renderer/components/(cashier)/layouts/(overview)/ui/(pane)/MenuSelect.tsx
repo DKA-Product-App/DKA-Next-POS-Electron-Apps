@@ -111,15 +111,15 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                         action: 'new_order',
                         icon: <AddShoppingCartRoundedIcon />,
                         hint: 'Buat transaksi baru',
-                        forward: 'select-tables', // -> {pathname}/billing/
+                        forward: 'billing', // -> {pathname}/billing/
                     },
                     {
-                        label: 'Pesanan Aktif',
+                        label: 'Pilih Meja',
                         action: 'open_orders',
                         icon: <ListAltRoundedIcon />,
-                        hint: 'Lihat daftar pesanan berjalan',
-                        disabled : true,
-                        forward: 'orders',
+                        hint: 'Pilih Meja',
+                        disabled : false,
+                        forward: 'select-tables',
                     },
                     {
                         label: 'Tahan / Draft Pesanan',
