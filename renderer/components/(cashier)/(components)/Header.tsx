@@ -114,13 +114,13 @@ export default function Header({
             <LinearProgress
                 variant="indeterminate"
                 sx={{
-                    height: 1.2,
+                    height: 4,
                     borderRadius: 999,
                     bgcolor: 'transparent', // track bening
                     '& .MuiLinearProgress-bar': {
                         background: isGodMode
-                            ? 'linear-gradient(90deg, #EF4444, #F59E0B 40%, #F97316)' // GOD MODE
-                            : 'linear-gradient(90deg, #8B5CF6, #3B82F6)',            // normal
+                            ? 'linear-gradient(90deg, #8B5CF6, #3B82F6)' // GOD MODE
+                            : 'linear-gradient(90deg, #EF4444, #F59E0B 40%, #F97316)',            // normal
                     },
                     // optional: speed up animasi dikit
                     '& .MuiLinearProgress-bar1Indeterminate': { animationDuration: '4.4s' },

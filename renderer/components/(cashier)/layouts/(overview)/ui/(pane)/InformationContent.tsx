@@ -48,7 +48,7 @@ export default function InformationContent() {
     const isDark = theme.palette.mode === 'dark';
 
     // ====== STATE: dummy mode & seed untuk random ======
-    const [mode, setMode] = React.useState<'empty' | 'random'>('empty');
+    const [mode, setMode] = React.useState<'empty' | 'random'>('random');
     const [seed, setSeed] = React.useState(0);
 
     useEffect(() => {
