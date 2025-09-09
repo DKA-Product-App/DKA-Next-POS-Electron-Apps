@@ -25,7 +25,6 @@ if (isProd) {
         }).catch(() => {
             //app.quit();
         });
-
 })();
 
 app.on('window-all-closed', () => {

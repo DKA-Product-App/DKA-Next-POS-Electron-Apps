@@ -45,6 +45,6 @@ export default async function MainWindow(){
         mainWindow.maximize();
     } else {
         const port = process.argv[2];
-        await mainWindow.loadURL(`http://localhost:${port}/cashier/billing`); // <- slash
+        await mainWindow.loadURL(`http://localhost:${port}/cashier`); // <- slash
     }
 }
