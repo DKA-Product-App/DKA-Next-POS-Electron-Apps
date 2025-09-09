@@ -3,21 +3,8 @@
 import React, {FC} from "react";
 import Image, {ImageLoader} from 'next/image';
 import {
-    Box,
-    Button,
-    Divider,
-    MenuItem,
-    Paper,
-    Select,
-    Skeleton,
-    Tab,
-    Tabs,
-    TextField,
-    Typography,
-    Chip,
-    Stack,
-    InputAdornment,
-    IconButton
+    Box, Button, Chip, Divider, MenuItem, Paper, Select, Skeleton, Tab, Tabs,
+    TextField, Typography, Stack, InputAdornment, IconButton
 } from "@mui/material";
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import LocalOfferRoundedIcon from '@mui/icons-material/LocalOfferRounded'
@@ -37,6 +24,9 @@ export interface SelectMenuAndVariantProps {
     product : Array<Products>;
     categories : readonly ProductsCategories[];
 }
+
+// ====== tokens dekorasi ======
+const GRADIENT = "linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)";
 
 export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, categories }) => {
     const { add } = useCartActions()
@@ -108,16 +98,12 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
         if (/^(uploads|http|https):\/\//i.test(s)) return s
         return `uploads:///${s.replace(/^\/+/, '')}`
     }
-
     const uploadsLoader: ImageLoader = ({ src }) => src
 
     const ImgWithSkeleton: FC<{ src: string; alt: string; priority?: boolean }> = ({ src, alt, priority }) => {
         const [loaded, setLoaded] = React.useState(false)
         const [err, setErr] = React.useState(false)
-
-        const finalSrc = err
-            ? 'https://placehold.co/600x400/png?text=No%20Image'
-            : src
+        const finalSrc = err ? 'https://placehold.co/600x400/png?text=No%20Image' : src
 
         return (
             <Box sx={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', bgcolor: 'action.hover', overflow: 'hidden' }}>
@@ -134,11 +120,10 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
                     onError={() => { setErr(true); setLoaded(true) }}
                     style={{ objectFit: 'cover', opacity: loaded ? 1 : 0, transition: 'opacity .2s ease' }}
                 />
+                {/* vignette halus */}
                 <Box
                     sx={{
-                        position: 'absolute',
-                        inset: 0,
-                        pointerEvents: 'none',
+                        position: 'absolute', inset: 0, pointerEvents: 'none',
                         background: (t) =>
                             `linear-gradient(to bottom, ${t.palette.action.hover}00 0%, ${t.palette.action.hover}40 70%, ${t.palette.action.hover}66 100%)`,
                     }}
@@ -151,7 +136,7 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
 
     return (
         <Paper sx={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} elevation={0}>
-            {/* Sticky header: search + tabs + sort */}
+            {/* ===== Sticky header: search + tabs + sort */}
             <Box
                 sx={{
                     position: 'sticky',
@@ -163,6 +148,9 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
                     p: 1,
                 }}
             >
+                {/* accent strip tipis di atas header */}
+                <Box sx={{ height: 4, mb: 1, borderRadius: 1.5, background: GRADIENT, opacity: 0.9 }} />
+
                 {/* Search + Sort */}
                 <Stack direction="row" spacing={1} alignItems="center">
                     <TextField
@@ -209,13 +197,13 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
                     allowScrollButtonsMobile
                     sx={{
                         mt: 1,
-                        '.MuiTabs-indicator': { height: 3, borderRadius: 3 },
+                        '.MuiTabs-indicator': { height: 3, borderRadius: 3, background: GRADIENT }, // indicator gradient
                         '.MuiTab-root': {
                             textTransform: 'none',
-                            fontWeight: 600,
+                            fontWeight: 700,
                             minHeight: 36,
                             px: 1.25,
-                            '&:not(.Mui-selected)': { opacity: 0.8 }
+                            '&:not(.Mui-selected)': { opacity: 0.85 }
                         }
                     }}
                 >
@@ -233,11 +221,7 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
                             label={
                                 <Stack direction="row" spacing={1} alignItems="center">
                                     <span>{c.name}</span>
-                                    <Chip
-                                        size="small"
-                                        variant="outlined"
-                                        label={counts.get(c.id) ?? 0}
-                                    />
+                                    <Chip size="small" variant="outlined" label={counts.get(c.id) ?? 0} />
                                 </Stack>
                             }
                         />
@@ -245,9 +229,24 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
                 </Tabs>
             </Box>
 
-            {/* Grid list */}
+            {/* ===== Grid list */}
             <PerfectScrollbar options={{ suppressScrollX: true }}>
-                <Box sx={{ p: 2, overflowX: 'hidden' }}>
+                <Box
+                    sx={{
+                        p: 2,
+                        overflowX: 'hidden',
+                        position: 'relative',
+                        // radial glow dekoratif di area list (lembut)
+                        '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            inset: 0,
+                            background:
+                                'radial-gradient(1200px 220px at -10% -30%, rgba(99,102,241,0.12), transparent 55%), radial-gradient(1000px 180px at 110% -25%, rgba(236,72,153,0.10), transparent 55%)',
+                            pointerEvents: 'none',
+                        },
+                    }}
+                >
                     <Box
                         sx={{
                             display: 'grid',
@@ -276,34 +275,57 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
                                         overflow: 'hidden',
                                         display: 'flex',
                                         flexDirection: 'column',
-                                        transition: (t) => t.transitions.create(['transform','box-shadow','border-color'], { duration: t.transitions.duration.shorter }),
+                                        transition: (t) =>
+                                            t.transitions.create(['transform','box-shadow','border-color'], {
+                                                duration: t.transitions.duration.shorter,
+                                            }),
                                         borderColor: 'divider',
-                                        '&:hover': {
-                                            transform: 'translateY(-1px)',
-                                            boxShadow: 4,
-                                            borderColor: 'primary.main',
-                                        },
+                                        position: 'relative',
                                         background: (t) =>
                                             t.palette.mode === 'dark'
                                                 ? t.palette.background.paper
                                                 : `linear-gradient(180deg, ${t.palette.background.paper} 0%, ${t.palette.background.default} 100%)`,
-                                        cursor: 'default'
+
+                                        // dekor glow disiapin tapi default invisible
+                                        '&::after': {
+                                            content: '""',
+                                            position: 'absolute',
+                                            inset: -1,
+                                            borderRadius: 8,
+                                            background: GRADIENT,
+                                            filter: 'blur(12px)',
+                                            opacity: 0,
+                                            transition: 'opacity .18s ease',
+                                            zIndex: -1,
+                                        },
+
+                                        // HOVER: glow ungu HANYA di dark mode
+                                        '&:hover': (t) => ({
+                                            transform: 'translateY(-1px)',
+                                            boxShadow: 4,
+                                            borderColor: 'primary.main',
+                                            ...(t.palette.mode === 'dark'
+                                                ? { '&::after': { opacity: 0.8 } } // 🔥 glow aktif di dark
+                                                : { '&::after': { opacity: 0 } }), // 🌤️ light: no glow
+                                        }),
                                     }}
                                 >
+                                    {/* ...isi card... */}
                                     <Box sx={{ position: 'relative' }}>
                                         <ImgWithSkeleton src={placeholderOf(p)} alt={p.name} />
+                                        {/* price chip dengan gradient */}
                                         <Chip
                                             size="small"
-                                            color="primary"
-                                            icon={<LocalOfferRoundedIcon sx={{ fontSize: 16 }} />}
+                                            icon={<LocalOfferRoundedIcon sx={{ fontSize: 16, color: 'inherit' }} />}
                                             label={rupiah(price)}
                                             sx={{
                                                 position: 'absolute',
                                                 bottom: 8,
                                                 left: 8,
-                                                bgcolor: 'primary.main',
-                                                color: 'primary.contrastText',
-                                                boxShadow: 1
+                                                color: '#fff',
+                                                background: GRADIENT,
+                                                boxShadow: 1,
+                                                '& .MuiChip-icon': { color: 'inherit' }
                                             }}
                                         />
                                     </Box>
@@ -346,13 +368,9 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
                                                     return <span style={{ opacity: 0.7 }}>Tidak ada varian</span>;
                                                 }
                                                 const v = p.variants!.find((x) => String(x.id) === String(selected));
-                                                return v ? `${v.code} — ${rupiah(v.price)}`
-                                                    : 'Pilih varian';
+                                                return v ? `${v.code} — ${rupiah(v.price)}` : 'Pilih varian';
                                             }}
-                                            sx={{
-                                                mt: 0.5,
-                                                '.MuiSelect-select': { py: 1 },
-                                            }}
+                                            sx={{ mt: 0.5, '.MuiSelect-select': { py: 1 } }}
                                         >
                                             {hasVariants ? (
                                                 p.variants!.map((v) => (
@@ -371,21 +389,24 @@ export const SelectMenuAndVariant : FC<SelectMenuAndVariantProps> = ({product, c
                                             fullWidth
                                             size="small"
                                             variant="contained"
-                                            color="primary"
                                             endIcon={<AddRoundedIcon />}
                                             sx={{
                                                 mt: 1,
                                                 textTransform: 'none',
-                                                fontWeight: 700,
+                                                fontWeight: 800,
                                                 borderRadius: 1.5,
                                                 boxShadow: 'none',
-                                                '&:hover': { boxShadow: 2 }
+                                                background: GRADIENT,
+                                                '&:hover': { boxShadow: 3 }
                                             }}
                                             onClick={() => add(p, hasVariants ? selectedVar : undefined)}
                                         >
                                             Tambah
                                         </Button>
                                     </Box>
+
+                                    {/* strip accent tipis di bawah card */}
+                                    <Box sx={{ height: 3, background: GRADIENT }} />
                                 </Paper>
                             )
                         })}

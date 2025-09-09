@@ -19,7 +19,7 @@ const Footer = dynamic(() => import('./(components)/Footer'), {
 
 export default function LayoutContainer({ children }) {
 
-    const [mode, setMode] = React.useState<'light'|'dark'>('dark')
+    const [mode, setMode] = React.useState<'light'|'dark'>('light')
     const theme = React.useMemo(() => createTheme({ palette: { mode }, direction : 'ltr' }), [mode])
 
     return (

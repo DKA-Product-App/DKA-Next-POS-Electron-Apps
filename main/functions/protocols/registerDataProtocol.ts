@@ -3,7 +3,7 @@ import { protocol } from "electron"
 import path from "node:path"
 import fs from "node:fs/promises"
 import mime from "mime"
-import { getExternalDataDir } from "./getExternalResourcesDir"
+import { getExternalDataDir } from "../index"
 
 const sanitize = (p: string) =>
     path.normalize(p).replace(/^(\.\.(\/|\\|$))+/g, "")

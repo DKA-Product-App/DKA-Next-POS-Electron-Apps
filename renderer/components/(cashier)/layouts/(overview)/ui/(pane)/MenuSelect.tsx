@@ -50,7 +50,6 @@ type MenuItem = {
     icon: React.ReactNode;
     hint?: string;
     disabled?: boolean;
-    // segmen yang mau ditambahkan ke url sekarang
     forward?: string;
 };
 
@@ -65,9 +64,8 @@ type MenuGroup = {
 const joinPath = (base: string, seg?: string) => {
     const b = base.replace(/\/+$/, '');
     const s = (seg ?? '').replace(/^\/+/, '');
-    return `${b}/${s}/`.replace(/\/{2,}/g, '/'); // SELALU pakai trailing slash
+    return `${b}/${s}/`.replace(/\/{2,}/g, '/');
 };
-
 
 const HeaderBar: FC = () => (
     <Box
@@ -78,12 +76,11 @@ const HeaderBar: FC = () => (
             top: 0,
             zIndex: 2,
             backdropFilter: 'saturate(140%) blur(6px)',
-            bgcolor: (t) =>
-                t.palette.mode === 'dark'
-                    ? 'rgba(0,0,0,0.5)'
-                    : 'rgba(255,255,255,0.7)',
+            bgcolor: 'transparent',
             borderBottom: '1px solid',
             borderColor: 'divider',
+            background: 'linear-gradient(90deg, #6366F1, #8B5CF6 30%, #EC4899)',
+            color: '#fff',
         }}
     >
         <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -111,42 +108,42 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                         action: 'new_order',
                         icon: <AddShoppingCartRoundedIcon />,
                         hint: 'Buat transaksi baru',
-                        forward: 'billing', // -> {pathname}/billing/
+                        forward: 'billing',
                     },
                     {
                         label: 'Pilih Meja',
                         action: 'open_orders',
                         icon: <ListAltRoundedIcon />,
                         hint: 'Pilih Meja',
-                        disabled : false,
+                        disabled: false,
                         forward: 'select-tables',
                     },
                     {
                         label: 'Tahan / Draft Pesanan',
                         action: 'hold_orders',
                         icon: <ReplayRoundedIcon />,
-                        disabled : true,
+                        disabled: true,
                         hint: 'Kelola pesanan ditahan',
                     },
                     {
                         label: 'Reservasi',
                         action: 'reservation',
                         icon: <EventSeatRoundedIcon />,
-                        disabled : true,
+                        disabled: true,
                         hint: 'Kelola reservasi meja / booking',
                     },
                     {
                         label: 'Retur / Refund',
                         action: 'refund',
                         icon: <ReceiptLongRoundedIcon />,
-                        disabled : true,
+                        disabled: true,
                         hint: 'Proses pengembalian transaksi',
                     },
                     {
                         label: 'Cetak Ulang Struk',
                         action: 'reprint',
                         icon: <PrintRoundedIcon />,
-                        disabled : true,
+                        disabled: true,
                         hint: 'Reprint struk transaksi',
                     },
                 ],
@@ -159,14 +156,9 @@ export const MenuSelect: FC = memo(function MenuSelect() {
         if (!item.forward) return;
 
         const newPath = joinPath(pathname, item.forward);
-
-        console.log(newPath);
-        console.log(pathname);
-        // Hindari push ke URL yang sama → mencegah retrigger render yang bisa bikin fallback “ngebatu”
         if (newPath === pathname || newPath === pathname + '/') return;
 
         if (process.env.NODE_ENV === 'development') {
-            // Debug lokal aja
             console.log('[navigate]', { from: pathname, forward: item.forward, to: newPath });
         }
 
@@ -180,10 +172,12 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
+                borderRadius: 2,
+                overflow: 'hidden',
                 background: (t) =>
                     t.palette.mode === 'dark'
-                        ? t.palette.background.paper
-                        : `linear-gradient(180deg, ${t.palette.background.paper} 0%, ${t.palette.background.default} 100%)`,
+                        ? 'linear-gradient(180deg, rgba(15,23,42,1) 0%, rgba(2,6,23,1) 100%)' // 🌌 biru gelap navy
+                        : 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)',
             }}
         >
             <HeaderBar />
@@ -207,12 +201,19 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                                             sx={{
                                                 px: 1.5,
                                                 py: 2,
+                                                borderRadius: 1,
+                                                mx: 1,
+                                                my: 0.5,
                                                 '& .MuiListItemIcon-root': { minWidth: 40 },
-                                                transition: 'background-color 120ms',
-                                                '&:hover': { bgcolor: 'action.hover' },
+                                                transition: 'all 150ms',
+                                                '&:hover': {
+                                                    bgcolor: 'rgba(139,92,246,0.08)',
+                                                    boxShadow: '0 4px 12px rgba(139,92,246,0.25)',
+                                                    borderLeft: '4px solid #8B5CF6',
+                                                },
                                             }}
                                         >
-                                            <ListItemIcon>{it.icon}</ListItemIcon>
+                                            <ListItemIcon sx={{ color: 'primary.main' }}>{it.icon}</ListItemIcon>
                                             <ListItemText
                                                 primary={<Typography fontWeight={600}>{it.label}</Typography>}
                                             />

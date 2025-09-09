@@ -1,5 +1,5 @@
 import dynamic from "next/dynamic";
-import ShimmerLoading from "../../../components/(loading)/ShimmerLoading";
+import ShimmerLoading from "../../../components/(shared)/(loading)/ShimmerLoading";
 
 const SelectTables = dynamic(() => import("../../../components/(cashier)/layouts/(select-tables)"), {
     loading : () => <ShimmerLoading/>,

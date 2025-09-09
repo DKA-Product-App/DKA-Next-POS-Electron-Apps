@@ -2,6 +2,12 @@ import React from "react";
 import dynamic from "next/dynamic";
 import ResizableGrid from "./ui/ResizableContainer";
 import ShimmerMenuSelectLoading from "./ui/(loading)/ShimmerMenuSelectLoading";
+import ShimmerLoading from "../../../(shared)/(loading)/ShimmerLoading";
+
+const Information = dynamic(() => import('./ui/(pane)/InformationContent'), {
+    loading : () => <ShimmerMenuSelectLoading/>,
+    ssr: false,
+})
 
 
 const MenuSelect = dynamic(() => import('./ui/(pane)/MenuSelect'), {
@@ -14,7 +20,7 @@ export default function Overview() {
 
     return (
         <ResizableGrid
-            left={<></>}
+            left={<Information/>}
             right={<MenuSelect/>}
         />
     )

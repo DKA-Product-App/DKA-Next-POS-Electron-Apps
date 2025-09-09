@@ -1,31 +1,29 @@
-import {app, BrowserWindow, protocol} from 'electron'
+import { app } from 'electron'
 import serve from 'electron-serve'
 import mainWindow from "./window";
-import {registerDataProtocol} from "./helpers/protocols";
-import {Services} from "./services";
+import { registerDataProtocol } from "./functions";
 
-const isProd = process.env.NODE_ENV === 'production'
 
-if (isProd) {
-    serve({directory: 'app'})
-} else {
-    app.setPath('userData', `${app.getPath('userData')} (development)`)
-}
 
 (async () => {
-    app.on('ready', () => {
+    const isProd = process.env.NODE_ENV === 'production'
+    app.on('ready', async () => {
         console.log('app activated ');
-        new Services();
+        if (isProd) {
+            serve({directory: 'app'})
+        } else {
+            app.setPath('userData', `${app.getPath('userData')} (development)`)
+        }
     });
     app.whenReady()
-        .then(async () => {
-            await registerDataProtocol()
-            await mainWindow();
-        })
-        .catch(() => {
+        .then(() => {
+            return Promise.all([
+                registerDataProtocol(),
+                mainWindow()
+            ])
+        }).catch(() => {
             app.quit();
         });
-
 
 })();
 

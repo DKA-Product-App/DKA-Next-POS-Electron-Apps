@@ -11,6 +11,7 @@ import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded'
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
+import {usePathname, useRouter} from "next/navigation";
 
 type ProfileWidgetProps = {
     cashierName?: string
@@ -43,6 +44,9 @@ export default function ProfileWidget({
                                       }: ProfileWidgetProps) {
     const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null)
     const open = Boolean(anchorEl)
+
+    const pathname = usePathname();
+    const router = useRouter();
 
     const handleOpen = (e: React.MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget)
     const handleClose = () => setAnchorEl(null)
@@ -137,7 +141,9 @@ export default function ProfileWidget({
                         <Item
                             icon={<LogoutRoundedIcon />}
                             primary="Keluar"
-                            onClick={onLogout}
+                            onClick={() => {
+                                router.replace(`/auth`)
+                            }}
                         />
                     </List>
                 </PerfectScrollbar>
