@@ -21,12 +21,10 @@ import ShimmerContent from "./components/(loading)/ShimmerContent";
 
 const Content = dynamic(() => import('./components/Content'), {
     ssr: false,
-    loading : () => <ShimmerContent/>
 })
 
 const FooterStatus = dynamic(() => import('./components/FooterStatus'), {
     ssr: false,
-    loading : () => <ShimmerContent/>
 })
 
 export function LayoutContainer({ children }) {

@@ -23,15 +23,13 @@ export default async function MainWindow(){
         .on('show', () => {
             Menu.setApplicationMenu(null);
         })
-        .on('ready-to-show', () => {
-            mainWindow.show();
-        })
         .on('close', () => {
             console.log('window is closed')
         });
     //#######################################################
     mainWindow.webContents
         .on('did-finish-load', () => {
+            mainWindow.show();
             ipcEvents.register();
         }).on('destroyed', () => {
             ipcEvents.unregister();
@@ -45,6 +43,6 @@ export default async function MainWindow(){
         mainWindow.maximize();
     } else {
         const port = process.argv[2];
-        await mainWindow.loadURL(`http://localhost:${port}/cashier`); // <- slash
+        await mainWindow.loadURL(`http://localhost:${port}/auth`); // <- slash
     }
 }
