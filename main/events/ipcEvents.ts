@@ -55,7 +55,6 @@ export default class IpcEvents {
                 try {
                     this.mainWindow?.webContents.send("function-key", key);
                 }catch (e) {}
-
             });
         });
     }

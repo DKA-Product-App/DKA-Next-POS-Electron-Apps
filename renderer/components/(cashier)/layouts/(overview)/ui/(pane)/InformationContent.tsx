@@ -31,6 +31,7 @@ import {
     CartesianGrid,
 } from 'recharts';
 import {useEffect} from "react";
+import {useFunctionKey} from "../../../../../../contexts/FunctionKeyProviderContext";
 
 const MotionCard = motion(Card);
 const rupiah = (n: number) =>
@@ -51,22 +52,16 @@ export default function InformationContent() {
     const [mode, setMode] = React.useState<'empty' | 'random'>('random');
     const [seed, setSeed] = React.useState(0);
 
+    const { key, seq } = useFunctionKey()
+
     useEffect(() => {
-        if (window !== undefined && window.ipc !== undefined){
-            window.ipc.on('function-key', (args: any) => {
-                switch (args) {
-                    case "F12" :
-                        setMode((m) => (m === 'empty' ? 'random' : 'empty'));
-                        setSeed((s) => s + 1); // regenerate angka random
-                        break;
-                    default:
-                        window.ipc.send('function-key', args)
-                        break;
-                }
-                window.ipc.send('function-key', args)
-            });
+        switch (key) {
+            case "F12" :
+                setMode((m) => (m === 'empty' ? 'random' : 'empty'));
+                setSeed((s) => s + 1); // regenerate angka random
+                break;
         }
-    }, []);
+    }, [seq]);
 
     // ====== DATA DUMMY (EMPTY) ======
     const itemsEmpty: Item[] = [

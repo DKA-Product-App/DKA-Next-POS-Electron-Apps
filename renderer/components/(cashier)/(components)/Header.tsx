@@ -13,6 +13,7 @@ import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded'
 import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded'
 import {useEffect, useState} from "react";
 import dynamic from "next/dynamic";
+import { useFunctionKey } from '../../../contexts/FunctionKeyProviderContext'
 
 type HeaderProps = {
     appName?: string
@@ -61,53 +62,31 @@ const BackWidget = dynamic(() => import('./(ui)/BackWidget'), {
 
 
 export default function Header({
-                                   appName = 'DKA Cashier POS',
                                    cashierName = 'Kasir',
                                    cashierPhotoUrl,
                                    branchName = 'Main Branch',
                                    registerName = 'REG-01',
-                                   shiftLabel = 'Shift',
                                    printerOnline = true,
                                    syncing = false,
                                    mode = 'light',
                                    onChangeMode = noop,
-                                   onOpenProfile = noop,
                                    onSwitchCashier = noop,
                                    onOpenSettings = noop,
                                    onLogout = noop,
                                }: HeaderProps) {
     const router = useRouter()
     const pathname = usePathname()
+    const { key, seq } = useFunctionKey()
 
     const [isGodMode, setGodMode] = useState(false);
 
-
     useEffect(() => {
-        if (window !== undefined && window.ipc !== undefined){
-            window.ipc.on('function-key', (args: any) => {
-                switch (args) {
-                    case "F12" :
-                        setGodMode((state) => (!state));
-                        break;
-                    default:
-                        window.ipc.send('function-key', args)
-                        break;
-                }
-                window.ipc.send('function-key', args)
-            });
+        switch (key) {
+            case "F12" :
+                setGodMode((state) => (!state));
+                break;
         }
-    }, []);
-
-    const handleBack = () => {
-        const segments = pathname.split('/').filter(Boolean)
-        if (segments.length > 1) {
-            const newPath = '/' + segments.slice(0, -1).join('/')
-            console.log(newPath);
-            router.push(newPath)
-        } else {
-            router.back()
-        }
-    }
+    }, [seq]);
 
     return (
         <>

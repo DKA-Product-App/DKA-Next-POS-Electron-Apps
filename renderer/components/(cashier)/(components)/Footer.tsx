@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Box, Typography, Stack, Chip } from '@mui/material'
 import {useEffect} from "react";
 import dynamic from "next/dynamic";
+import { useFunctionKey } from '../../../contexts/FunctionKeyProviderContext';
 
 type Shortcut = {
     key: string
@@ -29,14 +30,6 @@ const ShiftWidget = dynamic(() => import('./(ui)/ShiftWidget'), {
 })
 
 export default function Footer() {
-
-    useEffect(() => {
-        if (window !== undefined && window.ipc !== undefined){
-            window.ipc.on('function-key', (args: any) => {
-                window.ipc.send('function-key', args)
-            });
-        }
-    }, []);
 
     return (
         <Box
