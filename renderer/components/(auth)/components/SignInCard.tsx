@@ -108,7 +108,11 @@ export default function SignInCard() {
         const data = new FormData(formEl);
         const jsonData = Object.fromEntries(data.entries());
         console.log('[login]', jsonData);
-        router.replace(`/cashier/`);
+        if (jsonData.username === 'demo' && jsonData.password === 'demo'){
+            router.replace(`/cashier/`);
+        }else if (jsonData.username === 'admin' && jsonData.password === 'admin'){
+            router.replace(`/admin/`);
+        }
     };
 
     return (
@@ -153,6 +157,7 @@ export default function SignInCard() {
                             autoComplete="username"
                             required
                             fullWidth
+                            defaultValue={'demo'}
                             variant="outlined"
                             color="primary"
                             InputProps={{
@@ -198,6 +203,7 @@ export default function SignInCard() {
                             autoComplete="current-password"
                             required
                             fullWidth
+                            defaultValue={'demo'}
                             variant="outlined"
                             color="primary"
                             InputProps={{

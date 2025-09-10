@@ -1,9 +1,10 @@
 'use client'
 
 import * as React from 'react'
-import { Box, Typography, alpha } from '@mui/material'
+import { Chip, alpha, Stack } from '@mui/material'
+import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded'
 
-type ShiftWidgetProps = {
+type ShiftChipProps = {
     /** Nama shift, misal: "Shift Siang" */
     label?: string
 
@@ -13,79 +14,36 @@ type ShiftWidgetProps = {
     justifySelf?: 'start' | 'center' | 'end'
 }
 
-export default function ShiftWidget({
-                                        label = 'Shift',
-                                        description,
-                                        justifySelf = 'center',
-                                    }: ShiftWidgetProps) {
+export default function ShiftChip({
+                                      label = 'Shift',
+                                      description,
+                                      justifySelf = 'center',
+                                  }: ShiftChipProps) {
     return (
-        <Box
-            sx={(t) => ({
-                justifySelf,
-                textAlign: 'center',
-                lineHeight: 1.1,
-                userSelect: 'none',
-                px: 2,
-                py: 1.2,
-                borderRadius: 2,
-                position: 'relative',
-                overflow: 'hidden',
-                bgcolor:
-                    t.palette.mode === 'dark'
-                        ? alpha('#1E1B2E', 0.7)
-                        : alpha('#F5F3FF', 0.85),
-                border: `1px solid ${alpha('#8B5CF6', 0.55)}`,
-                boxShadow: `0 4px 14px ${alpha('#8B5CF6', 0.25)}`,
-                backdropFilter: 'blur(6px)',
-                transition: 'all 0.25s ease',
-                '&:hover': {
-                    boxShadow: `0 6px 20px ${alpha('#8B5CF6', 0.4)}`,
-                    transform: 'translateY(-2px)',
-                },
-                // Accent bar tipis di atas
-                '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 3,
+        <Stack sx={{ justifySelf, textAlign: 'center', alignItems: 'center' }}>
+            <Chip
+                icon={<AccessTimeRoundedIcon />}
+                label={`${label}${description ? ` : ${description}` : ''}`}
+                sx={(t) => ({
+                    px: 1.25,
+                    '& .MuiChip-label': {
+                        fontWeight: 700,
+                        letterSpacing: 0.3,
+                    },
+                    color: t.palette.mode === 'dark' ? '#EDE9FE' : '#4C1D95',
                     background:
-                        'linear-gradient(90deg, #7C3AED, #8B5CF6 35%, #A78BFA 70%, #EC4899)',
-                },
-            })}
-        >
-            {/* Nama Shift */}
-            <Typography
-                variant="body1"
-                sx={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    letterSpacing: 0.5,
-                    color: (t) =>
-                        t.palette.mode === 'dark' ? '#EDE9FE' : '#4C1D95',
-                }}
-            >
-                {label}
-            </Typography>
-
-            {/* Deskripsi jam */}
-            {description && (
-                <Typography
-                    variant="caption"
-                    sx={{
-                        fontSize: 12,
-                        display: 'block',
-                        mt: 0.25,
-                        color: (t) =>
-                            t.palette.mode === 'dark'
-                                ? alpha('#DDD6FE', 0.9)
-                                : '#6D28D9',
-                    }}
-                >
-                    {description}
-                </Typography>
-            )}
-        </Box>
+                        t.palette.mode === 'dark'
+                            ? 'linear-gradient(90deg, rgba(124,58,237,0.25), rgba(167,139,250,0.15))'
+                            : 'linear-gradient(90deg, #EDE9FE, #DDD6FE)',
+                    border: `1px solid ${alpha('#8B5CF6', 0.55)}`,
+                    boxShadow: `0 4px 12px ${alpha('#8B5CF6', 0.25)}`,
+                    transition: 'all .2s ease',
+                    '&:hover': {
+                        boxShadow: `0 6px 16px ${alpha('#8B5CF6', 0.35)}`,
+                        transform: 'translateY(-1px)',
+                    },
+                })}
+            />
+        </Stack>
     )
 }

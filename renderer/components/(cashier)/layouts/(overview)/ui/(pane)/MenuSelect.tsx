@@ -176,7 +176,7 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                 overflow: 'hidden',
                 background: (t) =>
                     t.palette.mode === 'dark'
-                        ? 'linear-gradient(180deg, rgba(15,23,42,1) 0%, rgba(2,6,23,1) 100%)' // 🌌 biru gelap navy
+                        ? 'linear-gradient(180deg, #1F1F1F 0%, #0D0D0D 100%)' // 🌌 biru gelap navy
                         : 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)',
             }}
         >
