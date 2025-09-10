@@ -1,83 +1,96 @@
 'use client'
 
 import * as React from 'react'
-import { Box, Typography, Stack, Chip } from '@mui/material'
-import {useEffect} from "react";
-import dynamic from "next/dynamic";
-import { useFunctionKey } from '../../../contexts/FunctionKeyProviderContext';
+import { Box, Typography, Stack, Chip, alpha } from '@mui/material'
+import dynamic from 'next/dynamic'
 
-type Shortcut = {
-    key: string
-    label: string
-}
+type Shortcut = { key: string; label: string }
 
 const SHORTCUTS: Shortcut[] = [
     { key: 'F7', label: 'Layar Penuh' },
     { key: 'F8', label: 'Dev Mode' },
 ]
 
-const UptimeWidget = dynamic(() => import('./(ui)/UptimeWidget'), {
-    ssr : false,
-})
-
-
-const BranchWidget = dynamic(() => import('./(ui)/BranchWidget'), {
-    ssr : false,
-})
-
-const ShiftWidget = dynamic(() => import('./(ui)/ShiftWidget'), {
-    ssr : false,
-})
+const UptimeWidget  = dynamic(() => import('./(ui)/UptimeWidget'),  { ssr: false })
+const BranchWidget  = dynamic(() => import('./(ui)/BranchWidget'),  { ssr: false })
+const ShiftWidget   = dynamic(() => import('./(ui)/ShiftWidget'),   { ssr: false })
 
 export default function Footer() {
-
     return (
         <Box
             component="footer"
-            sx={{
-                height: 60,
+            sx={(t) => ({
+                height: 64,
                 px: 2,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                borderTop: '1px solid',
-                borderColor: 'divider',
-                bgcolor: 'background.paper',
                 position: 'relative',
                 zIndex: 2,
-            }}
+                // Glassy + border lembut
+                bgcolor:
+                    t.palette.mode === 'dark'
+                        ? alpha('#0B1020', 0.6)
+                        : alpha('#ffffff', 0.75),
+                backdropFilter: 'blur(10px)',
+                borderTop: `1px solid ${alpha(t.palette.divider, 0.8)}`,
+                boxShadow:
+                    t.palette.mode === 'dark'
+                        ? `0 -8px 24px ${alpha('#8B5CF6', 0.12)}`
+                        : `0 -8px 24px ${alpha('#8B5CF6', 0.16)}`,
+                // Accent gradient bar di atas footer
+                '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: -2,
+                    left: 0,
+                    right: 0,
+                    height: 2,
+                    background:
+                        'linear-gradient(90deg, #7C3AED, #8B5CF6 35%, #A78BFA 65%, #EC4899)',
+                    opacity: 0.9,
+                },
+                // Shimmer lembut
+                '&::after': {
+                    content: '""',
+                    position: 'absolute',
+                    inset: 0,
+                    pointerEvents: 'none',
+                    background:
+                        'linear-gradient(120deg, transparent 0%, rgba(139,92,246,0.06) 25%, transparent 50%)',
+                    maskImage:
+                        'radial-gradient(80% 140% at 0% 0%, rgba(0,0,0,0.9), transparent 70%)',
+                    animation: 'footerSheen 6s linear infinite',
+                },
+                '@keyframes footerSheen': {
+                    '0%': { backgroundPosition: '-200% 0' },
+                    '100%': { backgroundPosition: '200% 0' },
+                },
+            })}
         >
-            {/* kiri: shortcut keys */}
-            <Stack
-                direction="row"
-                spacing={2}
-                sx={{
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                }}
-            >
+            {/* Kiri: shortcut keys */}
+            <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
                 {SHORTCUTS.map((s) => (
                     <Stack key={s.key} direction="row" spacing={1} alignItems="center">
                         <Chip
                             size="small"
                             label={s.key}
-                            sx={{
-                                fontWeight: 700,
+                            sx={(t) => ({
+                                fontWeight: 800,
                                 fontSize: 12,
-                                minWidth: 44,
+                                minWidth: 46,
                                 justifyContent: 'center',
-                                border: '1px solid',
-                                borderColor: 'divider',
-                                bgcolor: (t) =>
+                                borderRadius: 1.5,
+                                px: 0.5,
+                                color: t.palette.mode === 'dark' ? '#EDE9FE' : '#4C1D95',
+                                background:
                                     t.palette.mode === 'dark'
-                                        ? 'rgba(255,255,255,0.08)' // abu gelap transparan
-                                        : 'grey.200',              // abu terang
-                                color: (t) =>
-                                    t.palette.mode === 'dark'
-                                        ? t.palette.text.primary   // teks default terang di dark
-                                        : t.palette.text.primary,  // teks default gelap di light
+                                        ? 'linear-gradient(135deg, rgba(124,58,237,0.25), rgba(139,92,246,0.18))'
+                                        : 'linear-gradient(135deg, rgba(167,139,250,0.35), rgba(139,92,246,0.2))',
+                                border: `1px solid ${alpha('#8B5CF6', 0.6)}`,
+                                boxShadow: `0 1px 8px ${alpha('#8B5CF6', 0.25)}`,
                                 '& .MuiChip-label': { px: 1 },
-                            }}
+                            })}
                         />
                         <Typography variant="body2" sx={{ fontSize: 13 }}>
                             {s.label}
@@ -86,41 +99,65 @@ export default function Footer() {
                 ))}
             </Stack>
 
-            <Stack direction="row" spacing={0} sx={{ justifySelf: 'center', alignItems: 'center', minWidth: 0 }}>
-                {/* Center: Time */}
-                <UptimeWidget
-                    name={"Uptime"}
-                    description={"00:00:00"}
-                />
-                <BranchWidget
-                    branchName={"Cabang"}
-                    registerName={"Center Point Indonesia"}
-                />
-                <ShiftWidget
-                    label={'Pagi'}
-                    description={'08:00–16:00'}
-                />
-            </Stack>
-
+            {/* Tengah: status – kasih separator titik ungu tipis */}
             <Stack
                 direction="row"
-                spacing={2}
+                spacing={0}
                 sx={{
-                    flexWrap: 'wrap',
                     alignItems: 'center',
+                    minWidth: 0,
+                    '& > *:not(:last-child)': { mr: 1.5 },
+                    '& > * + *': {
+                        position: 'relative',
+                        pl: 1.5,
+                        '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            left: 0,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            background:
+                                'radial-gradient(circle at 30% 30%, #C4B5FD, #7C3AED 70%)',
+                            boxShadow: `0 0 8px ${alpha('#8B5CF6', 0.7)}`,
+                            opacity: 0.9,
+                        },
+                    },
                 }}
             >
-                {/* kanan: copyright */}
-                <Typography
-                    variant="caption"
-                    sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}
-                >
-                    © {new Date().getFullYear()} DKA Cashier POS
-                </Typography>
+                <UptimeWidget name="Uptime" description="00:00:00" />
+                <BranchWidget branchName="Cabang" registerName="Center Point Indonesia" />
+                <ShiftWidget label="Pagi" description="08:00–16:00" />
             </Stack>
 
-
-
+            {/* Kanan: copyright */}
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+                <Box
+                    sx={{
+                        px: 1,
+                        py: 0.25,
+                        borderRadius: 1.5,
+                        background:
+                            'linear-gradient(135deg, rgba(124,58,237,0.16), rgba(236,72,153,0.12))',
+                        border: `1px solid ${alpha('#7C3AED', 0.35)}`,
+                    }}
+                >
+                    <Typography
+                        variant="caption"
+                        sx={{
+                            color: (t) =>
+                                t.palette.mode === 'dark' ? '#EDE9FE' : '#4C1D95',
+                            whiteSpace: 'nowrap',
+                            fontWeight: 600,
+                            letterSpacing: 0.2,
+                        }}
+                    >
+                        © {new Date().getFullYear()} DKA Cashier POS
+                    </Typography>
+                </Box>
+            </Stack>
         </Box>
     )
 }

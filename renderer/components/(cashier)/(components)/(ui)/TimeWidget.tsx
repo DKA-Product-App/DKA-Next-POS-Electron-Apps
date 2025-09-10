@@ -41,20 +41,11 @@ export default function TimeWidget({
             year: 'numeric',
             ...(timeZone ? { timeZone } : {}),
         }).format(d)
-        return `${hari} - (${tanggal})`
+        return `${hari} - ${tanggal}`
     }, [timeZone])
 
     React.useEffect(() => {
         setMounted(true)
-
-        // Tick function (sekali langsung jalan biar gak nunggu 1 detik)
-        const tick = () => {
-            const now = new Date()
-            setTimeNow(fmtTime(now))
-            setDateNow(fmtDate(now))
-        }
-        tick()
-        const id = setInterval(tick, 1000)
 
         // IPC time_sync (opsional). Kalau ada, override jamnya.
         const onTime = (args: any) => {
@@ -66,7 +57,6 @@ export default function TimeWidget({
         window.ipc?.on?.('time_sync', onTime)
 
         return () => {
-            clearInterval(id)
            /* window.ipc?.off?.('time_sync', onTime)*/
         }
     }, [fmtTime, fmtDate])

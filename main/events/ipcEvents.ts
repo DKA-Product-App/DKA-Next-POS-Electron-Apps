@@ -63,7 +63,7 @@ export default class IpcEvents {
         // 100ms cukup halus, gak bikin CPU ngos-ngosan
         if (this.timeTimer) clearInterval(this.timeTimer)
         this.timeTimer = setInterval(() => {
-            const humanize = moment().format('HH:mm:ss.SSS')
+            const humanize = moment().format('HH:mm:ss:SS')
             this.send('time_sync', { humanize })
         }, 100)
         /**
