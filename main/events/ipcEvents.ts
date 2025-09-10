@@ -1,6 +1,7 @@
 // main/IpcEvents.ts
 import { BrowserWindow, globalShortcut, ipcMain, IpcMainEvent } from 'electron'
 import moment from 'moment-timezone'
+import log from 'electron-log'
 
 type FnKey = `F${1|2|3|4|5|6|7|8|9|10|11|12}`
 
@@ -13,7 +14,11 @@ export default class IpcEvents {
     private onFunctionKey?: (event: IpcMainEvent, args: unknown) => void
 
     private lastKeyAt: Record<string, number> = {}
-    private keyRepeatGap = 120 // ms
+    private keyRepeatGap = 120 // ms (anti auto-repeat)
+
+    // debounce untuk toggle fullscreen (hindari double-trigger)
+    private lastFsToggleAt = 0
+    private fsToggleGap = 180 // ms
 
     constructor(mainWindow?: BrowserWindow) {
         this.mainWindow = mainWindow
@@ -23,32 +28,63 @@ export default class IpcEvents {
         this.mainWindow = win
     }
 
-    // Util aman kirim ke renderer
+    /** Kirim aman ke renderer (tanpa EPIPE/console) */
     private send(channel: string, payload: unknown) {
-        const wc = this.mainWindow?.webContents
-        if (wc && !wc.isDestroyed()) wc.send(channel, payload)
+        try {
+            const wc = this.mainWindow?.webContents
+            if (wc && !wc.isDestroyed()) wc.send(channel, payload)
+        } catch (err) {
+            log.warn('[ipc send] failed:', channel, err)
+        }
     }
 
-    // Handle langsung di main untuk beberapa key
+    /** Handle sebagian key langsung di main-process */
     private handleKeyInMain(key: string) {
         const win = this.mainWindow
         const wc = win?.webContents
         if (!win || !wc) return
 
         if (key === 'F7') {
-            win.setFullScreen(!win.isFullScreen())
+            // Debounce toggle fullscreen agar stabil di Linux/Wayland
+            const now = Date.now()
+            if (now - this.lastFsToggleAt < this.fsToggleGap) return
+            this.lastFsToggleAt = now
+
+            try {
+                // Short async tick supaya tidak bentrok dengan event stack yang sama
+                setTimeout(() => {
+                    try {
+                        const next = !win.isFullScreen()
+                        win.setFullScreen(next)
+                        // Catat state buat debugging
+                        log.info(`[fullscreen] set to ${next}`)
+                    } catch (e) {
+                        log.error('[fullscreen] toggle failed:', e)
+                    }
+                }, 50)
+            } catch (e) {
+                log.error('[fullscreen] schedule failed:', e)
+            }
         } else if (key === 'F8') {
-            wc.isDevToolsOpened() ? wc.closeDevTools() : wc.openDevTools()
+            try {
+                wc.isDevToolsOpened() ? wc.closeDevTools() : wc.openDevTools()
+            } catch (e) {
+                log.warn('[devtools] toggle failed:', e)
+            }
         }
     }
 
     private registerIpc() {
-        // Pastikan gak dobel listener
+        // Pastikan tidak double listener
         if (this.onPing) ipcMain.removeListener('ping', this.onPing)
         if (this.onFunctionKey) ipcMain.removeListener('function-key', this.onFunctionKey)
 
         this.onPing = (event) => {
-            event.sender.send('pong', { status: true, code: 200, msg: 'Pong From Server' })
+            try {
+                event.sender.send('pong', { status: true, code: 200, msg: 'Pong From Server' })
+            } catch (e) {
+                log.warn('[ipc pong] failed:', e)
+            }
         }
         ipcMain.on('ping', this.onPing)
 
@@ -60,20 +96,24 @@ export default class IpcEvents {
     }
 
     private registerClock() {
-        // 100ms cukup halus, gak bikin CPU ngos-ngosan
+        // 100ms cukup halus
         if (this.timeTimer) clearInterval(this.timeTimer)
         this.timeTimer = setInterval(() => {
             const humanize = moment().format('HH:mm:ss:SS')
             this.send('time_sync', { humanize })
         }, 100)
         /**
-         * @ts-expect-error: Node Timeout di Electron punya unref
+         * @ts-expect-error Electron's Node Timeout exposes unref
          */
         this.timeTimer?.unref?.()
     }
 
     private registerShortcuts() {
-        globalShortcut.unregisterAll()
+        try {
+            globalShortcut.unregisterAll()
+        } catch (e) {
+            log.warn('[globalShortcut] unregisterAll failed:', e)
+        }
 
         const keys: FnKey[] = Array.from({ length: 12 }, (_, i) => `F${i + 1}` as FnKey)
         keys.forEach((key) => {
@@ -87,11 +127,13 @@ export default class IpcEvents {
                 this.handleKeyInMain(key)
                 this.send('function-key', key)
             })
-            if (!ok) console.warn('[globalShortcut] gagal register:', key)
+            if (!ok) log.warn('[globalShortcut] gagal register:', key)
         })
     }
 
-    // Fokus-only: cegat F12 biar gak di-hijack Chromium (Windows build)
+    /** Fokus-only hook: cegah default chromium dan broadcast.
+     *  Catatan: **F7 DISKIP** di sini supaya tidak double dengan globalShortcut.
+     */
     private wireFKeysFocusOnly() {
         const wc = this.mainWindow?.webContents
         if (!wc) return
@@ -101,7 +143,12 @@ export default class IpcEvents {
             const k = input.key?.toUpperCase?.()
             if (!k || !/^F(1[0-2]?|[1-9])$/.test(k)) return
 
-            if (k === 'F12') event.preventDefault() // block default DevTools
+            // Block default DevTools di Windows
+            if (k === 'F12') event.preventDefault()
+
+            // Hindari double-trigger: F7 hanya via globalShortcut
+            if (k === 'F7') return
+
             this.handleKeyInMain(k)
             this.send('function-key', k)
         })
@@ -112,12 +159,14 @@ export default class IpcEvents {
         this.registerIpc()
         this.registerClock()
         this.registerShortcuts()   // global (jalan walau window blur)
-        this.wireFKeysFocusOnly()  // fokus-only, penting buat F12 di Windows
+        this.wireFKeysFocusOnly()  // fokus-only (skip F7), penting untuk F12
         this.registered = true
+        log.info('[ipc] registered')
     }
 
     async unregister() {
         this.registered = false
+
         if (this.timeTimer) clearInterval(this.timeTimer)
         this.timeTimer = undefined
 
@@ -126,6 +175,12 @@ export default class IpcEvents {
         this.onPing = undefined
         this.onFunctionKey = undefined
 
-        globalShortcut.unregisterAll()
+        try {
+            globalShortcut.unregisterAll()
+        } catch (e) {
+            log.warn('[globalShortcut] unregisterAll failed:', e)
+        }
+
+        log.info('[ipc] unregistered')
     }
 }
