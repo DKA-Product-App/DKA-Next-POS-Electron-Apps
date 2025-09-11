@@ -16,8 +16,8 @@ export class ThemeEvent {
     }
 
     private ensure = async () => {
-        // hanya set default sekali; tidak override nilai existing
-        await this.repo.setDefault('theme', 'light')
+        // di ThemeEvent.ensure()
+        await this.repo.setDefault('theme', 'light') // sekarang aman; schema dijamin ada
     }
 
     private getTheme = async (): Promise<ThemeMode> => {
