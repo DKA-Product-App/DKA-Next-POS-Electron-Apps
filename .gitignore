@@ -12,3 +12,5 @@ next-env.d.ts
 # build
 /app
 dist
+/**/**.db-shm
+/**/**.db-wal

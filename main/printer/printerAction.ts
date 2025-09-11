@@ -4,7 +4,7 @@ import Network from "@node-escpos/network-adapter";
 
 export default class Printers {
 
-    private device : Network
+    private readonly device : Network
     private printer : Printer<any>
 
     constructor({ address, port, timeout} : { address : string, port ?: number, timeout ?: number}) {

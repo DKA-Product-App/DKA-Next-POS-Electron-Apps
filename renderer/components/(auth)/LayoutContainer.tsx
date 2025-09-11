@@ -19,20 +19,48 @@ import 'react-perfect-scrollbar/dist/css/styles.css'
 
 import ShimmerContent from "./components/(loading)/ShimmerContent";
 
-const Content = dynamic(() => import('./components/Content'), {
-    ssr: false,
-})
-
-const FooterStatus = dynamic(() => import('./components/FooterStatus'), {
-    ssr: false,
-})
+const Content = dynamic(() => import('./components/Content'), { ssr: false })
+const FooterStatus = dynamic(() => import('./components/FooterStatus'), { ssr: false })
 
 export function LayoutContainer({ children }) {
     const [mode, setMode] = React.useState<'light' | 'dark'>('light')
     const theme = React.useMemo(() => createTheme({ palette: { mode }, direction: 'ltr' }), [mode])
 
+    // ==== IPC wrappers: TANPA invoke ====
+    const requestTheme = (): Promise<'light' | 'dark'> =>
+        new Promise((resolve) => {
+            // dengar sekali untuk response
+            const off = window.ipc.on('theme:resp', (payload: { mode: 'light' | 'dark' }) => {
+                off()
+                resolve(payload.mode)
+            })
+            // minta ke main
+            window.ipc.send('theme:get', null)
+        })
+
+    const setThemeIPC = (m: 'dark' | 'light') => window.ipc.send('theme:set', m)
+    const toggleThemeIPC = () => window.ipc.send('theme:toggle', null)
+
+    // Ambil theme awal & subscribe perubahan broadcast
+    React.useEffect(() => {
+        requestTheme().then(setMode)
+
+        const offChanged = window.ipc.on('theme:changed', (payload: { mode: 'dark' | 'light' }) => {
+            setMode(payload.mode)
+        })
+
+        return () => {
+            offChanged()
+            // kalau perlu bersihin semua listener channel:
+            // window.ipc.revoke('theme:changed')
+        }
+    }, [])
+
+    // Toggle dari UI
     const handleToggle = (_: unknown, val: 'light' | 'dark' | null) => {
-        if (val) setMode(val)
+        if (!val) return
+        setMode(val)
+        setThemeIPC(val) // sync ke main + persist
     }
 
     return (

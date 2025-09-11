@@ -85,3 +85,7 @@ extraFiles:
     to: uploads
     filter:
       - "**/*"
+  - from: ./database
+    to: database
+    filter:
+      - "**/*"

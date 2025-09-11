@@ -1,9 +1,18 @@
 import path from 'path'
 import {app, Menu, screen} from 'electron'
 import { createWindow } from '../functions';
-import IpcEvents from "../events/ipcEvents";
+import IpcEvents from "../events";
 
 const isProd = process.env.NODE_ENV === 'production'
+
+const pickZoom = (wLogical: number) =>
+    wLogical > 1920 ? 1.00 :          // hanya kalau lebih besar dari 1920
+        wLogical >= 1600 ? 0.90 :
+            wLogical >= 1440 ? 0.85 :
+                wLogical >= 1366 ? 0.82 :
+                    wLogical >= 1280 ? 0.75 :
+                        wLogical >= 1152 ? 0.72 :
+                            wLogical >= 1024 ? 0.67 : 0.60
 
 export default async function MainWindow(){
     //#######################################################
@@ -22,6 +31,14 @@ export default async function MainWindow(){
     mainWindow
         .on('show', () => {
             Menu.setApplicationMenu(null);
+
+            // ambil display tempat window muncul
+            const display = screen.getDisplayMatching(mainWindow.getBounds())
+            const sf = display.scaleFactor || 1
+            const wLogical = Math.round(display.workAreaSize.width / sf)
+
+            const factor = pickZoom(wLogical)
+            mainWindow.webContents.setZoomFactor(factor)
         })
         .on('close', () => {
             console.log('window is closed')
