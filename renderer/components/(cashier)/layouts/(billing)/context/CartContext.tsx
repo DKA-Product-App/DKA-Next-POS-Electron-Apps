@@ -28,6 +28,9 @@ type Action =
     | { type: 'SET_TAX_RATE'; payload: { taxRate: number } }
     | { type: 'SET_DESC'; payload: { key: string; description: string } }
 
+const STORAGE_KEY = 'cashier_cart'
+const STORAGE_VERSION = 1
+
 const CartStateCtx = React.createContext<CartState | null>(null)
 const CartActionsCtx = React.createContext<{
     add: (p: Products, v?: ProductsVariants) => void
@@ -39,28 +42,32 @@ const CartActionsCtx = React.createContext<{
     setDescription: (key: string, description: string) => void
 } | null>(null)
 
+// ---------- Reducer ----------
 const reducer = (state: CartState, action: Action): CartState => {
     if (action.type === 'ADD') {
         const { p, v } = action.payload
         const key = `${p.id}:${v?.id ?? 'base'}`
-        const idx = state.items.findIndex(i => i.key === key)
         const unitPrice = v?.price ?? (p as any).price ?? 0
         const variantLabel = v?.name
-        const items =
-            idx >= 0
-                ? state.items.map((it, i) => i === idx ? { ...it, qty: it.qty + 1 } : it)
-                : state.items.concat([{ key, productId: p.id, name: p.name, variantLabel, unitPrice, qty: 1 }])
+
+        const items = state.items.some(i => i.key === key)
+            ? state.items.map(it => (it.key === key ? { ...it, qty: it.qty + 1 } : it))
+            : state.items.concat([
+                { key, productId: p.id, name: p.name, variantLabel, unitPrice, qty: 1 },
+            ])
         return { ...state, items }
     }
 
     if (action.type === 'INC') {
-        const items = state.items.map(it => it.key === action.payload.key ? { ...it, qty: it.qty + 1 } : it)
+        const items = state.items.map(it =>
+            it.key === action.payload.key ? { ...it, qty: it.qty + 1 } : it
+        )
         return { ...state, items }
     }
 
     if (action.type === 'DEC') {
         const items = state.items
-            .map(it => it.key === action.payload.key ? { ...it, qty: it.qty - 1 } : it)
+            .map(it => (it.key === action.payload.key ? { ...it, qty: it.qty - 1 } : it))
             .filter(it => it.qty > 0)
         return { ...state, items }
     }
@@ -75,49 +82,85 @@ const reducer = (state: CartState, action: Action): CartState => {
     if (action.type === 'SET_TAX_RATE') return { ...state, taxRate: action.payload.taxRate }
 
     if (action.type === 'SET_DESC') {
-        const items = state.items.map(it => it.key === action.payload.key ? { ...it, description: action.payload.description } : it)
+        const items = state.items.map(it =>
+            it.key === action.payload.key ? { ...it, description: action.payload.description } : it
+        )
         return { ...state, items }
     }
 
     return state
 }
 
-export const CartProvider: React.FC<{ children: React.ReactNode; initialTaxRate?: number }> = ({ children, initialTaxRate = 0.11 }) => {
-    const [state, dispatch] = React.useReducer(reducer, { items: [], taxRate: initialTaxRate })
+// ---------- Storage helpers ----------
+type PersistedState = { version: number; payload: CartState }
 
-    // (opsional) persist sesi—aman karena semua komponen ini client
-    React.useEffect(() => {
-        const raw = sessionStorage.getItem('cashier_cart')
-        if (!raw) return
-        const parsed = JSON.parse(raw) as CartState
-        parsed?.items && dispatch({ type: 'CLEAR' })
-        parsed?.items?.forEach(() => {}) // no-op biar nggak pakai for ;p
-        // restore sekali: replace seluruh state
-    }, [])
+const loadInitialState = (initialTaxRate: number): CartState => {
+    const raw = typeof window !== 'undefined' ? sessionStorage.getItem(STORAGE_KEY) : null
+    if (!raw) return { items: [], taxRate: initialTaxRate }
 
+    const parsed = JSON.parse(raw) as PersistedState | CartState
+    // Backward compatibility (tanpa version)
+    const state: CartState =
+        'version' in (parsed as any)
+            ? (parsed as PersistedState).payload
+            : (parsed as CartState)
+
+    return {
+        items: state.items ?? [],
+        taxRate: typeof state.taxRate === 'number' ? state.taxRate : initialTaxRate,
+    }
+}
+
+const persist = (state: CartState) => {
+    const data: PersistedState = { version: STORAGE_VERSION, payload: state }
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+}
+
+// ---------- Provider ----------
+export const CartProvider: React.FC<{
+    children: React.ReactNode
+    initialTaxRate?: number
+}> = ({ children, initialTaxRate = 0.11 }) => {
+    // Lazy init agar rehydrate dilakukan sekali, tanpa dispatch tambahan
+    const [state, dispatch] = React.useReducer(
+        reducer,
+        undefined as unknown as CartState,
+        () => loadInitialState(initialTaxRate)
+    )
+
+    // Persist setiap perubahan state
     React.useEffect(() => {
-        const data = JSON.stringify(state)
-        sessionStorage.setItem('cashier_cart', data)
+        if (typeof window === 'undefined') return
+        persist(state)
     }, [state])
 
-    const valueActions = React.useMemo(() => ({
-        add: (p: Products, v?: ProductsVariants) => dispatch({ type: 'ADD', payload: { p, v } }),
-        inc: (key: string) => dispatch({ type: 'INC', payload: { key } }),
-        dec: (key: string) => dispatch({ type: 'DEC', payload: { key } }),
-        remove: (key: string) => dispatch({ type: 'REMOVE', payload: { key } }),
-        clear: () => dispatch({ type: 'CLEAR' }),
-        setTaxRate: (n: number) => dispatch({ type: 'SET_TAX_RATE', payload: { taxRate: n } }),
-        setDescription: (key: string, description: string) => dispatch({ type: 'SET_DESC', payload: { key, description } }),
-    }), [])
+    // Actions stabil (tidak berubah referensi) karena hanya bergantung pada dispatch
+    const valueActions = React.useMemo(
+        () => ({
+            add: (p: Products, v?: ProductsVariants) =>
+                dispatch({ type: 'ADD', payload: { p, v } }),
+            inc: (key: string) => dispatch({ type: 'INC', payload: { key } }),
+            dec: (key: string) => dispatch({ type: 'DEC', payload: { key } }),
+            remove: (key: string) => dispatch({ type: 'REMOVE', payload: { key } }),
+            clear: () => dispatch({ type: 'CLEAR' }),
+            setTaxRate: (n: number) =>
+                dispatch({ type: 'SET_TAX_RATE', payload: { taxRate: n } }),
+            setDescription: (key: string, description: string) =>
+                dispatch({ type: 'SET_DESC', payload: { key, description } }),
+        }),
+        [dispatch]
+    )
 
     return (
         <CartStateCtx.Provider value={state}>
-            <CartActionsCtx.Provider value={valueActions}>{children}</CartActionsCtx.Provider>
+            <CartActionsCtx.Provider value={valueActions}>
+                {children}
+            </CartActionsCtx.Provider>
         </CartStateCtx.Provider>
     )
 }
 
-// == Hooks konsumen ==
+// ---------- Hooks konsumen ----------
 export const useCart = () => {
     const ctx = React.useContext(CartStateCtx)
     if (!ctx) throw new Error('useCart must be used within CartProvider')
@@ -139,7 +182,12 @@ export const useCartMoney = () => {
     const tax = React.useMemo(() => Math.round(subtotal * taxRate), [subtotal, taxRate])
     const total = subtotal + tax
     const rupiahFmt = React.useMemo(
-        () => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }),
+        () =>
+            new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                maximumFractionDigits: 0,
+            }),
         []
     )
     const rupiah = (n: number) => rupiahFmt.format(n)
