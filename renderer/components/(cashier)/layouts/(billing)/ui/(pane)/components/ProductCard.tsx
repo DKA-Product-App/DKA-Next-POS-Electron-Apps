@@ -2,13 +2,15 @@
 
 import React, { FC } from 'react'
 import Image, { ImageLoader } from 'next/image'
-import { Box, Button, Chip, MenuItem, Paper, Select, Stack, Typography } from '@mui/material'
+import { Box, Button, Chip, MenuItem, Paper, Select, Typography } from '@mui/material'
 import LocalOfferRoundedIcon from '@mui/icons-material/LocalOfferRounded'
 import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import Skeleton from '@mui/material/Skeleton'
 
 import { Products } from '../../../types/products.type'
+import { ProductDetailModal, DetailProductModalHandle } from './modals/ProductDetailModal'
+import {motion} from "framer-motion";
 
 export type ProductCardProps = {
     product: Products
@@ -20,16 +22,19 @@ export type ProductCardProps = {
 }
 
 const GRADIENT_DEFAULT = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
+
+// + bikin MotionPaper (tipis doang)
+const MotionPaper = motion(Paper)
+
 const rupiah = (n: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n)
 const toUploadUrl = (s?: string) => (!s ? undefined : /^(uploads|http|https):\/\//i.test(s) ? s : `uploads:///${s.replace(/^\/+/, '')}`)
 const placeholderOf = (p: Products) => toUploadUrl(p.image) ?? `https://placehold.co/600x400/png?text=${encodeURIComponent(p.name)}`
 
-/** ===== Drag-to-scroll hook (pointer events) ===== */
+/** drag-to-scroll (kategori) */
 function useHorizontalDragScroll<T extends HTMLElement>() {
     const ref = React.useRef<T | null>(null)
     const state = React.useRef({ down: false, startX: 0, startScrollLeft: 0 })
-
     const onPointerDown = (e: React.PointerEvent<T>) => {
         const el = ref.current; if (!el) return
         state.current.down = true
@@ -49,7 +54,6 @@ function useHorizontalDragScroll<T extends HTMLElement>() {
         if (e) el.releasePointerCapture?.(e.pointerId)
         el.style.cursor = 'grab'
     }
-
     return { ref, onPointerDown, onPointerMove, onPointerUp: end, onPointerLeave: end }
 }
 
@@ -84,36 +88,33 @@ const ImgWithSkeleton: FC<{ src: string; alt: string; priority?: boolean; loader
     )
 }
 
-const ProductCard: FC<ProductCardProps> = ({
-                                               product: p,
-                                               variantId,
-                                               onSelectVariant,
-                                               onAdd,
-                                               uploadsLoader,
-                                               gradient = GRADIENT_DEFAULT,
-                                           }) => {
+
+const ProductCard: FC<ProductCardProps> = ({ product: p, variantId, onSelectVariant, onAdd, uploadsLoader, gradient = GRADIENT_DEFAULT }) => {
     const hasVariants = Array.isArray(p.variants) && p.variants.length > 0
     const selectedVarId = variantId ?? p.variants?.[0]?.id
     const selectedVar = p.variants?.find(v => String(v.id) === String(selectedVarId))
     const price = Number(selectedVar?.price ?? (p as any).price ?? 0)
 
-    // normalisasi category (boleh array atau single)
-    const cats: Array<any> = Array.isArray((p as any).category)
-        ? (p as any).category
-        : (p as any).category ? [(p as any).category] : []
-
-    // hook drag-to-scroll untuk kategori
+    const cats: Array<any> = Array.isArray((p as any).category) ? (p as any).category : (p as any).category ? [(p as any).category] : []
     const drag = useHorizontalDragScroll<HTMLDivElement>()
 
+    // modal controller
+    const modalRef = React.useRef<DetailProductModalHandle>(null)
+
     return (
-        <Paper
+        <MotionPaper
             variant="outlined"
+            whileHover="hover"
+            initial={false}
+            variants={{ hover: { scale: [1, 0.97, 1.04, 1] } }}  // ⬅️ agak lebih “nendang”
+            transition={{ duration: 1, times: [0, 0.25, 0.7, 1], ease: [0.16, 1, 0.3, 1] }}
+            style={{ willChange: 'transform' }}
             sx={{
                 borderRadius: 2,
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
-                transition: (t) => t.transitions.create(['transform','box-shadow','border-color'], { duration: t.transitions.duration.shorter }),
+                transition: (t) => t.transitions.create(['box-shadow','border-color'], { duration: t.transitions.duration.shorter }),
                 borderColor: 'divider',
                 position: 'relative',
                 background: (t) =>
@@ -125,16 +126,26 @@ const ProductCard: FC<ProductCardProps> = ({
                     filter: 'blur(12px)', opacity: 0, transition: 'opacity .18s ease', zIndex: -1,
                 },
                 '&:hover': (t) => ({
-                    transform: 'translateY(-1px)',
                     boxShadow: 4,
                     borderColor: 'primary.main',
                     ...(t.palette.mode === 'dark' ? { '&::after': { opacity: 0.8 } } : { '&::after': { opacity: 0 } }),
                 }),
             }}
         >
-            {/* Image + Price */}
+            {/* Image + Price (click to open modal) */}
             <Box sx={{ position: 'relative' }}>
-                <ImgWithSkeleton src={placeholderOf(p)} alt={p.name} loader={uploadsLoader} />
+                <Box
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Lihat detail ${p.name}`}
+                    title="Lihat detail"
+                    onClick={() => modalRef.current?.open()}
+                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), modalRef.current?.open()) : null}
+                    sx={{ outline: 'none' }}
+                >
+                    <ImgWithSkeleton src={placeholderOf(p)} alt={p.name} loader={uploadsLoader} />
+                </Box>
+
                 <Chip
                     size="small"
                     icon={<LocalOfferRoundedIcon sx={{ fontSize: 16, color: 'inherit' }} />}
@@ -154,7 +165,7 @@ const ProductCard: FC<ProductCardProps> = ({
                     sx={{
                         fontWeight: 800,
                         lineHeight: 1.25,
-                        fontSize: { xs: '1rem', sm: '1.05rem', md: '1.1rem' }, // ⬅️ lebih besar & responsif
+                        fontSize: { xs: '1rem', sm: '1.05rem', md: '1.1rem' },
                         display: '-webkit-box',
                         WebkitLineClamp: 2,
                         WebkitBoxOrient: 'vertical',
@@ -164,7 +175,7 @@ const ProductCard: FC<ProductCardProps> = ({
                     {p.name}
                 </Typography>
 
-                {/* Categories: drag-to-scroll, scrollbar hidden, left align */}
+                {/* Categories: drag-to-scroll */}
                 <Box
                     ref={drag.ref}
                     onPointerDown={drag.onPointerDown}
@@ -180,10 +191,10 @@ const ProductCard: FC<ProductCardProps> = ({
                         minHeight: 28,
                         cursor: 'grab',
                         userSelect: 'none',
-                        touchAction: 'pan-y',              // biar vertical scroll halaman tetap oke
-                        scrollbarWidth: 'none',            // Firefox hide
-                        '-ms-overflow-style': 'none',      // IE/Edge legacy
-                        '&::-webkit-scrollbar': { display: 'none' }, // WebKit hide
+                        touchAction: 'pan-y',
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                        '&::-webkit-scrollbar': { width: 0, height: 0 },
                     }}
                 >
                     <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, whiteSpace: 'nowrap', minWidth: '100%' }}>
@@ -195,11 +206,7 @@ const ProductCard: FC<ProductCardProps> = ({
                                     variant="outlined"
                                     icon={<CategoryRoundedIcon sx={{ fontSize: 14 }} />}
                                     label={c.name}
-                                    sx={{
-                                        color: 'text.secondary',
-                                        borderColor: 'divider',
-                                        '& .MuiChip-icon': { color: 'inherit', mr: 0.5 },
-                                    }}
+                                    sx={{ color: 'text.secondary', borderColor: 'divider', '& .MuiChip-icon': { color: 'inherit', mr: 0.5 } }}
                                 />
                             ))
                         ) : (
@@ -208,11 +215,7 @@ const ProductCard: FC<ProductCardProps> = ({
                                 variant="outlined"
                                 icon={<CategoryRoundedIcon sx={{ fontSize: 14 }} />}
                                 label="Uncategorized"
-                                sx={{
-                                    color: 'text.secondary',
-                                    borderColor: 'divider',
-                                    '& .MuiChip-icon': { color: 'inherit', mr: 0.5 },
-                                }}
+                                sx={{ color: 'text.secondary', borderColor: 'divider', '& .MuiChip-icon': { color: 'inherit', mr: 0.5 } }}
                             />
                         )}
                     </Box>
@@ -254,15 +257,7 @@ const ProductCard: FC<ProductCardProps> = ({
                     size="small"
                     variant="contained"
                     endIcon={<AddRoundedIcon />}
-                    sx={{
-                        mt: 1,
-                        textTransform: 'none',
-                        fontWeight: 800,
-                        borderRadius: 1.5,
-                        boxShadow: 'none',
-                        background: gradient,
-                        '&:hover': { boxShadow: 3 },
-                    }}
+                    sx={{ mt: 1, textTransform: 'none', fontWeight: 800, borderRadius: 1.5, boxShadow: 'none', background: gradient, '&:hover': { boxShadow: 3 } }}
                     onClick={() => onAdd?.(p, hasVariants ? selectedVar : undefined)}
                 >
                     Tambah
@@ -270,7 +265,18 @@ const ProductCard: FC<ProductCardProps> = ({
             </Box>
 
             <Box sx={{ height: 3, background: gradient }} />
-        </Paper>
+
+            {/* modal terpisah, dikontrol via ref */}
+            <ProductDetailModal
+                ref={modalRef}
+                product={p}
+                variantId={selectedVarId ? String(selectedVarId) : undefined}
+                onSelectVariant={onSelectVariant}
+                onAdd={onAdd}
+                uploadsLoader={uploadsLoader}
+                gradient={gradient}
+            />
+        </MotionPaper>
     )
 }
 

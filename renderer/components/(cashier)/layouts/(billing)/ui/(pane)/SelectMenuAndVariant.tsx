@@ -1,7 +1,6 @@
 'use client'
 
 import React, { FC, useEffect, useState } from "react";
-import Image, { ImageLoader } from 'next/image';
 import {
     Box, Chip, MenuItem, Paper, Select,
     TextField, Stack, InputAdornment, IconButton,
@@ -57,24 +56,41 @@ export const SelectMenuAndVariant: FC = () => {
     const [productsCategories, setProductsCategories] = useState<Array<any>>([]);
     const [prodError, setProdError] = useState<{ code?: number; msg?: string } | null>(null);
 
-    const fetchProducts = () =>
+    const fetchProducts = () => {
         window.api.invoke("api.product:read.all", {})
-            .then((result: any) => { setProducts(result.data); setProdError(null) })
+            .then((result: any) => {
+                setProducts(result.data);
+                setProdError(null);
+                console.log(result);
+            })
             .catch((err: any) => {
+                console.error(err);
                 setProducts([]);
                 setProdError({
                     code: err?.code ?? err?.status ?? 0,
                     msg: err?.msg ?? err?.message ?? "Gagal memuat produk. Internetnya lagi mood swing?"
                 });
             });
-
-    useEffect(() => { fetchProducts() }, []);
+    }
+    const fetchProductsCategory = () => {
+        window.api.invoke("api.product.category:read.all", {})
+            .then((result: any) => {
+                setProductsCategories(result.data);
+                console.log(result);
+            })
+            .catch((error) => {
+                setProductsCategories([]);
+                console.error(error);
+            })
+    }
 
     useEffect(() => {
-        window.api.invoke("api.product.category:read.all", {})
-            .then((result: any) => { setProductsCategories(result.data); })
-            .catch(() => setProductsCategories([]))
+        fetchProductsCategory();
     }, []);
+
+    useEffect(() => {
+        fetchProducts();
+    }, [tab]);
 
     React.useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -100,7 +116,7 @@ export const SelectMenuAndVariant: FC = () => {
         const map = new Map<string, number>()
         products.forEach(p => {
             const ids = catIds(p)
-            if (ids.length === 0) map.set('__uncat', (map.get('__uncat') ?? 0) + 1)
+            if (ids.length === 0) map.set('__unit', (map.get('__unit') ?? 0) + 1)
             else ids.forEach(id => map.set(id, (map.get(id) ?? 0) + 1))
         })
         return map
@@ -113,7 +129,7 @@ export const SelectMenuAndVariant: FC = () => {
                 const passQ = q.trim() === '' || String(p.name ?? '').toLowerCase().includes(q.toLowerCase())
                 return passCat && passQ
             }),
-        [products, activeCategoryId, q]
+        [products, activeCategoryId, q, tab]
     )
 
     const filtered = React.useMemo(() => {
@@ -127,8 +143,6 @@ export const SelectMenuAndVariant: FC = () => {
         }
         return arr
     }, [filteredBase, sortBy])
-
-    const uploadsLoader: ImageLoader = ({ src }) => src
 
     return (
         <Paper sx={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} elevation={0}>
@@ -225,7 +239,10 @@ export const SelectMenuAndVariant: FC = () => {
                                     {prodError.msg || 'Terjadi kesalahan tak terduga. Coba cek koneksi atau servernya.'}
                                 </Typography>
                                 <Stack direction="row" spacing={1} sx={{ pt: 0.5 }}>
-                                    <Button onClick={fetchProducts} variant="contained" startIcon={<RefreshRoundedIcon />}>
+                                    <Button onClick={() => {
+                                        fetchProductsCategory();
+                                        fetchProducts();
+                                    }} variant="contained" startIcon={<RefreshRoundedIcon />}>
                                         Coba lagi
                                     </Button>
                                 </Stack>

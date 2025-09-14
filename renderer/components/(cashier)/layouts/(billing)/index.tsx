@@ -4,7 +4,6 @@ import ResizableGrid from './ui/ResizableContainer'
 import ShimmerLoadingPreviewSelectCheckout from './ui/(loading)/ShimmerLoadingPreviewSelectCheckout'
 import ShimmerLoadingSelectMenu from './ui/(loading)/ShimmerLoadingSelectMenu'
 import { CartProvider } from './context/CartContext'
-import { PRODUCTS, CATEGORIES } from './data' // opsional: kalau mau pindahkan data ke file terpisah
 
 const PreviewSelectCheckout = dynamic(() => import('./ui/(pane)/PreviewSelectCheckout'), {
     loading: () => <ShimmerLoadingPreviewSelectCheckout />,
@@ -18,15 +17,12 @@ const SelectMenuAndVariant = dynamic(() => import('./ui/(pane)/SelectMenuAndVari
 
 export default function Billing() {
 
-    const leftEl = React.useMemo(() => (
-        <SelectMenuAndVariant />
-    ), [])
-
-    const rightEl = React.useMemo(() => <PreviewSelectCheckout />, [])
-
     return (
         <CartProvider initialTaxRate={0.11}>
-            <ResizableGrid left={leftEl} right={rightEl} />
+            <ResizableGrid
+                left={<SelectMenuAndVariant />}
+                right={<PreviewSelectCheckout />}
+            />
         </CartProvider>
     )
 }
