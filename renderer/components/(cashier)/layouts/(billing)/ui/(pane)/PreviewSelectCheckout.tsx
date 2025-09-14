@@ -16,30 +16,22 @@ import {
     Tooltip,
     Fade,
     Grow,
-    TextField,
-    Popper,
-    ClickAwayListener,
-    Paper as MuiPaper,
 } from "@mui/material";
-import {
-    Add,
-    Block,
-    Remove,
-    Delete,
-    NoteAltRounded,
-    DeleteOutline,
-} from "@mui/icons-material";
+import { Add, Block, Remove, Delete, NoteAltRounded } from "@mui/icons-material";
 import PerfectScrollbar from "react-perfect-scrollbar";
 import "react-perfect-scrollbar/dist/css/styles.css";
 
 import { useCart, useCartActions, useCartMoney } from "../../context/CartContext";
 import dynamic from "next/dynamic";
 
-const DiningModeWidget = dynamic(() => import("./components/DiningModeWidget"), { ssr: false });
-const PromoWidget = dynamic(() => import("./components/PromoWidget"), { ssr: false });
+import DetailItem, { DetailItemHandle } from "./widgets/DetailItemWidget";
+
+const DiningModeWidget = dynamic(() => import("./widgets/DiningModeWidget"), { ssr: false });
+const PromoWidget = dynamic(() => import("./widgets/PromoWidget"), { ssr: false });
 
 const GRADIENT_PURPLE = "linear-gradient(90deg, #6366F1, #8B5CF6 30%, #EC4899)";
 const DARK_BG = "linear-gradient(180deg, rgba(15,23,42,1) 0%, rgba(2,6,23,1) 100%)";
+const BUS_EVENT = 'detailitem:close-all';
 
 // ==== Mini qty
 const Qty = React.memo<{ n: number }>(({ n }) => (
@@ -62,7 +54,7 @@ const Qty = React.memo<{ n: number }>(({ n }) => (
     </Box>
 ));
 
-// ==== Item actions di list (kanan)
+// ==== Item actions (kanan)
 const Actions = React.memo<{
     k: string;
     qty: number;
@@ -83,7 +75,16 @@ const Actions = React.memo<{
             </IconButton>
         </Tooltip>
         <Tooltip title="Hapus item">
-            <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); onRemove(k); }}>
+            <IconButton
+                size="small"
+                color="error"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    // Tutup semua popup SEBELUM menghapus item
+                    window.dispatchEvent(new CustomEvent(BUS_EVENT));
+                    onRemove(k);
+                }}
+            >
                 <Delete fontSize="small" />
             </IconButton>
         </Tooltip>
@@ -113,7 +114,11 @@ const HeaderBar: React.FC<{ count: number; onClear: () => void }> = ({ count, on
                     size="small"
                     color="error"
                     startIcon={<Block />}
-                    onClick={onClear}
+                    onClick={() => {
+                        // Close all sebelum clear
+                        window.dispatchEvent(new CustomEvent(BUS_EVENT));
+                        onClear();
+                    }}
                     variant="outlined"
                     sx={{ borderRadius: 1.5, textTransform: "none" }}
                 >
@@ -196,45 +201,14 @@ const FooterBar: React.FC<{
 // ==== Main
 const PreviewSelectCheckout: React.FC = () => {
     const { items } = useCart();
-    const { inc, dec, remove, clear, setDescription } = useCartActions();
+    const { inc, dec, remove, clear } = useCartActions();
     const { subtotal, tax, total, rupiah, taxRatePct } = useCartMoney();
 
-    // Popper state (anchor + key + draft)
-    const [popper, setPopper] = React.useState<{ key: string | null; anchor: HTMLElement | null; draft: string }>({
-        key: null,
-        anchor: null,
-        draft: "",
-    });
+    const refMap = React.useRef<Record<string, DetailItemHandle | null>>({});
 
-    const openEditor = (itemKey: string, anchor: HTMLElement | null, current: string | undefined) =>
-        setPopper({ key: itemKey, anchor, draft: current ?? "" });
-
-    const closeEditor = () => setPopper({ key: null, anchor: null, draft: "" });
-
-    const handleSave = () => {
-        if (!popper.key) return;
-        setDescription(popper.key, popper.draft.trim());
-        closeEditor();
+    const setDetailRef = (key: string) => (inst: DetailItemHandle | null) => {
+        refMap.current[key] = inst;
     };
-
-    const clearNote = () => {
-        if (!popper.key) return;
-        setDescription(popper.key, "");
-        setPopper(s => ({ ...s, draft: "" })); // biar textbox kosong kalau masih kebuka
-    };
-
-    // Helper cari item aktif (buat qty & subtotal realtime di popup)
-    const activeItem = popper.key ? items.find(i => i.key === popper.key) : undefined;
-    const activeSubtotal = activeItem ? activeItem.unitPrice * activeItem.qty : 0;
-
-
-    // 👉 Tambahin useEffect ini
-    React.useEffect(() => {
-        if (popper.key && !activeItem) {
-            // item hilang (qty jadi 0 atau dihapus)
-            closeEditor();
-        }
-    }, [activeItem, popper.key]);
 
     return (
         <Paper
@@ -254,7 +228,14 @@ const PreviewSelectCheckout: React.FC = () => {
             <HeaderBar count={items.length} onClear={clear} />
 
             <Box sx={{ flex: 1, minHeight: 0 }}>
-                <PerfectScrollbar style={{ height: "100%" }} options={{ suppressScrollX: true }}>
+                <PerfectScrollbar
+                    style={{ height: "100%" }}
+                    options={{ suppressScrollX: true }}
+                    onScrollY={() => {
+                        window.dispatchEvent(new CustomEvent(BUS_EVENT));
+                        Object.values(refMap.current).forEach((ref) => ref?.close());
+                    }}
+                >
                     <List disablePadding>
                         {items.map((it, idx) => {
                             const lineTotal = it.unitPrice * it.qty;
@@ -264,10 +245,9 @@ const PreviewSelectCheckout: React.FC = () => {
                                 <Fade in key={it.key} timeout={180}>
                                     <Box>
                                         <ListItem
-                                            // KLIK KANAN untuk buka editor Popper
                                             onClick={(e) => {
                                                 e.preventDefault();
-                                                openEditor(it.key, e.currentTarget as HTMLElement, it.description);
+                                                refMap.current[it.key]?.open(e.currentTarget as HTMLElement, it);
                                             }}
                                             secondaryAction={
                                                 <Actions
@@ -296,8 +276,8 @@ const PreviewSelectCheckout: React.FC = () => {
                                                 primary={
                                                     <Box
                                                         sx={{
-                                                            display: 'flex',
-                                                            alignItems: 'center',
+                                                            display: "flex",
+                                                            alignItems: "center",
                                                             gap: 0.75,
                                                             minWidth: 0,
                                                         }}
@@ -307,9 +287,9 @@ const PreviewSelectCheckout: React.FC = () => {
                                                             lineHeight={1.2}
                                                             title={it.name}
                                                             sx={{
-                                                                overflow: 'hidden',
-                                                                textOverflow: 'ellipsis',
-                                                                whiteSpace: 'nowrap',
+                                                                overflow: "hidden",
+                                                                textOverflow: "ellipsis",
+                                                                whiteSpace: "nowrap",
                                                                 minWidth: 0,
                                                                 flexShrink: 1,
                                                             }}
@@ -343,6 +323,8 @@ const PreviewSelectCheckout: React.FC = () => {
                                                     </Typography>
                                                 }
                                             />
+
+                                            <DetailItem ref={setDetailRef(it.key)} />
                                         </ListItem>
 
                                         {idx < items.length - 1 && <Divider sx={{ mx: 1.5 }} />}
@@ -361,144 +343,6 @@ const PreviewSelectCheckout: React.FC = () => {
                     </List>
                 </PerfectScrollbar>
             </Box>
-
-            {/* === Popper Editor (anchored, scrollable) === */}
-            <Popper
-                open={Boolean(popper.key)}
-                anchorEl={popper.anchor}
-                placement="left-start"
-                modifiers={[
-                    { name: 'offset', options: { offset: [15, 0] } }, // geser dikit biar lega
-                    { name: 'flip', options: { fallbackPlacements: ['right-start', 'bottom-start'] } },
-                    { name: 'preventOverflow', options: { padding: 12, boundary: 'clippingParents' } },
-                ]}
-                sx={{ zIndex: (t) => t.zIndex.modal + 1 }}
-            >
-                <ClickAwayListener onClickAway={closeEditor}>
-                    <MuiPaper
-                        elevation={8}
-                        sx={(t) => ({
-                            width: 420,
-                            maxWidth: '90vw',
-                            [t.breakpoints.up('sm')]: { width: 480 },
-                            [t.breakpoints.up('md')]: { width: 560 },
-
-                            maxHeight: '72vh',
-                            borderRadius: 2,
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            overflow: 'hidden',
-                            background: t.palette.mode === 'dark'
-                                ? `linear-gradient(180deg, rgba(23,23,35,1) 0%, rgba(15,15,25,1) 100%)`
-                                : `linear-gradient(180deg, #fff 0%, #f9f9ff 100%)`,
-                            boxShadow: '0 0 12px rgba(139,92,246,0.25)', // ungu halus
-                        })}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {/* === Ornamen bar atas === */}
-                        <Box sx={{ height: 4, background: 'linear-gradient(90deg, #6366F1, #8B5CF6 30%, #EC4899)' }} />
-
-                        <PerfectScrollbar style={{ maxHeight: 'calc(72vh - 8px)' }} options={{ suppressScrollX: true }}>
-                            <Box sx={{ p: 3, pb: 1.25 }}>
-                                {/* === Info Produk === */}
-                                <Stack spacing={0.75}>
-                                    <Typography variant="h6" fontWeight={900} sx={{ lineHeight: 1.1 }}>
-                                        {activeItem?.name ?? 'Produk'}
-                                    </Typography>
-                                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                                        {activeItem?.variantLabel && (
-                                            <Chip size="small" label={activeItem.variantLabel} variant="outlined" sx={{ borderRadius: 1 }} />
-                                        )}
-                                        <Typography variant="body2" color="text.secondary">
-                                            Harga: <b>
-                                            {activeItem
-                                                ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
-                                                    .format(activeItem.unitPrice)
-                                                : '-'}
-                                        </b>
-                                        </Typography>
-                                    </Stack>
-                                </Stack>
-
-                                <Divider sx={{ my: 1.25 }} />
-
-                                {/* === Qty & Subtotal (sedikit lebih besar) === */}
-                                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                                    <Stack direction="row" alignItems="center" spacing={0.75}>
-                                        <Tooltip title="Kurangi">
-                                            <IconButton size="medium" onClick={() => activeItem && dec(activeItem.key)}>
-                                                <Remove />
-                                            </IconButton>
-                                        </Tooltip>
-                                        <Typography
-                                            fontWeight={900}
-                                            sx={{ fontVariantNumeric: 'tabular-nums', minWidth: 28, textAlign: 'center', fontSize: 16 }}
-                                        >
-                                            {activeItem?.qty ?? 0}
-                                        </Typography>
-                                        <Tooltip title="Tambah">
-                                            <IconButton size="medium" onClick={() => activeItem && inc(activeItem.key)}>
-                                                <Add />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </Stack>
-
-                                    <Stack direction="row" spacing={1} alignItems="baseline">
-                                        <Typography variant="body2" color="text.secondary">Subtotal:</Typography>
-                                        <Typography fontWeight={900}>
-                                            {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
-                                                .format(activeSubtotal)}
-                                        </Typography>
-                                    </Stack>
-                                </Stack>
-
-                                <Divider sx={{ my: 1.25 }} />
-
-                                {/* === Catatan === */}
-                                <Stack spacing={0.75}>
-                                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                        <Typography variant="subtitle2" fontWeight={800}>Catatan</Typography>
-                                        <Tooltip title="Hapus catatan">
-                <span>
-                  <IconButton size="small" onClick={clearNote} disabled={!activeItem?.description}>
-                    <DeleteOutline fontSize="small" />
-                  </IconButton>
-                </span>
-                                        </Tooltip>
-                                    </Stack>
-                                    <TextField
-                                        value={popper.draft}
-                                        onChange={(e) => setPopper(s => ({ ...s, draft: e.target.value }))}
-                                        size="medium"
-                                        fullWidth
-                                        placeholder="cth: hot / no onion / less ice"
-                                        multiline
-                                        minRows={3}
-                                        maxRows={10}
-                                        autoFocus
-                                    />
-                                    <Stack direction="row" justifyContent="flex-end">
-                                        <Button
-                                            variant="contained"
-                                            size="medium"
-                                            onClick={handleSave}
-                                            sx={{ textTransform: 'none', fontWeight: 800 }}
-                                        >
-                                            Simpan
-                                        </Button>
-                                    </Stack>
-                                </Stack>
-                            </Box>
-                        </PerfectScrollbar>
-
-                        {/* === Ornamen bar bawah === */}
-                        <Box sx={{ height: 4, background: 'linear-gradient(90deg, #6366F1, #8B5CF6 30%, #EC4899)' }} />
-                    </MuiPaper>
-                </ClickAwayListener>
-            </Popper>
-
 
             <FooterBar
                 subtotal={subtotal}

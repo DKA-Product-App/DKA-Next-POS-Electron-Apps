@@ -23,7 +23,7 @@ type Table2D = {
 const TABLES_L1: Table2D[] = [
     { id: 'T01', label: 'Meja 01', shape: 'round',     capacity: 2, status: 'available', x: 120, y: 120, r: 45 },
     { id: 'T02', label: 'Meja 02', shape: 'round',     capacity: 4, status: 'reserved',  x: 300, y: 120, r: 55 },
-    { id: 'T03', label: 'Meja 03', shape: 'rectangle', capacity: 4, status: 'occupied',  x: 480, y: 120, w: 120, h: 70, rot: -6 },
+    { id: 'T03', label: 'Meja 03', shape: 'rectangle', capacity: 4, status  : 'occupied',  x: 480, y: 120, w: 120, h: 70, rot: -6 },
     { id: 'T04', label: 'Meja 04', shape: 'rectangle', capacity: 2, status: 'available', x: 120, y: 280, w: 90,  h: 60, rot: 8 },
     { id: 'T05', label: 'Meja 05', shape: 'round',     capacity: 6, status: 'available', x: 300, y: 280, r: 60 },
     { id: 'T06', label: 'Meja 06', shape: 'rectangle', capacity: 2, status: 'reserved',  x: 480, y: 280, w: 90,  h: 60, rot: 0 },

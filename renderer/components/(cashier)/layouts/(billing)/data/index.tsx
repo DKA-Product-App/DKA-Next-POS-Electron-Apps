@@ -230,6 +230,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.tea,
         "sku": "BLACK_TEA",
         "description": "Black Tea",
+        "image": "/images/blacktea.jpeg",
         "variants": [
             { "name": "Hot",  "id": "00000000-0000-5000-a000-000000000013.00000000-0000-5000-a000-000000000001", "code": "HOT", "description": "Panas",  "price": 15000, "time_created": TC, "status": true },
             { "name": "Iced", "id": "00000000-0000-5000-a000-000000000013.00000000-0000-5000-a000-000000000002", "code": "ICE", "description": "Dingin", "price": 17000, "time_created": TC, "status": true }
@@ -245,6 +246,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.tea,
         "sku": "LEMON_TEA",
         "description": "Lemon Tea",
+        "image": "/images/lemontea.jpg",
         "variants": [
             { "name": "Hot",  "id": "00000000-0000-5000-a000-000000000014.00000000-0000-5000-a000-000000000001", "code": "HOT", "description": "Panas",  "price": 17000, "time_created": TC, "status": true },
             { "name": "Iced", "id": "00000000-0000-5000-a000-000000000014.00000000-0000-5000-a000-000000000002", "code": "ICE", "description": "Dingin", "price": 19000, "time_created": TC, "status": true }
@@ -260,6 +262,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.tea,
         "sku": "THAI_TEA",
         "description": "Thai Tea",
+        "image": "/images/thaitea.jpg",
         "variants": [
             { "name": "Regular", "id": "00000000-0000-5000-a000-000000000015.00000000-0000-5000-a000-000000000001", "code": "REG", "description": "Reguler", "price": 22000, "time_created": TC, "status": true },
             { "name": "XL",      "id": "00000000-0000-5000-a000-000000000015.00000000-0000-5000-a000-000000000002", "code": "XL",  "description": "Besar",   "price": 27000, "time_created": TC, "status": true }
@@ -275,6 +278,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.tea,
         "sku": "MILK_TEA",
         "description": "Milk Tea",
+        "image": "/images/milktea.jpg",
         "variants": [
             { "name": "Regular", "id": "00000000-0000-5000-a000-000000000016.00000000-0000-5000-a000-000000000001", "code": "REG",  "description": "Reguler", "price": 20000, "time_created": TC, "status": true },
             { "name": "Boba",    "id": "00000000-0000-5000-a000-000000000016.00000000-0000-5000-a000-000000000002", "code": "BOBA", "description": "Tambah Boba", "price": 25000, "time_created": TC, "status": true }
@@ -290,6 +294,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.tea,
         "sku": "JASMINE_TEA",
         "description": "Jasmine Tea",
+        "image": "/images/jasminetea.webp",
         "variants": [
             { "name": "Hot",  "id": "00000000-0000-5000-a000-000000000017.00000000-0000-5000-a000-000000000001", "code": "HOT", "description": "Panas",  "price": 16000, "time_created": TC, "status": true },
             { "name": "Iced", "id": "00000000-0000-5000-a000-000000000017.00000000-0000-5000-a000-000000000002", "code": "ICE", "description": "Dingin", "price": 18000, "time_created": TC, "status": true }
@@ -305,6 +310,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.tea,
         "sku": "PEACH_TEA",
         "description": "Peach Tea",
+        "image": "/images/peachtea.jpg",
         "variants": [
             { "name": "Iced", "id": "00000000-0000-5000-a000-000000000018.00000000-0000-5000-a000-000000000001", "code": "ICE", "description": "Dingin", "price": 21000, "time_created": TC, "status": true },
             { "name": "XL",   "id": "00000000-0000-5000-a000-000000000018.00000000-0000-5000-a000-000000000002", "code": "XL",  "description": "Besar",  "price": 25000, "time_created": TC, "status": true }
@@ -320,6 +326,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.food,
         "sku": "NASI_GORENG",
         "description": "Nasi Goreng",
+        "image": "/images/nasigoreng.webp",
         "variants": [
             { "name": "Regular", "id": "00000000-0000-5000-a000-000000000019.00000000-0000-5000-a000-000000000001", "code": "REG", "description": "Reguler", "price": 25000, "time_created": TC, "status": true },
             { "name": "Spesial (telur+sosis)", "id": "00000000-0000-5000-a000-000000000019.00000000-0000-5000-a000-000000000002", "code": "SPC", "description": "Spesial", "price": 32000, "time_created": TC, "status": true }
@@ -335,6 +342,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.food,
         "sku": "MIE_GORENG",
         "description": "Mie Goreng",
+        "image": "/images/miegoreng.jpg",
         "variants": [
             { "name": "Regular", "id": "00000000-0000-5000-a000-000000000020.00000000-0000-5000-a000-000000000001", "code": "REG", "description": "Reguler", "price": 23000, "time_created": TC, "status": true },
             { "name": "Spesial (telur+ayam)", "id": "00000000-0000-5000-a000-000000000020.00000000-0000-5000-a000-000000000002", "code": "SPC", "description": "Spesial", "price": 30000, "time_created": TC, "status": true }
@@ -350,6 +358,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.food,
         "sku": "CHICKEN_KATSU",
         "description": "Chicken Katsu",
+        "image": "/images/chickenkatsu.jpg",
         "variants": [
             { "name": "Pakai Nasi",  "id": "00000000-0000-5000-a000-000000000021.00000000-0000-5000-a000-000000000001", "code": "RICE",   "description": "Dengan Nasi", "price": 32000, "time_created": TC, "status": true },
             { "name": "Tanpa Nasi",  "id": "00000000-0000-5000-a000-000000000021.00000000-0000-5000-a000-000000000002", "code": "NORICE", "description": "Tanpa Nasi",  "price": 29000, "time_created": TC, "status": true }
@@ -365,6 +374,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.food,
         "sku": "CHICKEN_WINGS",
         "description": "Chicken Wings",
+        "image": "/images/chickenwings.jpg",
         "variants": [
             { "name": "4 pcs", "id": "00000000-0000-5000-a000-000000000022.00000000-0000-5000-a000-000000000001", "code": "4PCS", "description": "4 potong", "price": 28000, "time_created": TC, "status": true },
             { "name": "8 pcs", "id": "00000000-0000-5000-a000-000000000022.00000000-0000-5000-a000-000000000002", "code": "8PCS", "description": "8 potong", "price": 40000, "time_created": TC, "status": true }
@@ -380,6 +390,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.food,
         "sku": "FRENCH_FRIES",
         "description": "French Fries",
+        "image": "/images/frenchfries.webp",
         "variants": [
             { "name": "Regular",       "id": "00000000-0000-5000-a000-000000000023.00000000-0000-5000-a000-000000000001", "code": "REG",    "description": "Reguler",      "price": 18000, "time_created": TC, "status": true },
             { "name": "Large",         "id": "00000000-0000-5000-a000-000000000023.00000000-0000-5000-a000-000000000002", "code": "LG",     "description": "Besar",        "price": 23000, "time_created": TC, "status": true },
@@ -396,6 +407,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.food,
         "sku": "BEEF_BURGER",
         "description": "Beef Burger",
+        "image": "/images/beefburger.jpeg",
         "variants": [
             { "name": "Single",       "id": "00000000-0000-5000-a000-000000000024.00000000-0000-5000-a000-000000000001", "code": "SGL",  "description": "Single",        "price": 32000, "time_created": TC, "status": true },
             { "name": "Double",       "id": "00000000-0000-5000-a000-000000000024.00000000-0000-5000-a000-000000000002", "code": "DBL",  "description": "Double",        "price": 44000, "time_created": TC, "status": true },
@@ -412,6 +424,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.food,
         "sku": "VEGGIE_BURGER",
         "description": "Veggie Burger",
+        "image": "/images/veggieburger.jpeg",
         "variants": [
             { "name": "Plain",  "id": "00000000-0000-5000-a000-000000000025.00000000-0000-5000-a000-000000000001", "code": "PLN",  "description": "Biasa",       "price": 30000, "time_created": TC, "status": true },
             { "name": "w/ Cheese", "id": "00000000-0000-5000-a000-000000000025.00000000-0000-5000-a000-000000000002", "code": "CHEE", "description": "Dengan Keju", "price": 35000, "time_created": TC, "status": true }
@@ -427,6 +440,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.food,
         "sku": "CAESAR_SALAD",
         "description": "Caesar Salad",
+        "image": "/images/caesarsalad.jpeg",
         "variants": [
             { "name": "Regular", "id": "00000000-0000-5000-a000-000000000026.00000000-0000-5000-a000-000000000001", "code": "REG",     "description": "Reguler",     "price": 27000, "time_created": TC, "status": true },
             { "name": "+ Chicken","id": "00000000-0000-5000-a000-000000000026.00000000-0000-5000-a000-000000000002", "code": "CHICK",   "description": "Tambah Ayam", "price": 35000, "time_created": TC, "status": true }
@@ -442,6 +456,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.food,
         "sku": "SPAGHETTI_BOLOGNESE",
         "description": "Spaghetti Bolognese",
+        "image": "/images/spagettibolognese.jpeg",
         "variants": [
             { "name": "Regular",     "id": "00000000-0000-5000-a000-000000000027.00000000-0000-5000-a000-000000000001", "code": "REG",   "description": "Reguler",     "price": 30000, "time_created": TC, "status": true },
             { "name": "XL",          "id": "00000000-0000-5000-a000-000000000027.00000000-0000-5000-a000-000000000002", "code": "XL",    "description": "Besar",       "price": 37000, "time_created": TC, "status": true },
@@ -458,6 +473,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.food,
         "sku": "SPAGHETTI_CARBONARA",
         "description": "Spaghetti Carbonara",
+        "image": "/images/spagetticarbonara.webp",
         "variants": [
             { "name": "Regular",     "id": "00000000-0000-5000-a000-000000000028.00000000-0000-5000-a000-000000000001", "code": "REG",   "description": "Reguler",      "price": 31000, "time_created": TC, "status": true },
             { "name": "XL",          "id": "00000000-0000-5000-a000-000000000028.00000000-0000-5000-a000-000000000002", "code": "XL",    "description": "Besar",        "price": 38000, "time_created": TC, "status": true },
@@ -474,6 +490,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.food,
         "sku": "PIZZA_SLICE",
         "description": "Pizza Slice",
+        "image": "/images/pizzaslice.webp",
         "variants": [
             { "name": "Cheese",     "id": "00000000-0000-5000-a000-000000000029.00000000-0000-5000-a000-000000000001", "code": "CHZ",  "description": "Keju",       "price": 22000, "time_created": TC, "status": true },
             { "name": "Pepperoni",  "id": "00000000-0000-5000-a000-000000000029.00000000-0000-5000-a000-000000000002", "code": "PEP",  "description": "Pepperoni",  "price": 27000, "time_created": TC, "status": true },
@@ -490,26 +507,11 @@ export const PRODUCTS: Products[] = [
         "category": CAT.food,
         "sku": "DONUT",
         "description": "Donut",
+        "image": "/images/donut.webp",
         "variants": [
             { "name": "Glazed",    "id": "00000000-0000-5000-a000-000000000030.00000000-0000-5000-a000-000000000001", "code": "GLZ",  "description": "Glazed",     "price": 12000, "time_created": TC, "status": true },
             { "name": "Chocolate", "id": "00000000-0000-5000-a000-000000000030.00000000-0000-5000-a000-000000000002", "code": "CHOC", "description": "Cokelat",    "price": 14000, "time_created": TC, "status": true },
             { "name": "Sprinkles", "id": "00000000-0000-5000-a000-000000000030.00000000-0000-5000-a000-000000000003", "code": "SPR",  "description": "Sprinkles",  "price": 14000, "time_created": TC, "status": true }
-        ]
-    },
-
-    // p31
-    {
-        "name": "Fried Chicken (2 pcs)",
-        "time_created": TC,
-        "status": true,
-        "id": "00000000-0000-5000-a000-000000000031",
-        "category": CAT.food,
-        "sku": "FRIED_CHICKEN_2PCS",
-        "description": "Fried Chicken (2 pcs)",
-        "variants": [
-            { "name": "Original",    "id": "00000000-0000-5000-a000-000000000031.00000000-0000-5000-a000-000000000001", "code": "ORI",     "description": "Original",     "price": 28000, "time_created": TC, "status": true },
-            { "name": "Spicy",       "id": "00000000-0000-5000-a000-000000000031.00000000-0000-5000-a000-000000000002", "code": "SPICY",   "description": "Pedas",        "price": 30000, "time_created": TC, "status": true },
-            { "name": "Tambah Nasi", "id": "00000000-0000-5000-a000-000000000031.00000000-0000-5000-a000-000000000003", "code": "ADDRICE", "description": "Plus Nasi",    "price": 34000, "time_created": TC, "status": true }
         ]
     },
 
@@ -522,6 +524,7 @@ export const PRODUCTS: Products[] = [
         "category": CAT.food,
         "sku": "TUNA_SANDWICH",
         "description": "Tuna Sandwich",
+        "image": "/images/tunasandwitch.jpeg",
         "variants": [
             { "name": "Regular",     "id": "00000000-0000-5000-a000-000000000032.00000000-0000-5000-a000-000000000001", "code": "REG",  "description": "Reguler",     "price": 26000, "time_created": TC, "status": true },
             { "name": "Extra Cheese","id": "00000000-0000-5000-a000-000000000032.00000000-0000-5000-a000-000000000002", "code": "CHEE", "description": "Tambah Keju", "price": 31000, "time_created": TC, "status": true }

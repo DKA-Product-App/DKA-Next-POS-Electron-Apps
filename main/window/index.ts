@@ -2,6 +2,7 @@ import path from 'path'
 import {app, Menu, screen} from 'electron'
 import { createWindow } from '../functions';
 import IpcEvents from "../events";
+import Api from '../api';
 
 const isProd = process.env.NODE_ENV === 'production'
 
@@ -48,6 +49,7 @@ export default async function MainWindow(){
         .on('did-finish-load', () => {
             mainWindow.show();
             ipcEvents.register();
+            Api(mainWindow);
         }).on('destroyed', () => {
             ipcEvents.unregister();
         })

@@ -1,4 +1,6 @@
-import React from "react";
+'use client';
+
+import React, {useEffect} from "react";
 import dynamic from "next/dynamic";
 import ResizableGrid from "./ui/ResizableContainer";
 import ShimmerMenuSelectLoading from "./ui/(loading)/ShimmerMenuSelectLoading";

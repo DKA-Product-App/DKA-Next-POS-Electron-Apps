@@ -19,7 +19,7 @@ const SelectMenuAndVariant = dynamic(() => import('./ui/(pane)/SelectMenuAndVari
 export default function Billing() {
 
     const leftEl = React.useMemo(() => (
-        <SelectMenuAndVariant product={PRODUCTS} categories={CATEGORIES} />
+        <SelectMenuAndVariant />
     ), [])
 
     const rightEl = React.useMemo(() => <PreviewSelectCheckout />, [])
