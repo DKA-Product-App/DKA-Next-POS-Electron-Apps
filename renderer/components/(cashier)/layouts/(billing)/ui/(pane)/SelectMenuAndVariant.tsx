@@ -4,11 +4,14 @@ import React, { FC, useEffect, useState } from "react";
 import Image, { ImageLoader } from 'next/image';
 import {
     Box, Chip, MenuItem, Paper, Select,
-    TextField, Stack, InputAdornment, IconButton
+    TextField, Stack, InputAdornment, IconButton,
+    Button, Typography
 } from "@mui/material";
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import ClearRoundedIcon from '@mui/icons-material/ClearRounded'
 import TuneRoundedIcon from '@mui/icons-material/TuneRounded'
+import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 import { useCartActions } from "../../context/CartContext";
@@ -52,12 +55,20 @@ export const SelectMenuAndVariant: FC = () => {
 
     const [products, setProducts] = useState<Array<any>>([]);
     const [productsCategories, setProductsCategories] = useState<Array<any>>([]);
+    const [prodError, setProdError] = useState<{ code?: number; msg?: string } | null>(null);
 
-    useEffect(() => {
+    const fetchProducts = () =>
         window.api.invoke("api.product:read.all", {})
-            .then((result: any) => { setProducts(result.data); })
-            .catch(() => setProducts([]))
-    }, []);
+            .then((result: any) => { setProducts(result.data); setProdError(null) })
+            .catch((err: any) => {
+                setProducts([]);
+                setProdError({
+                    code: err?.code ?? err?.status ?? 0,
+                    msg: err?.msg ?? err?.message ?? "Gagal memuat produk. Internetnya lagi mood swing?"
+                });
+            });
+
+    useEffect(() => { fetchProducts() }, []);
 
     useEffect(() => {
         window.api.invoke("api.product.category:read.all", {})
@@ -89,11 +100,8 @@ export const SelectMenuAndVariant: FC = () => {
         const map = new Map<string, number>()
         products.forEach(p => {
             const ids = catIds(p)
-            if (ids.length === 0) {
-                map.set('__uncat', (map.get('__uncat') ?? 0) + 1)
-            } else {
-                ids.forEach(id => map.set(id, (map.get(id) ?? 0) + 1))
-            }
+            if (ids.length === 0) map.set('__uncat', (map.get('__uncat') ?? 0) + 1)
+            else ids.forEach(id => map.set(id, (map.get(id) ?? 0) + 1))
         })
         return map
     }, [products])
@@ -110,12 +118,10 @@ export const SelectMenuAndVariant: FC = () => {
 
     const filtered = React.useMemo(() => {
         const arr = [...filteredBase]
-        if (sortBy === 'name-asc') {
-            arr.sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? '')))
-        } else {
+        if (sortBy === 'name-asc') arr.sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? '')))
+        else {
             arr.sort((a, b) => {
-                const da = priceOf(a)
-                const db = priceOf(b)
+                const da = priceOf(a), db = priceOf(b)
                 return sortBy === 'price-asc' ? da - db : db - da
             })
         }
@@ -173,9 +179,7 @@ export const SelectMenuAndVariant: FC = () => {
                         renderValue={(v) => (
                             <Stack direction="row" spacing={1} alignItems="center">
                                 <TuneRoundedIcon sx={{ fontSize: 18 }} />
-                                <span>
-                  {v === 'name-asc' ? 'Nama (A → Z)' : v === 'price-asc' ? 'Harga (Termurah)' : 'Harga (Termahal)'}
-                </span>
+                                <span>{v === 'name-asc' ? 'Nama (A → Z)' : v === 'price-asc' ? 'Harga (Termurah)' : 'Harga (Termahal)'}</span>
                             </Stack>
                         )}
                     >
@@ -185,7 +189,6 @@ export const SelectMenuAndVariant: FC = () => {
                     </Select>
                 </Stack>
 
-                {/* ==== ⬇️ Pakai komponen Tabs yang baru */}
                 <ProductCategory
                     value={tab}
                     onChange={setTab}
@@ -196,7 +199,7 @@ export const SelectMenuAndVariant: FC = () => {
                 />
             </Box>
 
-            {/* ===== Grid list */}
+            {/* ===== Grid / Error container */}
             <PerfectScrollbar options={{ suppressScrollX: true }}>
                 <Box
                     sx={{
@@ -213,33 +216,57 @@ export const SelectMenuAndVariant: FC = () => {
                         },
                     }}
                 >
-                    <Box
-                        sx={{
-                            display: 'grid',
-                            gridTemplateColumns: {
-                                xs: 'repeat(auto-fill, minmax(150px, 1fr))',
-                                sm: 'repeat(auto-fill, minmax(170px, 1fr))',
-                                md: 'repeat(auto-fill, minmax(190px, 1fr))',
-                                lg: 'repeat(auto-fill, minmax(210px, 1fr))',
-                            },
-                            gap: { xs: 2, sm: 2.5, md: 3 },
-                            alignItems: 'stretch',
-                        }}
-                    >
-                        {filtered.map((p: any) => (
-                            <ProductCard
-                                key={p.id}
-                                product={p}
-                                variantId={openVariant[p.id] ?? p.variants?.[0]?.id}
-                                onSelectVariant={(pid: string, vid: string | number) =>
-                                    setOpenVariant(s => ({ ...s, [pid]: String(vid) }))
-                                }
-                                onAdd={(prod: any, variant: any) => add(prod, variant)}
-                                uploadsLoader={({ src }) => src}
-                                gradient={GRADIENT}
-                            />
-                        ))}
-                    </Box>
+                    {prodError ? (
+                        <Box sx={{ minHeight: 260, display: 'grid', placeItems: 'center' }}>
+                            <Stack spacing={1.2} alignItems="center" sx={{ textAlign: 'center' }}>
+                                <ErrorOutlineRoundedIcon color="error" sx={{ fontSize: 40 }} />
+                                <Typography variant="h6" sx={{ fontWeight: 800 }}>Gagal memuat produk</Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    {prodError.msg || 'Terjadi kesalahan tak terduga. Coba cek koneksi atau servernya.'}
+                                </Typography>
+                                <Stack direction="row" spacing={1} sx={{ pt: 0.5 }}>
+                                    <Button onClick={fetchProducts} variant="contained" startIcon={<RefreshRoundedIcon />}>
+                                        Coba lagi
+                                    </Button>
+                                </Stack>
+                            </Stack>
+                        </Box>
+                    ) : (
+                        <Box
+                            sx={{
+                                display: 'grid',
+                                gridTemplateColumns: {
+                                    xs: 'repeat(auto-fill, minmax(150px, 1fr))',
+                                    sm: 'repeat(auto-fill, minmax(170px, 1fr))',
+                                    md: 'repeat(auto-fill, minmax(190px, 1fr))',
+                                    lg: 'repeat(auto-fill, minmax(210px, 1fr))',
+                                },
+                                gap: { xs: 2, sm: 2.5, md: 3 },
+                                alignItems: 'stretch',
+                            }}
+                        >
+                            {filtered.length === 0 ? (
+                                <Box sx={{ gridColumn: '1 / -1', py: 6, textAlign: 'center' }}>
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Tidak ada produk ditemukan</Typography>
+                                    <Typography variant="body2" color="text.secondary">Coba ubah pencarian atau kategori.</Typography>
+                                </Box>
+                            ) : (
+                                filtered.map((p: any) => (
+                                    <ProductCard
+                                        key={p.id}
+                                        product={p}
+                                        variantId={openVariant[p.id] ?? p.variants?.[0]?.id}
+                                        onSelectVariant={(pid: string, vid: string | number) =>
+                                            setOpenVariant(s => ({ ...s, [pid]: String(vid) }))
+                                        }
+                                        onAdd={(prod: any, variant: any) => add(prod, variant)}
+                                        uploadsLoader={({ src }) => src}
+                                        gradient={GRADIENT}
+                                    />
+                                ))
+                            )}
+                        </Box>
+                    )}
                 </Box>
             </PerfectScrollbar>
         </Paper>
