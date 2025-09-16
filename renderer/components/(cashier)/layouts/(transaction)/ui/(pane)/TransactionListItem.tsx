@@ -17,6 +17,7 @@ import ClearRoundedIcon from '@mui/icons-material/ClearRounded'
 import TuneRoundedIcon from '@mui/icons-material/TuneRounded'
 import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded'
 import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
+import PrintRounded from '@mui/icons-material/PrintRounded' // ⬅️ NEW
 
 // ===== Types minimal sesuai payload =====
 export type Name = { first_name: string; last_name?: string }
@@ -73,17 +74,61 @@ const matchesQuery = (o: Transaction, q: string) => {
     return inv.includes(s) || table.includes(s) || anyBatch
 }
 
+/** Ambil semua printerId dari item (product.category[].printer[].id) */
+const getPrinterIdsFromItem = (it: Item): string[] => {
+    const cats: any[] = Array.isArray((it as any)?.product?.category) ? (it as any).product.category : []
+    const ids: string[] = []
+    cats.forEach(c => {
+        const printers: any[] = Array.isArray(c?.printer) ? c.printer : []
+        printers.forEach(p => { if (p?.id) ids.push(String(p.id)) })
+    })
+    return ids.length ? Array.from(new Set(ids)) : ['__no_printer__']
+}
+
+/** Kelompokkan items (di SELURUH batch) per printerId */
+const groupTxItemsByPrinter = (tx: Transaction) => {
+    const map = new Map<string, Item[]>()
+    const allItems: Item[] = tx.batches.flatMap(b => Array.isArray(b.items) ? b.items : [])
+    allItems.forEach(it => {
+        const pids = getPrinterIdsFromItem(it)
+        pids.forEach(pid => {
+            const list = map.get(pid) ?? []
+            list.push(it)
+            map.set(pid, list)
+        })
+    })
+    return map
+}
+
 // Row =====
 const TransactionListItemRow: React.FC<{ o: Transaction; selected?: boolean; onClick?: () => void }> = ({ o, selected = false, onClick }) => {
     const items = totalItems(o)
     const batches = totalBatches(o)
     const isClosed = Boolean(o.time_closed)
 
+    const sendPrintWholeTransaction = () => {
+        const groups = groupTxItemsByPrinter(o)
+        const header = {
+            id: o.id,
+            invoice: o.invoice,
+            total: o.total,
+            time_closed: o.time_closed ?? null,
+            reference: o.reference,
+            shift: o.shift,
+            order_type: o.order_type,
+            table: o.table,
+        }
+        const bulk = Array.from(groups.entries())
+            .filter(([pid]) => pid !== '__no_printer__')
+            .map(([pid, items]) => ({ id: pid, header, items }))
+        // preview ke console
+        console.log(bulk)
+    }
+
     return (
         <ListItemButton
             onClick={onClick}
             selected={selected}
-            // HAPUS: disabled={o.time_closed !== null}
             sx={{
                 position: 'relative',
                 alignItems: 'flex-start',
@@ -114,36 +159,56 @@ const TransactionListItemRow: React.FC<{ o: Transaction; selected?: boolean; onC
                     background: selected
                         ? 'linear-gradient(180deg, #6366F1, #8B5CF6 35%, #EC4899)'
                         : (isClosed
-                            ? 'linear-gradient(180deg, #ef4444, #dc2626 60%, #b91c1c)' // bis merah untuk closed
+                            ? 'linear-gradient(180deg, #ef4444, #dc2626 60%, #b91c1c)'
                             : 'transparent'),
                 },
             }}
         >
             <Stack spacing={0.75} width="100%">
-                {/* Baris atas: invoice + total */}
+                {/* Baris 1: invoice + total */}
                 <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
                     <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
                         <ReceiptLongRounded fontSize="small" />
                         <Typography variant="h6" fontWeight={900} noWrap sx={{ letterSpacing: 0.2, lineHeight: 1.2, fontFeatureSettings: '"tnum" 1, "lnum" 1' }}>
                             # {o.invoice}
                         </Typography>
-                        <Chip size="small" label={o.order_type?.name ?? '-'} variant="outlined" />
+                        <Chip size="small" color={'info'} label={o.order_type?.name ?? '-'} variant="filled" />
+                        <Chip size="small" color={'info'} label={o.table?.code ? `${o.table.code}` : 'No table'} variant="filled" />
                     </Stack>
                     <Typography variant="subtitle1" fontWeight={900}>{rupiah(o.total)}</Typography>
                 </Stack>
 
-                {/* Chips ringkas (+ status) */}
-                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                {/* Baris 2: kiri (item & batch), kanan (Print) — di BAWAH harga */}
+                <Stack direction="row" alignItems="center" gap={0.75}>
+                    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
+                        <Chip
+                            size="small"
+                            label={isClosed ? 'Selesai' : 'Aktif'}
+                            color={isClosed ? 'error' : 'success'}
+                            variant="filled"
+                        />
+                        <Chip size="small" icon={<LocalMallRounded />} label={`${items} item`} />
+                        <Chip size="small" icon={<LayersRounded />} label={`${batches} batch`} />
+                    </Stack>
+
                     <Chip
                         size="small"
-                        label={isClosed ? 'Selesai' : 'Aktif'}
-                        color={isClosed ? 'error' : 'success'}
-                        variant={isClosed ? 'filled' : 'filled'}
+                        icon={<PrintRounded />}
+                        label={'Transaksi'}
+                        color="primary"
+                        variant="outlined"
+                        clickable
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            sendPrintWholeTransaction()
+                        }}
+                        sx={{ ml: 'auto' }}
                     />
-                    <Chip size="small" icon={<TableRestaurantRounded />} label={o.table?.code ? `Table ${o.table.code}` : 'No table'} />
-                    <Chip size="small" icon={<LocalMallRounded />} label={`${items} item`} />
-                    <Chip size="small" icon={<LayersRounded />} label={`${batches} batch`} />
-                    <Chip size="small" icon={<PersonOutlineRounded />} label={`Kasir ${shortId(o.reference?.id)}`} title={o.reference?.id ?? ''} />
+                </Stack>
+
+                {/* Baris 3: Chips ringkas (status/table/kasir/shift) */}
+                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                    <Chip size="small" icon={<PersonOutlineRounded />} label={`${o.reference?.name.first_name}`} title={o.reference?.id ?? ''} />
                     <Chip size="small" icon={<AccessTimeRounded />} label={o.shift?.name ?? '-'} />
                 </Stack>
 
@@ -179,7 +244,10 @@ const TransactionListItem: React.FC = () => {
         setSelectedId(fromUrl)
     }, [searchParams])
 
-    const transactions = useMemo(() => [...transaction].sort((a, b) => new Date(b.time_created).getTime() - new Date(a.time_created).getTime()), [transaction])
+    const transactions = useMemo(
+        () => [...transaction].sort((a, b) => new Date(b.time_created).getTime() - new Date(a.time_created).getTime()),
+        [transaction]
+    )
 
     const filtered = useMemo(() => {
         return transactions
@@ -194,7 +262,7 @@ const TransactionListItem: React.FC = () => {
     }, [transactions, query, status, startDate, endDate])
 
     useEffect(() => {
-        // Promise-based tanpa try/catch (sesuai preferensi)
+        // Promise-based tanpa try/catch
         // @ts-ignore — asumsi window.api sudah disiapkan di preload
         window.api.invoke('api.transaction:read.all', {})
             .then((result: { data: Transaction[] }) => setTransaction(result?.data ?? []))
@@ -294,15 +362,19 @@ const TransactionListItem: React.FC = () => {
                     <PerfectScrollbar options={{ suppressScrollX: true }}>
                         <List disablePadding>
                             {filtered.map(o => (
-                                <TransactionListItemRow key={o.id} o={o} selected={o.id === selectedId} onClick={() => {
-                                    setSelectedId(o.id)
-                                    const norm = (pathname || '').replace(/\/+$/, '')
-                                    const base = norm.split('/').pop() === 'batch' ? norm : `${norm}/batch`
-                                    const params = new URLSearchParams(searchParams?.toString() || '')
-                                    console.log(`${base}?${params.toString()}`);
-                                    params.set('id', o.id)
-                                    router.push(`${base}?${params.toString()}`, { scroll: false })
-                                }} />
+                                <TransactionListItemRow
+                                    key={o.id}
+                                    o={o}
+                                    selected={o.id === selectedId}
+                                    onClick={() => {
+                                        setSelectedId(o.id)
+                                        const norm = (pathname || '').replace(/\/+$/, '')
+                                        const base = norm.split('/').pop() === 'batch' ? norm : `${norm}/batch`
+                                        const params = new URLSearchParams(searchParams?.toString() || '')
+                                        params.set('id', o.id)
+                                        router.push(`${base}?${params.toString()}`, { scroll: false })
+                                    }}
+                                />
                             ))}
                         </List>
                     </PerfectScrollbar>

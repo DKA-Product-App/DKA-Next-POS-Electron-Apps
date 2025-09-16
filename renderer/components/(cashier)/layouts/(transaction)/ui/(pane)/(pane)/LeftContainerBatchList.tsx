@@ -150,7 +150,7 @@ const LeftContainerBatchList: React.FC = () => {
                                             borderTopLeftRadius:8, borderBottomLeftRadius:8,
                                             background: selected
                                                 ? 'linear-gradient(180deg, #6366F1, #8B5CF6 35%, #EC4899)'
-                                                : (isClosed ? 'linear-gradient(180deg, #ef4444, #dc2626 60%, #b91c1c)' : 'transparent'),
+                                                : (isClosed ? 'linear-gradient(90deg, #ef4444, #dc2626 35%, #b91c1c)' : 'transparent'),
                                         },
                                     }}
                                 >
@@ -180,7 +180,7 @@ const LeftContainerBatchList: React.FC = () => {
                                             <Chip
                                                 size="small"
                                                 icon={<PrintRounded />}
-                                                label={'Print'}
+                                                label={'Checker'}
                                                 color="primary"
                                                 variant="outlined"
                                                 clickable
@@ -194,7 +194,7 @@ const LeftContainerBatchList: React.FC = () => {
 
                                         {/* Baris 3: waktu */}
                                         <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                                            <Chip size="small" icon={<AccessTimeRounded />} label={fmtDT(b.time_created)} />
+                                            {fmtDT(b.time_created)}
                                         </Stack>
                                     </Stack>
                                 </ListItemButton>

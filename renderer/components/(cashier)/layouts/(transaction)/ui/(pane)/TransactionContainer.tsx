@@ -20,6 +20,11 @@ const rupiah = (n: number | string) =>
 
 const shortId = (s?: string) => (s ? `${s.slice(0, 8)}…` : '-')
 
+// Taruh konstanta ini di atas component Body (file yang sama)
+const GRAD_PURPLE = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
+const GRAD_RED    = 'linear-gradient(90deg, #ef4444, #dc2626 35%, #b91c1c)'
+const GRAD_GREEN  = 'linear-gradient(90deg, #22c55e, #16a34a 35%, #15803d)'
+
 /* ===== Header + Grid + Footer composed with Context ===== */
 function Body({ children }: { children?: React.ReactNode }) {
     const { header, selectedItemIds, selectedTotal, clearSelection, selectedBatchId, txId, bumpReload } = useTx()
@@ -41,15 +46,48 @@ function Body({ children }: { children?: React.ReactNode }) {
     }
 
     const Header = (
-        <Paper elevation={0} sx={{ px:1.5, py:1, borderBottom:'1px solid', borderColor:'divider', display:'flex', alignItems:'center', gap:1, flexWrap:'wrap' }}>
+        <Paper
+            elevation={0}
+            sx={(t) => ({
+                px: 1.5,
+                py: 1,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                flexWrap: 'wrap',
+
+                // base tetap ikut tema
+                position: 'relative',
+                overflow: 'hidden',
+                bgcolor: 'background.paper',
+
+                // overlay gradient status (tetap readable di light/dark)
+                '&::after': {
+                    content: '""',
+                    position: 'absolute',
+                    inset: 0,
+                    pointerEvents: 'none',
+                    zIndex: 0,
+                    background: header.time_closed
+                        ? (t.palette.mode === 'dark' ? GRAD_RED : GRAD_RED) // closed
+                        : GRAD_GREEN,                                           // aktif
+                    opacity: t.palette.mode === 'dark' ? 0.18 : 0.12,         // tipis agar kontras aman
+                },
+
+                // pastikan konten di atas overlay
+                '& > *': { position: 'relative', zIndex: 1 },
+            })}
+        >
             <ReceiptLongRounded fontSize="small" />
-            <Typography variant="subtitle1" fontWeight={900} sx={{ mr:1 }}># {header.invoice ?? '—'}</Typography>
+            <Typography variant="subtitle1" fontWeight={900} sx={{ mr: 1 }}># {header.invoice ?? '—'}</Typography>
             <Chip size="small" label={header.order_type?.name ?? '-'} variant="outlined" />
             {header.table?.code ? <Chip size="small" icon={<TableRestaurantRounded />} label={`Table ${header.table.code}`} /> : null}
-            <Chip size="small" icon={<PersonOutlineRounded />} label={`Kasir ${header.reference?.username ?? shortId(header.reference?.id)}`} />
+            <Chip size="small" icon={<PersonOutlineRounded />} label={`${header.reference?.name.first_name}`} />
             <Chip size="small" icon={<AccessTimeRounded />} label={header.shift?.name ?? '-'} />
-            <Box sx={{ flex:1 }} />
-            {selectedItemIds.size>0 && (
+            <Box sx={{ flex: 1 }} />
+            {selectedItemIds.size > 0 && (
                 <Stack direction="row" alignItems="center" spacing={1}>
                     <DoneAllRounded fontSize="small" />
                     <Typography variant="body2" fontWeight={700}>{selectedItemIds.size} item dipilih</Typography>
