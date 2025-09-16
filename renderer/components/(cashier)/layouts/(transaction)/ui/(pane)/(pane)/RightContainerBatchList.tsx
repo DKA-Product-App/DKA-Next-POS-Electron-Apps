@@ -90,7 +90,7 @@ const RightContainerBatchDetail: React.FC = () => {
                         const selected = selectedItemIds.has(it.id)
                         const disabled = isClosed
                         return (
-                            <Grid key={it.id} size={{ md: 4, lg: 3 }}>
+                            <Grid key={it.id} size={{ xs: 12, sm: 12, md: 4, lg: 3 }}>
                                 <MotionPaper
                                     variant="outlined"
                                     whileTap={disabled ? undefined : { scale: 0.99 }}

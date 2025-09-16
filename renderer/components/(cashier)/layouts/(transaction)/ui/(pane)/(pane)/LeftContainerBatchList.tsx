@@ -159,7 +159,7 @@ const LeftContainerBatchList: React.FC = () => {
                                         <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
                                             <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
                                                 <LayersRounded fontSize="small" />
-                                                <Typography variant="subtitle2" fontWeight={800}>Batch {String(b.batch)}</Typography>
+                                                <Typography variant="h6" fontWeight={800}># {String(b.batch)}</Typography>
                                                 <Chip
                                                     size="small"
                                                     label={isClosed ? 'Selesai' : 'Aktif'}
@@ -167,7 +167,7 @@ const LeftContainerBatchList: React.FC = () => {
                                                     variant="filled"
                                                 />
                                             </Stack>
-                                            <Typography variant="subtitle2" fontWeight={900}>{rupiah(batchTotal(b))}</Typography>
+                                            <Typography variant="h6" fontWeight={800} title={rupiah(batchTotal(b))}>{rupiah(batchTotal(b))}</Typography>
                                         </Stack>
 
                                         {/* Baris 2: kiri (item & qty), kanan (PRINT) — DI BAWAH HARGA */}
