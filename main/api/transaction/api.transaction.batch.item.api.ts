@@ -3,11 +3,11 @@ import { compile } from "path-to-regexp";
 import { ApiConfig } from "../../config/api.config";
 import { ApiRequestInstance } from "../../functions/api/api.request.instance";
 
-export function TransactionBatch(mainWindow ?: BrowserWindow) {
+export function TransactionBatchItem(mainWindow ?: BrowserWindow) {
     // CREATE
-    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch:create", (_event, args) => {
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:create", (_event, args) => {
         mainWindow?.webContents?.ipc?.removeHandler?.("api.config.base.corporation:create")
-        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch`);
+        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item`);
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
                 url: toPath(),
@@ -48,8 +48,8 @@ export function TransactionBatch(mainWindow ?: BrowserWindow) {
         });
     });
     // READ ALL
-    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch:read.all", (_event, args) => {
-        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch`);
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:read.all", (_event, args) => {
+        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item`);
         return new Promise(async (resolve, reject) => {
             console.log(args);
             return ApiRequestInstance({
@@ -92,8 +92,8 @@ export function TransactionBatch(mainWindow ?: BrowserWindow) {
         });
     });
     // READ ONE
-    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch:read.one", (_event, args) => {
-        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/:id`);
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:read.one", (_event, args) => {
+        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item/:id`);
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
                 url: toPath(args),
@@ -133,8 +133,8 @@ export function TransactionBatch(mainWindow ?: BrowserWindow) {
         });
     });
     // UPDATE ONE
-    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch:update.one", (_event, args) => {
-        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/:id`);
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:update.one", (_event, args) => {
+        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item/:id`);
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
                 url: toPath(args),
@@ -175,8 +175,8 @@ export function TransactionBatch(mainWindow ?: BrowserWindow) {
         });
     });
     // DELETE ONE
-    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch:delete.one", (_event, args) => {
-        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/:id`);
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:delete.one", (_event, args) => {
+        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item/:id`);
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
                 url: toPath(args),
@@ -217,4 +217,4 @@ export function TransactionBatch(mainWindow ?: BrowserWindow) {
     });
 }
 
-export default TransactionBatch;
+export default TransactionBatchItem;

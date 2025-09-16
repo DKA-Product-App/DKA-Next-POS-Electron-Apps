@@ -138,7 +138,7 @@ const TransactionListItemRow: React.FC<{ o: Transaction; selected?: boolean; onC
                         size="small"
                         label={isClosed ? 'Selesai' : 'Aktif'}
                         color={isClosed ? 'error' : 'success'}
-                        variant={isClosed ? 'filled' : 'outlined'}
+                        variant={isClosed ? 'filled' : 'filled'}
                     />
                     <Chip size="small" icon={<TableRestaurantRounded />} label={o.table?.code ? `Table ${o.table.code}` : 'No table'} />
                     <Chip size="small" icon={<LocalMallRounded />} label={`${items} item`} />

@@ -10,7 +10,9 @@ import Skeleton from '@mui/material/Skeleton'
 import { motion } from 'framer-motion'
 import LocalOfferRoundedIcon from '@mui/icons-material/LocalOfferRounded'
 import CheckRounded from '@mui/icons-material/CheckRounded'
+import { useTx } from '../context/TransactionContext'
 
+/* ===== Types sync ===== */
 export type Name = { first_name: string; last_name?: string }
 export type Reference = { id: string; name?: Name; username?: string }
 export type OrderType = { id: string; code: string; name: string }
@@ -18,8 +20,6 @@ export type Table = { id: string; code: string; name: string }
 export type Product = { id: string; name: string; description?: string; image?: string }
 export type Variant = { id: string; code?: string; name?: string; price?: string }
 export type Item = { id: string; qty: number; price: string; sub_total: string; note?: string | null; reference?: Reference | null; product: Product; variant?: Variant }
-export type Batch = { id: string; batch: number; note?: string | null; time_created?: string; time_updated?: string; items: Item[] }
-export type Transaction = { id: string; invoice: string; total: string; time_created: string; time_updated: string; time_closed?: string | null; reference?: Reference; shift?: { id: string; name: string }; order_type: OrderType; table?: Table; batches: Batch[] }
 
 const MotionPaper = motion(Paper)
 const GRADIENT = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
@@ -50,36 +50,51 @@ const ImgWithSkeleton: React.FC<{ src: string; alt: string; loader?: ImageLoader
     )
 }
 
-export type RightContainerBatchDetailProps = {
-    tx?: Transaction
-    batchId?: string
-    selectedItemIds: Set<string>
-    onToggleItem: (item: Item) => void
-}
+const RightContainerBatchDetail: React.FC = () => {
+    const { selectedBatchId, header, selectedItemIds, toggleItem, registerItems, reloadKey } = useTx()
+    const [items, setItems] = React.useState<Item[]>([])
+    const fetchSeqRef = React.useRef(0)
 
-const RightContainerBatchDetail: React.FC<RightContainerBatchDetailProps> = ({ tx, batchId, selectedItemIds, onToggleItem }) => {
-    const batch = React.useMemo(()=> tx?.batches?.find(b=>b.id===(batchId||'')),[tx?.batches,batchId])
-    const isClosed = Boolean(tx?.time_closed)
+    React.useEffect(() => {
+        if (!selectedBatchId) { setItems([]); return }
 
-    if(!tx) return <Box sx={{p:2,color:'text.secondary'}}>Pilih transaksi dulu.</Box>
-    if(!batch) return <Box sx={{p:2,color:'text.secondary'}}>Pilih batch untuk melihat detail item…</Box>
+        // kosongkan dulu agar tidak "tercampur" secara visual
+        setItems([])
 
-    const items = batch.items
+        const seq = ++fetchSeqRef.current
+
+        // @ts-ignore
+        window.api.invoke('api.transaction.batch.item:read.all', { batch: selectedBatchId })
+            .then((res: any) => {
+                if (seq !== fetchSeqRef.current) return // abaikan respons usang
+                const arr: Item[] = res?.data ?? []
+                setItems(arr)
+                registerItems(selectedBatchId, arr)
+            })
+            .catch(() => {
+                if (seq !== fetchSeqRef.current) return
+                setItems([])
+            })
+    }, [selectedBatchId, reloadKey])
+
+
+    const isClosed = Boolean(header.time_closed)
+
+    if (!selectedBatchId) return <Box sx={{ p:2, color:'text.secondary' }}>Pilih batch untuk melihat detail item…</Box>
 
     return (
         <Box sx={{ flex:1, minHeight:0, px:1.5 }}>
             <PerfectScrollbar options={{ suppressScrollX:true }}>
                 <Grid container spacing={2} sx={{ py:1 }}>
-                    {items.map(it=>{
+                    {items.map(it => {
                         const selected = selectedItemIds.has(it.id)
-                        const disabled = isClosed // ⬅️ matikan interaksi kalau transaksi ditutup
-
+                        const disabled = isClosed
                         return (
                             <Grid key={it.id} size={{ md: 4, lg: 3 }}>
                                 <MotionPaper
                                     variant="outlined"
                                     whileTap={disabled ? undefined : { scale: 0.99 }}
-                                    onClick={disabled ? undefined : ()=>onToggleItem(it)}
+                                    onClick={disabled ? undefined : ()=>toggleItem(it)}
                                     aria-disabled={disabled || undefined}
                                     sx={{
                                         borderRadius:2, overflow:'hidden', display:'flex', flexDirection:'column', position:'relative',
@@ -89,60 +104,46 @@ const RightContainerBatchDetail: React.FC<RightContainerBatchDetailProps> = ({ t
                                         transition:(t)=>t.transitions.create(['box-shadow','border-color','opacity'],{duration:t.transitions.duration.shorter}),
                                         cursor: disabled ? 'not-allowed' : 'pointer',
                                         opacity: disabled ? 0.85 : 1,
-                                        // glow gradient hanya saat TIDAK disabled + selected
-                                        '&::before': (!disabled && selected) ? {
-                                            content:'""', position:'absolute', inset:-1, borderRadius:8, background:GRADIENT, filter:'blur(12px)', opacity:.7, zIndex:-1
-                                        } : {},
+                                        '&::before': (!disabled && selected) ? { content:'""', position:'absolute', inset:-1, borderRadius:8, background:GRADIENT, filter:'blur(12px)', opacity:.7, zIndex:-1 } : {},
                                     }}
                                 >
                                     <Box sx={{ position:'relative' }}>
-                                        {/* filter ABU-ABU HANYA ke gambar (chip tetap berwarna) */}
                                         <Box sx={{ filter: disabled ? 'grayscale(1) saturate(0) brightness(0.9)' : 'none' }}>
                                             <ImgWithSkeleton src={ph(it.product?.name, it.product?.image)} alt={it.product?.name || 'Item'} loader={uploadsLoader} />
                                         </Box>
 
-                                        {/* price chip (tetap berwarna, tidak kena filter) */}
+                                        {/* Price chip kiri bawah */}
                                         <Chip
                                             size="small"
                                             icon={<LocalOfferRoundedIcon sx={{ fontSize:16, color:'inherit' }} />}
                                             label={rupiah(Number(it.sub_total || it.price || 0))}
                                             sx={{ position:'absolute', bottom:8, left:8, color:'#fff', background:GRADIENT, boxShadow:1, '& .MuiChip-icon':{ color:'inherit' } }}
                                         />
+                                        {/* Check bulat kanan bawah */}
+                                        <Box
+                                            aria-label={selected ? 'dipilih' : 'tidak dipilih'}
+                                            sx={{
+                                                position:'absolute', bottom:8, right:8,
+                                                width: 20, height: 20, borderRadius: '50%',
+                                                border: '2px solid',
+                                                borderColor: selected ? 'success.main' : 'divider',
+                                                bgcolor: selected ? 'success.main' : 'background.paper',
+                                                color: '#fff', display:'grid', placeItems:'center', flexShrink:0,
+                                                boxShadow: selected ? 1 : 0, opacity: disabled ? 0.7 : 1,
+                                            }}
+                                        >
+                                            {selected && <CheckRounded sx={{ fontSize: 14 }} />}
+                                        </Box>
                                     </Box>
 
                                     <Box sx={{ p:1.25, display:'grid', gap:.5, flexGrow:1 }}>
-                                        <Typography variant="subtitle2" fontWeight={800} noWrap title={it.product?.name}>
-                                            {it.product?.name}
-                                        </Typography>
-
+                                        <Typography variant="h6" fontWeight={800} title={it.product?.name}>{it.product?.name}</Typography>
                                         <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap mt={0.5}>
                                             {it.variant?.name ? <Chip size="small" label={it.variant.name} /> : null}
-                                            <Chip size="small" label={`Qty ${it.qty}`} />
                                         </Stack>
-
                                         <Stack direction="row" alignItems="center" justifyContent="space-between" mt={1}>
-                                            <Typography variant="body2" color="text.secondary">{rupiah(it.price)}</Typography>
-
-                                            <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
-                                                <Typography variant="subtitle2" fontWeight={900}>{rupiah(it.sub_total)}</Typography>
-                                                {/* indikator bulat kanan (tetap tampil, tapi tak bisa diubah saat disabled) */}
-                                                <Box
-                                                    aria-label={selected ? 'dipilih' : 'tidak dipilih'}
-                                                    sx={{
-                                                        width: 18, height: 18, borderRadius: '50%',
-                                                        border: '2px solid',
-                                                        borderColor: selected ? 'success.main' : 'divider',
-                                                        bgcolor: selected ? 'success.main' : 'transparent',
-                                                        color: '#fff',
-                                                        display: 'grid',
-                                                        placeItems: 'center',
-                                                        flexShrink: 0,
-                                                        opacity: disabled ? 0.7 : 1,
-                                                    }}
-                                                >
-                                                    {selected && <CheckRounded sx={{ fontSize: 14 }} />}
-                                                </Box>
-                                            </Box>
+                                            <Typography variant="body2" color="text.secondary">{`${it.qty} x ${rupiah(it.price)}`}</Typography>
+                                            <Typography variant="subtitle2" fontWeight={900}>{rupiah(it.sub_total)}</Typography>
                                         </Stack>
                                     </Box>
 
