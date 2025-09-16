@@ -63,5 +63,6 @@ export default async function MainWindow(){
     } else {
         const port = process.argv[2];
         await mainWindow.loadURL(`http://localhost:${port}/auth`); // <- slash
+        mainWindow.webContents.openDevTools();
     }
 }

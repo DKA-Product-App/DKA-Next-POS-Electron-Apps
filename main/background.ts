@@ -2,7 +2,6 @@ import { app } from 'electron'
 import serve from 'electron-serve'
 import mainWindow from "./window";
 import { registerDataProtocol } from "./functions";
-import { Printer } from "@dkaframework/iot";
 
 const isProd = process.env.NODE_ENV === 'production'
 
@@ -13,20 +12,13 @@ if (isProd) {
 }
 
 (async () => {
-    const printer = new Printer.Escpos({
-        state : isProd ? "PRODUCTION" : "DEVELOPMENT",
-        connection : Printer.Escpos.Options.CONNECTION.ESCPOS_USB,
-        autoDetectUSB : true
-    });
+    const gotTheLock = app.requestSingleInstanceLock()
+    if (!gotTheLock) {
+        app.quit()
+        process.exit(0)
+    }
     app.on('ready', async () => {
         console.log('app activated ');
-        printer.CheckStatus()
-            .then((status) => {
-                console.log(status)
-            })
-            .catch((error) => {
-                console.error(error)
-            })
     });
     app.whenReady()
         .then(() => {
@@ -35,7 +27,7 @@ if (isProd) {
                 mainWindow()
             ])
         }).catch(() => {
-            //app.quit();
+            app.quit();
         });
 
 })();

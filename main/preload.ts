@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent, app } from 'electron';
-import { version } from "./../package.json";
+import packageJSON from "./../package.json";
 import {AxiosRequestConfig, AxiosResponse} from "axios";
 
 const electronVersion = process.versions.electron
@@ -52,7 +52,7 @@ const API = {
 
 const ELECTRON = {
   versions: {
-    app: version,
+    app: packageJSON.version,
     dev : !isProd,
     electron: electronVersion,
     chrome: chromeVersion,

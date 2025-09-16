@@ -119,11 +119,12 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                         forward: 'select-tables',
                     },
                     {
-                        label: 'Tahan / Draft Pesanan',
+                        label: 'Pesanan',
                         action: 'hold_orders',
                         icon: <ReplayRoundedIcon />,
-                        disabled: true,
-                        hint: 'Kelola pesanan ditahan',
+                        disabled: false,
+                        forward: 'transaction',
+                        hint: 'Transaksi',
                     },
                     {
                         label: 'Reservasi',

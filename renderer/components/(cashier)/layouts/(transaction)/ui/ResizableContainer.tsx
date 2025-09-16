@@ -7,7 +7,6 @@ import Paper from '@mui/material/Paper'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 import { Box } from '@mui/material'
-import {useEffect} from "react";
 
 type ResizableGridProps = {
     left: React.ReactNode
@@ -31,10 +30,10 @@ const PaneContent = styled(Paper)(({ theme }) => ({
 }))
 
 
-export default function ResizableGrid({ left, right, defaultSize = '70%', minSize = 500 }: ResizableGridProps) {
+export default function ResizableGrid({left, right, defaultSize = '20%', minSize = 400,}: ResizableGridProps) {
     const [maxSize, setMaxSize] = React.useState<number>()
 
-    useEffect(() => {
+    React.useEffect(() => {
         const updateMaxSize = () => setMaxSize(window.innerWidth - (minSize ?? 0))
         updateMaxSize()
         window.addEventListener('resize', updateMaxSize)

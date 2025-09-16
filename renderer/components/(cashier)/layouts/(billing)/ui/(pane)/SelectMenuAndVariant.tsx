@@ -18,13 +18,14 @@ import { useCartActions } from "../../context/CartContext";
 import ProductCardSkeleton from "../(loading)/ShimmerLoadingProductCard"
 import dynamic from "next/dynamic";
 import ShiummerLoadingProductCategory from "../(loading)/ShimmerLoadingProductCategory";
+import ProductCard from "./components/ProductCard";
 
 const GRADIENT = "linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)";
 
-const ProductCard = dynamic(() => import('./components/ProductCard'), {
+/*const ProductCard = dynamic(() => import('./components/ProductCard'), {
     loading: () => <ProductCardSkeleton />,
     ssr: false,
-})
+})*/
 
 const ProductCategory = dynamic(() => import('./components/ProductCategory'), {
     loading: () => <ShiummerLoadingProductCategory/>,
@@ -57,28 +58,34 @@ export const SelectMenuAndVariant: FC = () => {
     const [prodError, setProdError] = useState<{ code?: number; msg?: string } | null>(null);
 
     const fetchProducts = () => {
+        if (window.api === undefined)
+            return console.error(`Failed Get Window Api Bridge`);
+
         window.api.invoke("api.product:read.all", {})
-            .then((result: any) => {
+            .then(async (result: any) => {
                 setProducts(result.data);
                 setProdError(null);
                 console.log(result);
             })
-            .catch((err: any) => {
+            .catch(async (err: any) => {
                 console.error(err);
                 setProducts([]);
                 setProdError({
                     code: err?.code ?? err?.status ?? 0,
-                    msg: err?.msg ?? err?.message ?? "Gagal memuat produk. Internetnya lagi mood swing?"
+                    msg: err?.msg ?? "Gagal memuat produk. Periksa Koneksi Jaringan / Server"
                 });
             });
     }
     const fetchProductsCategory = () => {
+        if (window.api === undefined)
+            return console.error(`Failed Get Window Api Bridge`);
+
         window.api.invoke("api.product.category:read.all", {})
-            .then((result: any) => {
+            .then(async (result: any) => {
                 setProductsCategories(result.data);
                 console.log(result);
             })
-            .catch((error) => {
+            .catch(async (error) => {
                 setProductsCategories([]);
                 console.error(error);
             })
@@ -86,13 +93,13 @@ export const SelectMenuAndVariant: FC = () => {
 
     useEffect(() => {
         fetchProductsCategory();
-    }, []);
+    }, [tab]);
 
     useEffect(() => {
         fetchProducts();
-    }, [tab]);
+    }, [productsCategories]);
 
-    React.useEffect(() => {
+    useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
                 e.preventDefault()
@@ -116,21 +123,28 @@ export const SelectMenuAndVariant: FC = () => {
         const map = new Map<string, number>()
         products.forEach(p => {
             const ids = catIds(p)
-            if (ids.length === 0) map.set('__unit', (map.get('__unit') ?? 0) + 1)
+            if (ids.length === 0) map.set('__uncat', (map.get('__uncat') ?? 0) + 1)
             else ids.forEach(id => map.set(id, (map.get(id) ?? 0) + 1))
         })
         return map
     }, [products])
 
+    // A simplified filter for the All tab
     const filteredBase = React.useMemo(
-        () =>
-            products.filter(p => {
-                const passCat = !activeCategoryId || catIds(p).includes(activeCategoryId)
-                const passQ = q.trim() === '' || String(p.name ?? '').toLowerCase().includes(q.toLowerCase())
-                return passCat && passQ
-            }),
+        () => {
+            if (tab === 0) { // All products tab
+                return products.filter(p => q.trim() === '' || String(p.name ?? '').toLowerCase().includes(q.toLowerCase()));
+            } else { // Specific category tab
+                return products.filter(p => {
+                    const passCat = catIds(p).includes(activeCategoryId);
+                    const passQ = q.trim() === '' || String(p.name ?? '').toLowerCase().includes(q.toLowerCase());
+                    return passCat && passQ;
+                });
+            }
+        },
         [products, activeCategoryId, q, tab]
-    )
+    );
+
 
     const filtered = React.useMemo(() => {
         const arr = [...filteredBase]
@@ -241,7 +255,6 @@ export const SelectMenuAndVariant: FC = () => {
                                 <Stack direction="row" spacing={1} sx={{ pt: 0.5 }}>
                                     <Button onClick={() => {
                                         fetchProductsCategory();
-                                        fetchProducts();
                                     }} variant="contained" startIcon={<RefreshRoundedIcon />}>
                                         Coba lagi
                                     </Button>
