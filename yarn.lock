@@ -4694,6 +4694,11 @@ matcher@^3.0.0:
   dependencies:
     escape-string-regexp "^4.0.0"
 
+material-symbols@^0.35.2:
+  version "0.35.2"
+  resolved "https://registry.npmjs.org/material-symbols/-/material-symbols-0.35.2.tgz#6c0bbde10b4510fb6234a96d0a913558b43788a7"
+  integrity sha512-ce0Bd3ySBdiTNgmVpFQCBdwtcsYPaZkSPHeVivFRyhu/hwB7iK1aVTRaqi5xaOw8yLPOtwp7O5A+3OyUS8S+Ow==
+
 math-intrinsics@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/math-intrinsics/-/math-intrinsics-1.1.0.tgz#a0dd74be81e2aa5c2f27e65ce283605ee4e2b7f9"

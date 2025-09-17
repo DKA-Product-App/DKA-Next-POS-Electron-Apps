@@ -1,11 +1,14 @@
 import * as React from 'react'
 import LayoutContainer from "../../components/(cashier)/LayoutContainer";
+import {DiningModeProvider} from "../../components/(cashier)/layouts/(transaction)/context/DiningModeContext";
 
 export default function Layout({ children }) {
 
     return (
-        <LayoutContainer>
-            { children }
-        </LayoutContainer>
+        <DiningModeProvider>
+            <LayoutContainer>
+                { children }
+            </LayoutContainer>
+        </DiningModeProvider>
     )
 }

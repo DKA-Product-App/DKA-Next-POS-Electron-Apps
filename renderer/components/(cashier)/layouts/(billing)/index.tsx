@@ -15,13 +15,14 @@ const SelectMenuAndVariant = dynamic(() => import('./ui/(pane)/SelectMenuAndVari
     ssr : false,
 })
 
+
 export default function Billing() {
 
     return (
         <CartProvider initialTaxRate={0.11}>
             <ResizableGrid
                 left={<SelectMenuAndVariant />}
-                right={<PreviewSelectCheckout />}
+                right={<PreviewSelectCheckout  />}
             />
         </CartProvider>
     )

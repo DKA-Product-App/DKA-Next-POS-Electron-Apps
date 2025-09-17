@@ -10,9 +10,9 @@ import TableRestaurantRounded from '@mui/icons-material/TableRestaurantRounded'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { ClearRounded, DoneAllRounded } from '@mui/icons-material'
 
-import LeftContainerBatchList from './(pane)/LeftContainerBatchList'
-import RightContainerBatchDetail from './(pane)/RightContainerBatchList'
 import { TxProvider, useTx } from './context/TransactionContext'
+import dynamic from "next/dynamic";
+import ShimmerMenuSelectLoading from "../(loading)/ShimmerMenuSelectLoading";
 
 const rupiah = (n: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
@@ -25,6 +25,16 @@ const GRAD_PURPLE = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
 const GRAD_RED    = 'linear-gradient(90deg, #ef4444, #dc2626 35%, #b91c1c)'
 const GRAD_GREEN  = 'linear-gradient(90deg, #22c55e, #16a34a 35%, #15803d)'
 
+
+const LeftContainerBatchList = dynamic(() => import('./(pane)/LeftContainerBatchList'), {
+    loading : () => <ShimmerMenuSelectLoading/>,
+    ssr: false,
+})
+
+const RightContainerBatchDetail = dynamic(() => import('./(pane)/RightContainerBatchList'), {
+    loading : () => <ShimmerMenuSelectLoading/>,
+    ssr: false,
+})
 /* ===== Header + Grid + Footer composed with Context ===== */
 function Body({ children }: { children?: React.ReactNode }) {
     const { header, selectedItemIds, selectedTotal, clearSelection, selectedBatchId, txId, bumpReload } = useTx()
@@ -140,7 +150,7 @@ function Body({ children }: { children?: React.ReactNode }) {
             {Header}
             <Box sx={{ flex:1, minHeight:0 }}>
                 <ResizableGrid
-                    defaultSize="21%"
+                    defaultSize="23%"
                     minSize={330}
                     left={<LeftContainerBatchList />}
                     right={children ?? <RightContainerBatchDetail />}

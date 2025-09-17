@@ -15,8 +15,8 @@ export default function Overview({ children }) {
 
     return (
         <ResizableGrid
-            defaultSize={'25%'}
-            minSize={420}
+            defaultSize={'20%'}
+            minSize={400}
             left={<TransactionListItem/>}
             right={children}
         />

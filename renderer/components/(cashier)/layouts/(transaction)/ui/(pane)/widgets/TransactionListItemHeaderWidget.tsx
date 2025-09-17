@@ -7,6 +7,8 @@ import {
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import ClearRoundedIcon from '@mui/icons-material/ClearRounded'
 import TuneRoundedIcon from '@mui/icons-material/TuneRounded'
+import PerfectScrollbar from 'react-perfect-scrollbar'
+import 'react-perfect-scrollbar/dist/css/styles.css'
 
 export type Filters = {
     query: string
@@ -154,160 +156,188 @@ const TransactionListItemHeaderWidget: React.FC<Props> = ({
                 <TuneRoundedIcon />
             </IconButton>
 
-            {/* Popover */}
+            {/* Popover: konten scrollable + footer fixed */}
             <Popover
                 open={open}
                 anchorEl={anchorEl}
                 onClose={() => { commitTimeRange(); setAnchorEl(null) }}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
                 transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-                slotProps={{ paper: { sx: { p: 2, width: 520, maxWidth: '100%' } } }}
+                slotProps={{
+                    paper: {
+                        sx: {
+                            p: 0,
+                            width: 520,
+                            maxWidth: 'calc(100vw - 32px)',
+                            maxHeight: 420,                       // <— tinggi popup diperkecil
+                            display: 'grid',
+                            gridTemplateRows: '1fr auto',         // <— baris 1: scroll area, baris 2: footer
+                            overflow: 'hidden',
+                        }
+                    }
+                }}
             >
-                <Stack spacing={1.5}>
-                    {/* Status */}
-                    <Box>
-                        <Typography variant="overline">Status</Typography>
-                        <TextField
-                            select size="small" fullWidth
-                            value={filters.status}
-                            onChange={(e) => onFiltersChange({ status: e.target.value as Filters['status'] })}
+                {/* SCROLL AREA */}
+                <Box sx={{ overflow: 'hidden' }}>
+                    <PerfectScrollbar
+                        options={{ suppressScrollX: true, wheelPropagation: false }}
+                        style={{ height: '100%', padding: 16, paddingBottom: 12 }}
+                    >
+                        <Stack spacing={1.5} sx={{ p: 2 }}>
+                            {/* Rentang waktu */}
+                            <Box>
+                                <Typography variant="overline">Rentang waktu (Asia/Makassar)</Typography>
+                                <Stack direction={{ xs: 'column', sm: 'row' }} gap={1}>
+                                    <TextField
+                                        label="Dari"
+                                        type="datetime-local"
+                                        size="small"
+                                        value={draftStartAt}
+                                        onChange={(e) => setDraftStartAt(e.target.value)}
+                                        onBlur={commitTimeRange}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') commitTimeRange() }}
+                                        InputLabelProps={{ shrink: true }}
+                                        fullWidth
+                                    />
+                                    <TextField
+                                        label="Sampai"
+                                        type="datetime-local"
+                                        size="small"
+                                        value={draftEndAt}
+                                        onChange={(e) => setDraftEndAt(e.target.value)}
+                                        onBlur={commitTimeRange}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') commitTimeRange() }}
+                                        InputLabelProps={{ shrink: true }}
+                                        fullWidth
+                                    />
+                                </Stack>
+                            </Box>
+
+                            {/* Status */}
+                            <Box>
+                                <Typography variant="overline">Status</Typography>
+                                <TextField
+                                    select size="small" fullWidth
+                                    value={filters.status}
+                                    onChange={(e) => onFiltersChange({ status: e.target.value as Filters['status'] })}
+                                >
+                                    <MenuItem value="all">Semua</MenuItem>
+                                    <MenuItem value="active">Aktif</MenuItem>
+                                    <MenuItem value="selesai">Selesai</MenuItem>
+                                </TextField>
+                            </Box>
+
+                            {/* Shift */}
+                            <Box>
+                                <Typography variant="overline">Shift</Typography>
+                                <TextField
+                                    select size="small" fullWidth
+                                    value={filters.shiftName}
+                                    onChange={(e) => onFiltersChange({ shiftName: e.target.value })}
+                                >
+                                    <MenuItem value="all">Semua</MenuItem>
+                                    {shiftOptions.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+                                </TextField>
+                            </Box>
+
+                            {/* Kasir */}
+                            <Box>
+                                <Typography variant="overline">Kasir</Typography>
+                                <TextField
+                                    select size="small" fullWidth
+                                    value={filters.cashierName}
+                                    onChange={(e) => onFiltersChange({ cashierName: e.target.value })}
+                                >
+                                    <MenuItem value="all">Semua</MenuItem>
+                                    {cashierOptions.map(n => <MenuItem key={n} value={n}>{n}</MenuItem>)}
+                                </TextField>
+                            </Box>
+
+                            {/* Range item */}
+                            <Box>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                    <Typography variant="overline">Jumlah item</Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        {draftItemRange[0]} – {draftItemRange[1]}
+                                    </Typography>
+                                </Stack>
+                                <Slider
+                                    value={draftItemRange}
+                                    onChange={(_, v) => setDraftItemRange(v as number[])}
+                                    onChangeCommitted={(_, v) => onFiltersChange({ itemRange: v as number[] })}
+                                    valueLabelDisplay="auto"
+                                    min={0}
+                                    max={Math.max(0, maxItems)}
+                                    step={1}
+                                    disableSwap
+                                />
+                            </Box>
+
+                            {/* Range batch */}
+                            <Box>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                    <Typography variant="overline">Jumlah batch</Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        {draftBatchRange[0]} – {draftBatchRange[1]}
+                                    </Typography>
+                                </Stack>
+                                <Slider
+                                    value={draftBatchRange}
+                                    onChange={(_, v) => setDraftBatchRange(v as number[])}
+                                    onChangeCommitted={(_, v) => onFiltersChange({ batchRange: v as number[] })}
+                                    valueLabelDisplay="auto"
+                                    min={0}
+                                    max={Math.max(0, maxBatches)}
+                                    step={1}
+                                    disableSwap
+                                />
+                            </Box>
+
+                            {/* Counter (ikut scroll) */}
+                            <Typography variant="caption" color="text.secondary">{filteredCount} hasil</Typography>
+                        </Stack>
+                    </PerfectScrollbar>
+                </Box>
+
+                {/* FOOTER FIXED */}
+                <Box sx={{ p: 1.25, borderTop: '1px solid', borderColor: 'divider', display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                    <Stack direction="row" justifyContent="flex-end" alignItems="center" gap={1}>
+                        <IconButton
+                            size="small"
+                            onClick={() => {
+                                const now = new Date()
+                                const { year, month, day } = partsInTz(now, TZ)
+                                const startOfToday = toDateTimeLocalString(year, month, day, '00', '00')
+                                const endOfToday = toDateTimeLocalString(year, month, day, '23', '59')
+                                setDraftStartAt(startOfToday)
+                                setDraftEndAt(endOfToday)
+                                setDraftItemRange([0, Math.max(0, maxItems)])
+                                setDraftBatchRange([0, Math.max(0, maxBatches)])
+                                onFiltersChange({
+                                    query: '',
+                                    status: 'all',
+                                    shiftName: 'all',
+                                    cashierName: 'all',
+                                    itemRange: [0, Math.max(0, maxItems)],
+                                    batchRange: [0, Math.max(0, maxBatches)],
+                                    startAt: startOfToday,
+                                    endAt: endOfToday,
+                                })
+                            }}
+                            title="Reset filter"
                         >
-                            <MenuItem value="all">Semua</MenuItem>
-                            <MenuItem value="active">Aktif</MenuItem>
-                            <MenuItem value="selesai">Selesai</MenuItem>
-                        </TextField>
-                    </Box>
-
-                    {/* Shift */}
-                    <Box>
-                        <Typography variant="overline">Shift</Typography>
-                        <TextField
-                            select size="small" fullWidth
-                            value={filters.shiftName}
-                            onChange={(e) => onFiltersChange({ shiftName: e.target.value })}
+                            <ClearRoundedIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={() => { commitTimeRange(); setAnchorEl(null) }}
+                            title="Tutup"
                         >
-                            <MenuItem value="all">Semua</MenuItem>
-                            {shiftOptions.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-                        </TextField>
-                    </Box>
-
-                    {/* Kasir */}
-                    <Box>
-                        <Typography variant="overline">Kasir</Typography>
-                        <TextField
-                            select size="small" fullWidth
-                            value={filters.cashierName}
-                            onChange={(e) => onFiltersChange({ cashierName: e.target.value })}
-                        >
-                            <MenuItem value="all">Semua</MenuItem>
-                            {cashierOptions.map(n => <MenuItem key={n} value={n}>{n}</MenuItem>)}
-                        </TextField>
-                    </Box>
-
-                    {/* Rentang waktu */}
-                    <Box>
-                        <Typography variant="overline">Rentang waktu (Asia/Makassar)</Typography>
-                        <Stack direction={{ xs: 'column', sm: 'row' }} gap={1}>
-                            <TextField
-                                label="Dari"
-                                type="datetime-local"
-                                size="small"
-                                value={draftStartAt}
-                                onChange={(e) => setDraftStartAt(e.target.value)}
-                                onBlur={commitTimeRange}
-                                onKeyDown={(e) => { if (e.key === 'Enter') commitTimeRange() }}
-                                InputLabelProps={{ shrink: true }}
-                                fullWidth
-                            />
-                            <TextField
-                                label="Sampai"
-                                type="datetime-local"
-                                size="small"
-                                value={draftEndAt}
-                                onChange={(e) => setDraftEndAt(e.target.value)}
-                                onBlur={commitTimeRange}
-                                onKeyDown={(e) => { if (e.key === 'Enter') commitTimeRange() }}
-                                InputLabelProps={{ shrink: true }}
-                                fullWidth
-                            />
-                        </Stack>
-                    </Box>
-
-                    {/* Range item */}
-                    <Box>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center">
-                            <Typography variant="overline">Jumlah item</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                {draftItemRange[0]} – {draftItemRange[1]}
-                            </Typography>
-                        </Stack>
-                        <Slider
-                            value={draftItemRange}
-                            onChange={(_, v) => setDraftItemRange(v as number[])}
-                            onChangeCommitted={(_, v) => onFiltersChange({ itemRange: v as number[] })}
-                            valueLabelDisplay="auto"
-                            min={0}
-                            max={Math.max(0, maxItems)}
-                            step={1}
-                            disableSwap
-                        />
-                    </Box>
-
-                    {/* Range batch */}
-                    <Box>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center">
-                            <Typography variant="overline">Jumlah batch</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                {draftBatchRange[0]} – {draftBatchRange[1]}
-                            </Typography>
-                        </Stack>
-                        <Slider
-                            value={draftBatchRange}
-                            onChange={(_, v) => setDraftBatchRange(v as number[])}
-                            onChangeCommitted={(_, v) => onFiltersChange({ batchRange: v as number[] })}
-                            valueLabelDisplay="auto"
-                            min={0}
-                            max={Math.max(0, maxBatches)}
-                            step={1}
-                            disableSwap
-                        />
-                    </Box>
-
-                    <Stack direction="row" justifyContent="space-between" alignItems="center" pt={0.5}>
-                        <Typography variant="caption" color="text.secondary">{filteredCount} hasil</Typography>
-                        <Stack direction="row" gap={1}>
-                            <IconButton
-                                size="small"
-                                onClick={() => {
-                                    const now = new Date()
-                                    const { year, month, day } = partsInTz(now, TZ)
-                                    const startOfToday = toDateTimeLocalString(year, month, day, '00', '00')
-                                    const endOfToday = toDateTimeLocalString(year, month, day, '23', '59')
-                                    setDraftStartAt(startOfToday)
-                                    setDraftEndAt(endOfToday)
-                                    setDraftItemRange([0, Math.max(0, maxItems)])
-                                    setDraftBatchRange([0, Math.max(0, maxBatches)])
-                                    onFiltersChange({
-                                        query: '',
-                                        status: 'all',
-                                        shiftName: 'all',
-                                        cashierName: 'all',
-                                        itemRange: [0, Math.max(0, maxItems)],
-                                        batchRange: [0, Math.max(0, maxBatches)],
-                                        startAt: startOfToday,
-                                        endAt: endOfToday,
-                                    })
-                                }}
-                                title="Reset filter"
-                            >
-                                <ClearRoundedIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton size="small" color="primary" onClick={() => { commitTimeRange(); setAnchorEl(null) }} title="Tutup">
-                                <TuneRoundedIcon fontSize="small" />
-                            </IconButton>
-                        </Stack>
+                            <TuneRoundedIcon fontSize="small" />
+                        </IconButton>
                     </Stack>
-                </Stack>
+                </Box>
             </Popover>
         </Stack>
     )

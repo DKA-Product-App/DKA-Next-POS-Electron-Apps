@@ -9,7 +9,7 @@ import 'react-perfect-scrollbar/dist/css/styles.css'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 
-import TransactionListItemHeaderWidget, { Filters } from './widgets/TransactionListItemHeaderWidget'
+import type { Filters } from './widgets/TransactionListItemHeaderWidget'
 
 // Icons
 import ReceiptLongRounded from '@mui/icons-material/ReceiptLongRounded'
@@ -19,6 +19,9 @@ import LayersRounded from '@mui/icons-material/LayersRounded'
 import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded'
 import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
 import PrintRounded from '@mui/icons-material/PrintRounded'
+import dynamic from "next/dynamic";
+import ShimmerMenuSelectLoading from "../(loading)/ShimmerMenuSelectLoading";
+import ShimmerLoading from '../../../../../(shared)/(loading)/ShimmerLoading'
 
 // ===== Types =====
 export type Name = { first_name: string; last_name?: string }
@@ -162,6 +165,12 @@ const TransactionListItemRow: React.FC<{ o: Transaction; selected?: boolean; onC
     )
 }
 
+const TransactionListItemHeaderWidget = dynamic(() => import('./widgets/TransactionListItemHeaderWidget'), {
+    loading : () => <ShimmerLoading/>,
+    ssr: false,
+})
+
+
 // ===== Main =====
 const TransactionListItem: React.FC = () => {
     const [transaction, setTransaction] = useState<Array<Transaction>>([])
@@ -301,6 +310,33 @@ const TransactionListItem: React.FC = () => {
                 return n >= batchRange[0] && n <= batchRange[1]
             })
     }, [transactions, filters])
+
+    useEffect(() => {
+        const norm = (pathname || '').replace(/\/+$/, '')
+        const root = norm.replace(/\/batch$/, '') // path tanpa /batch
+
+        if (filtered.length === 0) {
+            // kosongkan pilihan & hapus ?id= lalu keluar dari /batch
+            if (selectedId) setSelectedId(undefined)
+            const params = new URLSearchParams(searchParams?.toString() || '')
+            params.delete('id')
+            const qs = params.toString()
+            router.replace(qs ? `${root}?${qs}` : root, { scroll: false })
+            return
+        }
+
+        // Opsional: auto-pilih pertama kalau id sekarang tidak ada di hasil
+        if (!selectedId || !filtered.some(t => t.id === selectedId)) {
+            const firstId = filtered[0].id
+            setSelectedId(firstId)
+            const params = new URLSearchParams(searchParams?.toString() || '')
+            params.set('id', firstId)
+            const qs = params.toString()
+            // kalau ada id, baru pakai /batch
+            router.replace(`${root}/batch?${qs}`, { scroll: false })
+        }
+    }, [filtered, selectedId, pathname, router, searchParams])
+
 
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 1 }}>

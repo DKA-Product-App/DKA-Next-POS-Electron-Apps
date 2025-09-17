@@ -4,36 +4,81 @@
 
 /* --- BASE STYLES --- */
 @layer base {
-    body {
-        @apply bg-gray-900 text-white antialiased;
+    /* 🔤 Self-host Material Symbols Outlined (copy WOFF2 ke /public/fonts/material-symbols/) */
+    /* === Self-host Material Symbols (pakai file kamu) === */
+    @font-face {
+        font-family: 'Material Symbols Outlined';
+        font-style: normal;
+        font-weight: 100 700;       /* variable range */
+        font-display: block;
+        src: url('/fonts/material-symbols/material-symbols-outlined.woff2') format('woff2');
+    }
+    @font-face {
+        font-family: 'Material Symbols Rounded';
+        font-style: normal;
+        font-weight: 100 700;
+        font-display: block;
+        src: url('/fonts/material-symbols/material-symbols-rounded.woff2') format('woff2');
+    }
+    @font-face {
+        font-family: 'Material Symbols Sharp';
+        font-style: normal;
+        font-weight: 100 700;
+        font-display: block;
+        src: url('/fonts/material-symbols/material-symbols-sharp.woff2') format('woff2');
     }
 
-    /* 🔒 Disable text selection globally, termasuk form */
-    html, body, #__next, #root, * {
-        @apply select-none;
-    }
+    /* Kelas util—kompatibel dengan komponenmu */
+
+    /* (opsional) kalau kamu tambahkan file Rounded/Sharp, boleh aktifkan ini juga:
+    @font-face { font-family:'Material Symbols Rounded'; font-style:normal; font-weight:100 700; font-display:block; src:url('/fonts/material-symbols/MaterialSymbolsRounded[FILL,GRAD,opsz,wght].woff2') format('woff2'); }
+    @font-face { font-family:'Material Symbols Sharp';   font-style:normal; font-weight:100 700; font-display:block; src:url('/fonts/material-symbols/MaterialSymbolsSharp[FILL,GRAD,opsz,wght].woff2')   format('woff2'); }
+    */
+
+    body { @apply bg-gray-900 text-white antialiased; }
+
+    /* 🔒 Disable text selection global (termasuk form) */
+    html, body, #__next, #root, * { @apply select-none; }
 
     /* 🔒 Prevent image selection & drag */
-    img {
-        @apply select-none;
-        -webkit-user-drag: none;
-        user-drag: none;
-    }
+    img { @apply select-none; -webkit-user-drag: none; user-drag: none; }
 }
 
 /* --- COMPONENT STYLES --- */
 @layer components {
-    .btn-blue {
-        @apply text-white font-bold px-4 py-2 rounded bg-blue-600 hover:bg-blue-500;
+    .btn-blue { @apply text-white font-bold px-4 py-2 rounded bg-blue-600 hover:bg-blue-500; }
+    .card-view { @apply select-none; }
+    .app-lock { @apply fixed inset-0 z-[9999] bg-black/20 pointer-events-auto; }
+}
+
+/* --- UTILITIES (ikon + helper) --- */
+@layer utilities {
+    /* Utility versi Tailwind-friendly */
+    .material-symbols-outlined,
+    .ms {
+        font-family: 'Material Symbols Outlined', sans-serif;
+        font-style: normal;
+        line-height: 1;
+        letter-spacing: normal;
+        display: inline-block;
+        white-space: nowrap;
+        direction: ltr;
+        -webkit-font-feature-settings: 'liga';
+        -webkit-font-smoothing: antialiased;
+        font-variation-settings:
+                'FILL' var(--ms-fill, 0),
+                'wght' var(--ms-wght, 500),
+                'GRAD' var(--ms-grad, 0),
+                'opsz' var(--ms-opsz, 24);
     }
 
-    /* Card default: tidak bisa di-highlight */
-    .card-view {
-        @apply select-none;
-    }
+    /* Kalau mau pakai Rounded/Sharp */
+    .material-symbols-rounded {
+        font-family: 'Material Symbols Rounded', monospace; }
+    .material-symbols-sharp   {
+        font-family: 'Material Symbols Sharp', serif; }
 
-    /* Overlay lock UI (opsional) */
-    .app-lock {
-        @apply fixed inset-0 z-[9999] bg-black/20 pointer-events-auto;
-    }
+    /* Helper: kalau butuh re-enable selection di area tertentu */
+    .allow-select { @apply select-text; }
+    .allow-select * { @apply select-text; }
 }

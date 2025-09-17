@@ -3,13 +3,15 @@
 import * as React from 'react'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
-import { Box, Chip, List, ListItemButton, Stack, Typography } from '@mui/material'
+import { Box, Chip, List, ListItemButton, Stack, Typography, Button } from '@mui/material'
 import LayersRounded from '@mui/icons-material/LayersRounded'
 import LocalMallRounded from '@mui/icons-material/LocalMallRounded'
-import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
 import PrintRounded from '@mui/icons-material/PrintRounded'
+import AddRounded from '@mui/icons-material/AddRounded'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useTx } from '../context/TransactionContext'
+import LeftContainerBatchListNewOrder from './(components)/LeftContainerBatchListNewOrder'
+import {DiningModeProvider} from "../../../context/DiningModeContext";
 
 export type Name = { first_name: string; last_name?: string }
 export type Reference = { id: string; name?: Name; username?: string }
@@ -94,7 +96,7 @@ const LeftContainerBatchList: React.FC = () => {
             .catch(() => setBatches([]))
     }, [txId, reloadKey]) // refetch on reload/bayar/split
 
-    const isClosed = Boolean(header.time_closed)
+    const isClosed = Boolean(header?.time_closed)
 
     // kirim print per batch (pakai items dari hasil read.all)
     const sendPrintForBatch = React.useCallback((b: Batch) => {
@@ -108,6 +110,7 @@ const LeftContainerBatchList: React.FC = () => {
         console.log(bulk)
     }, [header])
 
+    // ======= HEADER ACTION (callback via CustomEvent, tanpa ubah props/struktur) =======
     if (!txId) return (
         <Box sx={{ display:'grid', placeItems:'center', height:'100%', color:'text.secondary' }}>
             <Typography variant="body2">Pilih transaksi dulu.</Typography>
@@ -122,6 +125,23 @@ const LeftContainerBatchList: React.FC = () => {
 
     return (
         <Box sx={{ height:'100%', display:'flex', flexDirection:'column' }}>
+            {/* ===== Header di atas PerfectScrollbar (TAMBAHAN) ===== */}
+            <Box sx={{
+                px: 1.25, py: 1,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 1
+            }}>
+                <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
+                </Stack>
+                <LeftContainerBatchListNewOrder/>
+            </Box>
+
+            {/* ===== Area scroll (TETAP) ===== */}
             <Box sx={{ flex:1, minHeight:0 }}>
                 <PerfectScrollbar options={{ suppressScrollX:true }}>
                     <List disablePadding>
@@ -167,7 +187,7 @@ const LeftContainerBatchList: React.FC = () => {
                                                     variant="filled"
                                                 />
                                             </Stack>
-                                            <Typography variant="h6" fontWeight={800} title={rupiah(batchTotal(b))}>{rupiah(batchTotal(b))}</Typography>
+                                            <Typography variant="subtitle1" fontWeight={800} title={rupiah(batchTotal(b))}>{rupiah(batchTotal(b))}</Typography>
                                         </Stack>
 
                                         {/* Baris 2: kiri (item & qty), kanan (PRINT) — DI BAWAH HARGA */}

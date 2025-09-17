@@ -131,8 +131,12 @@ const HeaderBar: React.FC<{ count: number; onClear: () => void }> = ({ count, on
 
 // ==== Footer
 const FooterBar: React.FC<{
-    subtotal: number; tax: number; total: number;
-    taxRatePct: number; rupiah: (n: number) => string; disabled: boolean;
+    subtotal: number;
+    tax: number;
+    total: number;
+    taxRatePct: number;
+    rupiah: (n: number) => string;
+    disabled: boolean;
 }> = ({ subtotal, tax, total, taxRatePct, rupiah, disabled }) => (
     <Box sx={{ position: "sticky", bottom: 0, zIndex: 2 }}>
         <Box
@@ -146,7 +150,7 @@ const FooterBar: React.FC<{
             }}
         >
             <Stack spacing={0.5}>
-                <DiningModeWidget onChange={() => undefined} />
+                <DiningModeWidget onChange={() => undefined}  />
                 <PromoWidget />
 
                 <Stack direction="row" justifyContent="space-between">
@@ -199,7 +203,7 @@ const FooterBar: React.FC<{
 );
 
 // ==== Main
-const PreviewSelectCheckout: React.FC = () => {
+const PreviewSelectCheckout: React.FC<{ diningModeDefault?: string}> = () => {
     const { items } = useCart();
     const { inc, dec, remove, clear } = useCartActions();
     const { subtotal, tax, total, rupiah, taxRatePct } = useCartMoney();

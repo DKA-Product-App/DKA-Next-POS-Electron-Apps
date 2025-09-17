@@ -1,5 +1,6 @@
 import * as React from 'react'
 
+import "./../styles/globals.css"
 export default function Layout({ children }) {
 
     return (
@@ -9,7 +10,7 @@ export default function Layout({ children }) {
             <base href={'.'}/>
         </head>
         <body>
-            { children }
+        {children}
         </body>
         </html>
     )
