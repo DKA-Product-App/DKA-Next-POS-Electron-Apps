@@ -16,11 +16,11 @@ type ResizableGridProps = {
 }
 
 const PaneContent = styled(Paper)(({ theme }) => ({
-    position: 'relative',            // <— ini penting buat rail kanan
+    position: 'relative',
     backgroundColor: (theme.vars ?? theme).palette.background.paper,
     ...theme.typography.body2,
-    padding: theme.spacing(1),
-    textAlign: 'center',
+    padding: 0,                    // 🔥 buang padding biar full-bleed
+    textAlign: 'initial',          // biar konten ngikut layout masing-masing
     color: (theme.vars ?? theme).palette.text.secondary,
     height: '100%',
     overflow: 'hidden',
@@ -29,8 +29,12 @@ const PaneContent = styled(Paper)(({ theme }) => ({
     borderRadius: 0,
 }))
 
-
-export default function ResizableGrid({left, right, defaultSize = '18%', minSize = 400,}: ResizableGridProps) {
+export default function ResizableGrid({
+                                          left,
+                                          right,
+                                          defaultSize = '18%',
+                                          minSize = 400,
+                                      }: ResizableGridProps) {
     const [maxSize, setMaxSize] = React.useState<number>()
 
     React.useEffect(() => {
@@ -41,28 +45,25 @@ export default function ResizableGrid({left, right, defaultSize = '18%', minSize
     }, [minSize])
 
     return (
-        <PerfectScrollbar
-            style={{ height: '100%' }}
-            options={{ suppressScrollX: true }} // ✅ opsi valid
-        >
-            <Box sx={{ height: '100%', overflow: 'hidden' /* matiin outer scroll */ }}>
+        <PerfectScrollbar style={{ height: '100%' }} options={{ suppressScrollX: true }}>
+            <Box sx={{ height: '100%', overflow: 'hidden' }}>
                 {/* @ts-expect-error */}
                 <SplitPane
                     split="vertical"
                     minSize={minSize}
                     maxSize={maxSize}
                     defaultSize={defaultSize}
-                    style={{ height: '100%' }}              // <-- biar ngisi tinggi penuh
+                    style={{ height: '100%' }}
                     paneStyle={{ display: 'flex', flexDirection: 'column' }}
                     resizerStyle={{
                         cursor: 'col-resize',
-                        width: '8px',
+                        width: 8,
                         margin: '0 -2px',
                         border: '1px solid #aaa',
                     }}
                 >
                     <PaneContent>
-                        {/* Scroll HANYA di sini */}
+                        {/* Scroll/spacing atur di komponen kiri masing-masing */}
                         <Box sx={{ minHeight: '100%' }}>{left}</Box>
                     </PaneContent>
 

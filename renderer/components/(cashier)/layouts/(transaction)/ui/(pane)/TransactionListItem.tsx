@@ -10,6 +10,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 
 import type { Filters } from './widgets/TransactionListItemHeaderWidget'
+import TransactionListItemPrintTransaction from './(components)/TransactionListItemPrintTransaction' // sesuaikan path
 
 // Icons
 import ReceiptLongRounded from '@mui/icons-material/ReceiptLongRounded'
@@ -145,12 +146,7 @@ const TransactionListItemRow: React.FC<{ o: Transaction; selected?: boolean; onC
                         <Chip size="small" icon={<LocalMallRounded />} label={`${items} item`} />
                         <Chip size="small" icon={<LayersRounded />} label={`${batches} batch`} />
                     </Stack>
-                    <Chip
-                        size="small" icon={<PrintRounded />} label="Transaksi"
-                        color="primary" variant="outlined" clickable
-                        onClick={(e) => { e.stopPropagation(); sendPrintWholeTransaction() }}
-                        sx={{ ml: 'auto' }}
-                    />
+                    <TransactionListItemPrintTransaction tx={o} />
                 </Stack>
 
                 {/* Baris 3 */}
@@ -316,26 +312,29 @@ const TransactionListItem: React.FC = () => {
         const root = norm.replace(/\/batch$/, '') // path tanpa /batch
 
         if (filtered.length === 0) {
-            // kosongkan pilihan & hapus ?id= lalu keluar dari /batch
+            // kosong: unselect & hapus ?id lalu balik ke root (pakai replace biar ga nambah history)
             if (selectedId) setSelectedId(undefined)
             const params = new URLSearchParams(searchParams?.toString() || '')
-            params.delete('id')
-            const qs = params.toString()
-            router.replace(qs ? `${root}?${qs}` : root, { scroll: false })
+            if (params.has('id') || norm !== root) {
+                params.delete('id')
+                const qs = params.toString()
+                router.replace(qs ? `${root}?${qs}` : root, { scroll: false })
+            }
             return
         }
 
-        // Opsional: auto-pilih pertama kalau id sekarang tidak ada di hasil
-        if (!selectedId || !filtered.some(t => t.id === selectedId)) {
-            const firstId = filtered[0].id
-            setSelectedId(firstId)
+        // ada data tapi id sekarang nggak ada di hasil (misal ganti filter): unselect & rapikan URL
+        if (selectedId && !filtered.some(t => t.id === selectedId)) {
+            setSelectedId(undefined)
             const params = new URLSearchParams(searchParams?.toString() || '')
-            params.set('id', firstId)
-            const qs = params.toString()
-            // kalau ada id, baru pakai /batch
-            router.replace(`${root}/batch?${qs}`, { scroll: false })
+            if (params.has('id') || norm !== root) {
+                params.delete('id')
+                const qs = params.toString()
+                router.replace(qs ? `${root}?${qs}` : root, { scroll: false })
+            }
         }
     }, [filtered, selectedId, pathname, router, searchParams])
+
 
 
     return (
@@ -360,19 +359,32 @@ const TransactionListItem: React.FC = () => {
                     </Box>
                 ) : (
                     <PerfectScrollbar options={{ suppressScrollX: true }}>
-                        <List disablePadding>
+                        <List sx={{
+                            py : 1,
+                            pr: 1
+                        }}>
                             {filtered.map(o => (
                                 <TransactionListItemRow
                                     key={o.id}
                                     o={o}
                                     selected={o.id === selectedId}
                                     onClick={() => {
-                                        setSelectedId(o.id)
                                         const norm = (pathname || '').replace(/\/+$/, '')
+                                        const root = norm.replace(/\/batch$/, '')
                                         const base = norm.split('/').pop() === 'batch' ? norm : `${norm}/batch`
                                         const params = new URLSearchParams(searchParams?.toString() || '')
-                                        params.set('id', o.id)
-                                        router.push(`${base}?${params.toString()}`, { scroll: false })
+
+                                        if (o.id === selectedId) {
+                                            // klik kedua: unselect
+                                            setSelectedId(undefined)
+                                            params.delete('id')
+                                            router.push(params.toString() ? `${root}?${params.toString()}` : root, { scroll: false })
+                                        } else {
+                                            // select
+                                            setSelectedId(o.id)
+                                            params.set('id', o.id)
+                                            router.push(`${base}?${params.toString()}`, { scroll: false })
+                                        }
                                     }}
                                 />
                             ))}

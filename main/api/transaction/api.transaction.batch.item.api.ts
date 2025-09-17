@@ -51,7 +51,6 @@ export function TransactionBatchItem(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:read.all", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item`);
         return new Promise(async (resolve, reject) => {
-            console.log(args);
             return ApiRequestInstance({
                 url: toPath(),
                 method: "GET",

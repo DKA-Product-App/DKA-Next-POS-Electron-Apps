@@ -1,8 +1,8 @@
 import path from 'path'
-import {app, Menu, screen} from 'electron'
+import {app, ipcMain, Menu, screen} from 'electron'
 import { createWindow } from '../functions';
-import IpcEvents from "../events";
 import Api from '../api';
+import Event from "../events";
 
 const isProd = process.env.NODE_ENV === 'production'
 
@@ -27,7 +27,7 @@ export default async function MainWindow(){
         },
     });
     //#######################################################
-    const ipcEvents = new IpcEvents(mainWindow);
+    Event();
     //#######################################################
     mainWindow
         .on('show', () => {
@@ -48,14 +48,14 @@ export default async function MainWindow(){
     mainWindow.webContents
         .on('did-finish-load', () => {
             mainWindow.show();
-            ipcEvents.register();
             Api(mainWindow);
+
         }).on('destroyed', () => {
-            ipcEvents.unregister();
+
         })
     //#######################################################
     app.on('quit', () => {
-        ipcEvents.unregister();
+
     });
     if (isProd) {
         await mainWindow.loadURL('app://-/auth'); // <- wajib trailing slash

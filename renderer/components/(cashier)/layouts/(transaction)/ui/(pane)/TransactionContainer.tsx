@@ -2,7 +2,21 @@
 
 import * as React from 'react'
 import ResizableGrid from './../../ui/ResizableContainer'
-import { Box, Button, Chip, IconButton, Paper, Stack, Typography } from '@mui/material'
+import {
+    Box,
+    Button,
+    Chip,
+    IconButton,
+    Paper,
+    Stack,
+    Typography,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    TextField,
+    Alert
+} from '@mui/material'
 import ReceiptLongRounded from '@mui/icons-material/ReceiptLongRounded'
 import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded'
 import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
@@ -36,11 +50,16 @@ const RightContainerBatchDetail = dynamic(() => import('./(pane)/RightContainerB
     ssr: false,
 })
 /* ===== Header + Grid + Footer composed with Context ===== */
+/* ===== Header + Grid + Footer composed with Context ===== */
 function Body({ children }: { children?: React.ReactNode }) {
     const { header, selectedItemIds, selectedTotal, clearSelection, selectedBatchId, txId, bumpReload } = useTx()
 
+    const [voidOpen, setVoidOpen] = React.useState(false)
+    const [voidReason, setVoidReason] = React.useState('')
+    const isClosed = Boolean(header.time_closed)
+
     const doSplitBill = () => {
-        if (selectedItemIds.size === 0) return
+        if (selectedItemIds.size === 0 || isClosed) return
         // @ts-ignore
         window.api.invoke('api.transaction:split_bill', { transaction_id: txId, item_ids: Array.from(selectedItemIds) })
             .then(() => { clearSelection(); bumpReload() })
@@ -48,12 +67,34 @@ function Body({ children }: { children?: React.ReactNode }) {
     }
 
     const doPay = () => {
-        if (!selectedBatchId) return
+        if (!selectedBatchId || isClosed || selectedItemIds.size > 0) return
         // @ts-ignore
         window.api.invoke('api.payment:batch.pay', { transaction_id: txId, batch_id: selectedBatchId })
             .then(() => bumpReload())
             .catch(() => {})
     }
+
+    // === VOID handlers ===
+    const openVoid = () => setVoidOpen(true)
+    const closeVoid = () => { setVoidOpen(false); setVoidReason('') }
+    const confirmVoid = () => {
+        if (selectedItemIds.size === 0 || isClosed) return
+        // NOTE: sesuaikan channel berikut dengan backend kamu kalau beda
+        // contoh lain yang mungkin kamu pakai: 'api.transaction.batch.item:void'
+        // @ts-ignore
+        window.api.invoke('api.transaction.item:void', {
+            transaction_id: txId,
+            item_ids: Array.from(selectedItemIds),
+            reason: voidReason || undefined
+        })
+            .then(() => { clearSelection(); bumpReload(); closeVoid() })
+            .catch(() => {})
+    }
+
+    const kasirName = React.useMemo(() => {
+        const n = header.reference?.name
+        return [n?.first_name, n?.last_name].filter(Boolean).join(' ') || '-'
+    }, [header.reference])
 
     const Header = (
         <Paper
@@ -67,26 +108,19 @@ function Body({ children }: { children?: React.ReactNode }) {
                 alignItems: 'center',
                 gap: 1,
                 flexWrap: 'wrap',
-
-                // base tetap ikut tema
                 position: 'relative',
                 overflow: 'hidden',
                 bgcolor: 'background.paper',
-
-                // overlay gradient status (tetap readable di light/dark)
                 '&::after': {
                     content: '""',
                     position: 'absolute',
                     inset: 0,
                     pointerEvents: 'none',
                     zIndex: 0,
-                    background: header.time_closed
-                        ? (t.palette.mode === 'dark' ? GRAD_RED : GRAD_RED) // closed
-                        : GRAD_GREEN,                                           // aktif
-                    opacity: t.palette.mode === 'dark' ? 0.18 : 0.12,         // tipis agar kontras aman
+                    background: header.time_closed ? 'linear-gradient(90deg, #ef4444, #dc2626 35%, #b91c1c)'
+                        : 'linear-gradient(90deg, #22c55e, #16a34a 35%, #15803d)',
+                    opacity: t.palette.mode === 'dark' ? 0.18 : 0.12,
                 },
-
-                // pastikan konten di atas overlay
                 '& > *': { position: 'relative', zIndex: 1 },
             })}
         >
@@ -94,7 +128,7 @@ function Body({ children }: { children?: React.ReactNode }) {
             <Typography variant="subtitle1" fontWeight={900} sx={{ mr: 1 }}># {header.invoice ?? '—'}</Typography>
             <Chip size="small" label={header.order_type?.name ?? '-'} variant="outlined" />
             {header.table?.code ? <Chip size="small" icon={<TableRestaurantRounded />} label={`Table ${header.table.code}`} /> : null}
-            <Chip size="small" icon={<PersonOutlineRounded />} label={`${header.reference?.name.first_name}`} />
+            <Chip size="small" icon={<PersonOutlineRounded />} label={`${header.reference?.name?.first_name ?? '-'}`} />
             <Chip size="small" icon={<AccessTimeRounded />} label={header.shift?.name ?? '-'} />
             <Box sx={{ flex: 1 }} />
             {selectedItemIds.size > 0 && (
@@ -110,40 +144,110 @@ function Body({ children }: { children?: React.ReactNode }) {
     )
 
     const Footer = (
-        <Paper elevation={0} sx={{ px:1.5, py:1, borderTop:'1px solid', borderColor:'divider', display:'flex', alignItems:'center', gap:1.5, flexWrap:'wrap' }}>
-            <Stack flex={1}>
-                {selectedItemIds.size === 0 ? (
-                    <>
-                        <Typography variant="caption" color="text.secondary">Total Transaksi</Typography>
-                        <Typography variant="subtitle1" fontWeight={900}>{header.total ? rupiah(header.total) : '-'}</Typography>
-                    </>
-                ) : (
-                    <>
-                        <Typography variant="caption" color="text.secondary">Total Terpilih</Typography>
-                        <Typography variant="subtitle1" fontWeight={900}>{rupiah(selectedTotal)}</Typography>
-                    </>
-                )}
+        <Paper
+            elevation={0}
+            sx={{ px: 1.5, py: 1.25, borderTop: '1px solid', borderColor: 'divider' }}
+        >
+            <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1.5}>
+                {/* Kiri: Total + Info ringkas */}
+                <Box sx={{ display: 'grid', gap: 0.5, minWidth: 260 }}>
+                    <Typography variant="caption" color="text.secondary">
+                        {selectedItemIds.size === 0 ? 'Total Transaksi' : 'Total Terpilih'}
+                    </Typography>
+
+                    {/* Total dibesarkan */}
+                    <Typography sx={{ lineHeight: 1, fontWeight: 900, fontSize: { xs: '1.6rem', sm: '1.9rem', md: '2.1rem' } }}>
+                        {selectedItemIds.size === 0 ? (header.total ? rupiah(header.total) : '-') : rupiah(selectedTotal)}
+                    </Typography>
+
+                    {/* Info tambahan */}
+                    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap mt={0.5}>
+                        <Chip size="small" label={`Invoice #${header.invoice ?? '—'}`} />
+                        <Chip size="small" variant="outlined" label={isClosed ? 'Status: Tertutup' : 'Status: Aktif'} color={isClosed ? 'error' : 'success'} />
+                        {/*{selectedBatchId ? <Chip size="small" label={`Batch ${shortId(selectedBatchId)}`} /> : null}
+                        {header.order_type?.name ? <Chip size="small" label={header.order_type.name} /> : null}
+                        {header.table?.code ? <Chip size="small" icon={<TableRestaurantRounded />} label={`Table ${header.table.code}`} /> : null}
+                        {header.reference?.name?.first_name ? <Chip size="small" icon={<PersonOutlineRounded />} label={header.reference.name.first_name} /> : null}
+                        {header.shift?.name ? <Chip size="small" icon={<AccessTimeRounded />} label={header.shift.name} /> : null}*/}
+                        {selectedItemIds.size > 0 ? <Chip size="small" icon={<DoneAllRounded />} label={`${selectedItemIds.size} item`} /> : null}
+                    </Stack>
+                </Box>
+
+                {/* Kanan: Aksi */}
+                <Stack direction="row" gap={1}>
+                    {/* Split Bill */}
+                    <Button
+                        variant="outlined"
+                        disabled={selectedItemIds.size === 0 || isClosed}
+                        onClick={doSplitBill}
+                        sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 1.5 }}
+                    >
+                        Split Bill
+                    </Button>
+
+                    {/* Void (balik lagi) */}
+                    <Button
+                        variant="outlined"
+                        color="error"
+                        disabled={selectedItemIds.size === 0 || isClosed}
+                        onClick={openVoid}
+                        sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 1.5 }}
+                    >
+                        Void
+                    </Button>
+
+                    {/* Bayar */}
+                    <Button
+                        variant="outlined"
+                        disabled={selectedItemIds.size > 0 || !selectedBatchId || isClosed}
+                        onClick={doPay}
+                        sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 1.5 }}
+                    >
+                        Bayar
+                    </Button>
+                </Stack>
             </Stack>
 
-            <Button
-                variant="outlined"
-                disabled={selectedItemIds.size === 0}
-                onClick={doSplitBill}
-                sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 1.5 }}
-            >
-                Split Bill
-            </Button>
+            {/* Dialog Konfirmasi Void */}
+            {/* Dialog Konfirmasi Void */}
+            <Dialog open={voidOpen} onClose={closeVoid} fullWidth maxWidth="sm">
+                <DialogTitle sx={{ fontWeight: 900 }}>Void Item Terpilih</DialogTitle>
+                <DialogContent sx={{ pt: 1, display: 'grid', gap: 1.25 }}>
+                    <Typography variant="body2" sx={{ m: 0 }}>
+                        {selectedItemIds.size} item akan dibatalkan. Nilai total: <b>{rupiah(selectedTotal)}</b>
+                    </Typography>
 
-            <Button
-                variant="outlined"
-                disabled={selectedItemIds.size > 0 || !selectedBatchId}
-                onClick={doPay}
-                sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 1.5 }}
-            >
-                Bayar
-            </Button>
+                    {/* 🔔 Alert notice dinamis */}
+                    <Alert severity="warning" variant="outlined">
+                        <Typography variant="body2">
+                            Saya <b>{kasirName}</b> yang bertugas pada <b>{header.shift?.name ?? '-'}</b> ingin mengajukan void
+                            dengan alasan di bawah ini. Segala macam risiko yang timbul akan menjadi tanggung jawab saya selama bertugas.
+                            Yakin ingin mengajukan void?
+                        </Typography>
+                    </Alert>
+
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Alasan pembatalan (opsional)"
+                        fullWidth
+                        multiline
+                        minRows={2}
+                        value={voidReason}
+                        onChange={(e)=>setVoidReason(e.target.value)}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeVoid} sx={{ textTransform:'none' }}>Batal</Button>
+                    <Button onClick={confirmVoid} color="error" variant="contained" sx={{ textTransform:'none', fontWeight:800 }}>
+                        Void
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
         </Paper>
     )
+
 
     return (
         <Box sx={{ height:'100%', display:'flex', flexDirection:'column' }}>
@@ -161,6 +265,7 @@ function Body({ children }: { children?: React.ReactNode }) {
     )
 }
 
+
 export default function TransactionContainer({ children }: { children?: React.ReactNode }) {
     const searchParams = useSearchParams()
     const pathname = usePathname()
@@ -175,6 +280,7 @@ export default function TransactionContainer({ children }: { children?: React.Re
     }, [pathname, router, searchParams])
 
     const txId = searchParams?.get('id') || ''
+
 
 
     return (

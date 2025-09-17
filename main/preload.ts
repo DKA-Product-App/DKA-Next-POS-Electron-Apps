@@ -62,7 +62,7 @@ const ELECTRON = {
 
 
 contextBridge.exposeInMainWorld('ipc', IPC)
-contextBridge.exposeInMainWorld('function-key', FUNCTION_KEY)
+contextBridge.exposeInMainWorld('shortcut', FUNCTION_KEY)
 contextBridge.exposeInMainWorld('api', API);
 contextBridge.exposeInMainWorld('electron', ELECTRON)
 

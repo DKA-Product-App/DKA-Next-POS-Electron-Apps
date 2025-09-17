@@ -12,6 +12,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useTx } from '../context/TransactionContext'
 import LeftContainerBatchListNewOrder from './(components)/LeftContainerBatchListNewOrder'
 import {DiningModeProvider} from "../../../context/DiningModeContext";
+import LeftContainerBatchPrintChecker from './(components)/LeftContainerBatchPrintChecker'
 
 export type Name = { first_name: string; last_name?: string }
 export type Reference = { id: string; name?: Name; username?: string }
@@ -144,7 +145,13 @@ const LeftContainerBatchList: React.FC = () => {
             {/* ===== Area scroll (TETAP) ===== */}
             <Box sx={{ flex:1, minHeight:0 }}>
                 <PerfectScrollbar options={{ suppressScrollX:true }}>
-                    <List disablePadding>
+                    <List
+                        disablePadding
+                        sx={{
+                            py : 1,
+                            pr: 1
+                        }}
+                    >
                         {batches.map(b => {
                             const selected = b.id === selectedBatchId
                             return (
@@ -197,19 +204,7 @@ const LeftContainerBatchList: React.FC = () => {
                                                 <Chip size="small" icon={<LocalMallRounded />} label={`${totalQty(b)} Qty`} />
                                             </Stack>
 
-                                            <Chip
-                                                size="small"
-                                                icon={<PrintRounded />}
-                                                label={'Checker'}
-                                                color="primary"
-                                                variant="outlined"
-                                                clickable
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    sendPrintForBatch(b)
-                                                }}
-                                                sx={{ ml: 'auto' }}
-                                            />
+                                            <LeftContainerBatchPrintChecker header={header} batch={b} />
                                         </Stack>
 
                                         {/* Baris 3: waktu */}
