@@ -73,20 +73,6 @@ const TransactionListItemRow: React.FC<{ o: Transaction; selected?: boolean; onC
     const batches = totalBatches(o)
     const isClosed = Boolean(o.time_closed)
 
-    const sendPrintWholeTransaction = () => {
-        const groups = groupTxItemsByPrinter(o)
-        const header = {
-            id: o.id, invoice: o.invoice, total: o.total,
-            time_closed: o.time_closed ?? null, reference: o.reference,
-            shift: o.shift, order_type: o.order_type, table: o.table,
-        }
-        const bulk = Array.from(groups.entries())
-            .filter(([pid]) => pid !== '__no_printer__')
-            .map(([pid, items]) => ({ id: pid, header, items }))
-        console.log(bulk)
-        // window.api.invoke?.('api.transaction.printer:send', bulk)
-    }
-
     return (
         <ListItemButton
             onClick={onClick}
@@ -357,7 +343,9 @@ const TransactionListItem: React.FC = () => {
                                     key={o.id}
                                     o={o}
                                     selected={selectedIds.has(o.id)}
-                                    onClick={() => toggleSelection(o.id)}
+                                    onClick={() => {
+                                        toggleSelection(o.id)
+                                    }}
                                 />
                             ))}
                         </List>

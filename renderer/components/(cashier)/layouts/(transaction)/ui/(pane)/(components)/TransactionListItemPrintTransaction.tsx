@@ -9,12 +9,13 @@ import PrintRounded from '@mui/icons-material/PrintRounded'
 import AutorenewRounded from '@mui/icons-material/AutorenewRounded'
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded'
 import ErrorOutlineRounded from '@mui/icons-material/ErrorOutlineRounded'
+import DoneAllRounded from '@mui/icons-material/DoneAllRounded'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 import Image, { ImageLoader } from 'next/image'
 import Skeleton from '@mui/material/Skeleton'
 import { motion, AnimatePresence } from 'framer-motion'
-import {useState} from "react";
+import { useEffect, useState } from "react"
 
 /* ===== Types (selaraskan dengan project kamu) ===== */
 export type Name = { first_name: string; last_name?: string }
@@ -119,15 +120,22 @@ const PURPLE_GRAD = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
 const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx }) => {
     const [open, setOpen] = React.useState(false)
     const buckets = React.useMemo(() => groupTxItemsByPrinter(tx), [tx])
-    const [ isLoading, setLoading ] = useState(false);
 
     const [tab, setTab] = React.useState(0)
     React.useEffect(() => { if (open) setTab(0) }, [open])
 
+    // loading flags
+    const [isLoading, setLoading] = useState(false)
+    const [isLoadingAll, setLoadingAll] = useState(false)
+
     // status per printer
     const [statusMap, setStatusMap] = React.useState<Record<string, { type: 'success' | 'error'; text: string } | undefined>>({})
     const stop = (e: React.SyntheticEvent) => { e.stopPropagation() }
-    const handleOpen = (e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); setOpen(true) }
+    const handleOpen = (e: React.MouseEvent<HTMLElement>) => {
+        e.stopPropagation()
+        setOpen(true)
+        console.log(`TransactionListItemRow`, tx)
+    }
     const handleClose = () => setOpen(false)
 
     const showStatus = (id: string, type: 'success' | 'error', text: string, ms = 2500) => {
@@ -138,24 +146,31 @@ const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx
     const handlePrintCurrent = () => {
         const bucket = buckets[tab]
         if (!bucket) return
-        const payload = {
-            id: bucket.id,
-            header: {
-                id: tx.id, invoice: tx.invoice, total: tx.total, time_closed: tx.time_closed ?? null,
-                reference: tx.reference, shift: tx.shift, order_type: tx.order_type, table: tx.table
-            },
-            items: bucket.items
-        }
+        const itemIds = bucket.items.map(it => String((it as any).id))
+        const payload = { printer: bucket.id, transaction: tx.id, invoice: tx.invoice, itemIds }
+
         setLoading(true)
         window.api.invoke("api.transaction:print", payload)
-            .then(() => {
-                setLoading(false);
-                showStatus(bucket.id, 'success', 'Order Receipt Berhasil di Cetak')
-            })
-            .catch((err: any) => {
-                setLoading(false);
-                showStatus(bucket.id, 'error', "Printer Mungkin Offline, Tidak Tersambung / Mati, Periksa Jaringan Anda")
-            })
+            .then((result) => { setLoading(false); showStatus(bucket.id, 'success', `${result.msg}`) })
+            .catch((err: any) => { setLoading(false); showStatus(bucket.id, 'error', `${err.msg}`) })
+    }
+
+    // Cetak semua tab (paralel) — aman karena setiap task resolve sendiri (nggak bikin Promise.all reject)
+    const handlePrintAll = () => {
+        const bucketsToPrint = buckets.filter(b => (b.items?.length ?? 0) > 0)
+        if (!bucketsToPrint.length) return
+
+        setLoadingAll(true)
+
+        const tasks = bucketsToPrint.map(b => {
+            const itemIds = b.items.map(it => String((it as any).id))
+            const payload = { printer: b.id, transaction: tx.id, invoice: tx.invoice, itemIds }
+            return window.api.invoke("api.transaction:print", payload)
+                .then((res: any) => { showStatus(b.id, 'success', `${res.msg}`); return { ok: true, id: b.id } })
+                .catch((err: any) => { showStatus(b.id, 'error', `${err.msg}`); return { ok: false, id: b.id } })
+        })
+
+        Promise.all(tasks).then(() => setLoadingAll(false))
     }
 
     const currentBucket = buckets[tab]
@@ -171,7 +186,7 @@ const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx
                 variant="outlined"
                 clickable
                 onClick={handleOpen}
-                onMouseDown={(e)=>e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
                 disabled={buckets.length === 0}
                 sx={{ ml: 'auto' }}
             />
@@ -201,7 +216,7 @@ const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx
                     </Tabs>
                     <Divider />
 
-                    {/* Body (tanpa tombol print per-tab) */}
+                    {/* Body */}
                     <DialogContent sx={{ p: 0, flex: 1, minHeight: '30%', maxHeight: '30%', display: 'flex', flexDirection: 'column' }}>
                         <Box sx={{ flex: 1, minHeight: '30%', maxHeight: '30%' }}>
                             {buckets.length === 0 ? (
@@ -276,7 +291,7 @@ const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx
                         </Box>
                     </DialogContent>
 
-                    {/* Footer global: status (kiri) + Print (kanan) */}
+                    {/* Footer global: status (kiri) + tombol (kanan) */}
                     <Divider />
                     <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
                         {/* Status global mengikuti tab aktif */}
@@ -321,16 +336,27 @@ const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx
                             </AnimatePresence>
                         </Box>
 
-                        {/* Tombol Print global: hanya print tab aktif */}
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={(isLoading) ? <AutorenewRounded/> : <PrintRounded />}
-                            onClick={handlePrintCurrent}
-                            disabled={!currentBucket || isLoading}
-                        >
-                            { (isLoading) ? "Loading ..." : "Cetak" }
-                        </Button>
+                        {/* Tombol kanan */}
+                        <Stack direction="row" spacing={1}>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={isLoading ? <AutorenewRounded /> : <PrintRounded />}
+                                onClick={handlePrintCurrent}
+                                disabled={!currentBucket || isLoading || isLoadingAll}
+                            >
+                                {isLoading ? 'Loading…' : 'Cetak'}
+                            </Button>
+                            <Button
+                                variant="contained"
+                                size="small"
+                                startIcon={isLoadingAll ? <AutorenewRounded /> : <DoneAllRounded />}
+                                onClick={handlePrintAll}
+                                disabled={buckets.length === 0 || isLoadingAll || isLoading}
+                            >
+                                {isLoadingAll ? 'Mencetak Semua…' : 'Cetak Semua'}
+                            </Button>
+                        </Stack>
                     </Box>
                 </Box>
             </Dialog>
