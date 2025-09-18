@@ -152,7 +152,7 @@ const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx
         setLoading(true)
         window.api.invoke("api.transaction:print", payload)
             .then((result) => { setLoading(false); showStatus(bucket.id, 'success', `${result.msg}`) })
-            .catch((err: any) => { setLoading(false); showStatus(bucket.id, 'error', `${err.msg}`) })
+            .catch((err: any) => { setLoading(false); showStatus(bucket.id, 'error', `${err.msg ?? "Gagal Mencetak. Printer Offline / Error. Harap Periksa Printer Anda"}`) })
     }
 
     // Cetak semua tab (paralel) — aman karena setiap task resolve sendiri (nggak bikin Promise.all reject)
@@ -167,7 +167,7 @@ const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx
             const payload = { printer: b.id, transaction: tx.id, invoice: tx.invoice, itemIds }
             return window.api.invoke("api.transaction:print", payload)
                 .then((res: any) => { showStatus(b.id, 'success', `${res.msg}`); return { ok: true, id: b.id } })
-                .catch((err: any) => { showStatus(b.id, 'error', `${err.msg}`); return { ok: false, id: b.id } })
+                .catch((err: any) => { showStatus(b.id, 'error', `${err.msg ?? "Gagal Mencetak. Printer Offline / Error. Harap Periksa Printer Anda"}`); return { ok: false, id: b.id } })
         })
 
         Promise.all(tasks).then(() => setLoadingAll(false))
