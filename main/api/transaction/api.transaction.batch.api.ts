@@ -214,6 +214,49 @@ export function TransactionBatch(mainWindow ?: BrowserWindow) {
                 });
         });
     });
+
+    // PRINT ONE
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch:print", (_event, args) => {
+        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/print`);
+        return new Promise(async (resolve, reject) => {
+            return ApiRequestInstance({
+                url: toPath(),
+                method: "GET",
+                params: args
+            })
+                .then((response) => {
+                    return resolve({ ...response.data });
+                })
+                .catch(async (err) => {
+                    if (err && err.response)
+                        return reject({
+                            status: false,
+                            code: err.response.status ? err.response.status : 0,
+                            msg: (err.response.data && (err.response.data.message || err.response.data.msg)) || err.response.statusText || "Terjadi kesalahan",
+                            data: err.response.data ? err.response.data : null,
+                            error: { ...err, detail: { errno: err.errno, syscall: err.syscall, address: err.address, port: err.port } },
+                            meta: { ...err.response.config },
+                        });
+
+                    switch (err && err.code) {
+                        case "ENOTFOUND":
+                            return reject({ status: false, code: 530, msg: "Host tidak ditemukan", error: err });
+                        case "ECONNREFUSED":
+                            return reject({ status: false, code: 530, msg: "Koneksi ditolak oleh server", error: err });
+                        case "ETIMEDOUT":
+                        case "ECONNABORTED":
+                            return reject({ status: false, code: 530, msg: "Waktu koneksi habis", error: err });
+                        default:
+                            return reject({
+                                status: false,
+                                code: 530,
+                                msg: typeof err.message === "string" && err.message.indexOf("Network Error") !== -1 ? "Jaringan/offline atau server tidak dapat dijangkau" : "Gagal menghubungi server",
+                                error: err,
+                            });
+                    }
+                });
+        });
+    });
 }
 
 export default TransactionBatch;

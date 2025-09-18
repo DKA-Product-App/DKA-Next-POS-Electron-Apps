@@ -5,8 +5,12 @@ import {
     Box, Button, Chip, Divider, Stack, Tab, Tabs, Typography, Paper,
     Dialog, DialogContent
 } from '@mui/material'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import PrintRounded from '@mui/icons-material/PrintRounded'
+import DoneAllRounded from '@mui/icons-material/DoneAllRounded'
+import AutorenewRounded from '@mui/icons-material/AutorenewRounded'
+import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded'
+import ErrorOutlineRounded from '@mui/icons-material/ErrorOutlineRounded'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 import Image, { ImageLoader } from 'next/image'
@@ -107,32 +111,90 @@ function groupItemsByPrinter(items: Item[]): PrinterBucket[] {
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
 }
 
+/* ===== Merge helpers (UI only) ===== */
+type MergedItem = { sample: Item; qty: number }
+const keyOf = (it: Item) => `${it.product?.id ?? ''}::${it.variant?.id ?? it.product?.id ?? ''}`
+
+function mergeItemsByVariant(items: Item[]): MergedItem[] {
+    const rec = items.reduce((acc, it) => {
+        const key = keyOf(it)
+        const cur = acc[key]
+        acc[key] = cur ? { sample: cur.sample, qty: cur.qty + Number(it.qty ?? 0) } : { sample: it, qty: Number(it.qty ?? 0) }
+        return acc
+    }, {} as Record<string, MergedItem>)
+    return Object.values(rec)
+}
+
 /* ===== Komponen ===== */
 type Props = { header: TransactionHeader; batch: Batch }
 const MotionItem = motion(Paper)
 
 const LeftContainerBatchPrintChecker: React.FC<Props> = ({ header, batch }) => {
-    // ganti anchorEl ➜ boolean open
     const [open, setOpen] = React.useState(false)
-
     const buckets = React.useMemo(() => groupItemsByPrinter(batch.items || []), [batch.items])
     const [tab, setTab] = React.useState(0)
     React.useEffect(() => { if (open) setTab(0) }, [open])
 
-    const handleOpen = (e: React.MouseEvent<HTMLElement>) => {
-        e.stopPropagation()
-        setOpen(true)
-    }
+    // Loading & status
+    const [isLoading, setLoading] = React.useState(false)
+    const [isLoadingAll, setLoadingAll] = React.useState(false)
+    const [statusMap, setStatusMap] = React.useState<Record<string, { type: 'success' | 'error'; text: string } | undefined>>({})
+
+    const stop = (e: React.SyntheticEvent) => e.stopPropagation()
+    const handleOpen = (e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); setOpen(true) }
     const handleClose = () => setOpen(false)
 
-    const handlePrintOne = (b: PrinterBucket) => {
-        const payload = [{ id: b.id, header, items: b.items }]
-        // @ts-ignore
-        console.log('print one:', payload)
+    const showStatus = (id: string, type: 'success' | 'error', text: string, ms = 2500) => {
+        setStatusMap(prev => ({ ...prev, [id]: { type, text } }))
+        ms > 0 ? setTimeout(() => setStatusMap(prev => ({ ...prev, [id]: undefined })), ms) : undefined
     }
 
-    // shield biar klik di dalam dialog nggak “nyetrum” parent
-    const stop = (e: React.SyntheticEvent) => e.stopPropagation()
+    // === PRINT (tab aktif) ===
+    const handlePrintCurrent = () => {
+        const bucket = buckets[tab]
+        if (!bucket) return
+        const itemIds = bucket.items.map(it => String((it as any).id))
+        const payload = {
+            printer: bucket.id,
+            batch: batch.id,                   // <— bedanya di sini
+            invoice: header.invoice,
+            itemIds,
+            merge_variant: true
+        }
+
+        setLoading(true)
+        // @ts-ignore
+        window.api.invoke("api.transaction.batch:print", payload)
+            .then((res: any) => { setLoading(false); showStatus(bucket.id, 'success', `${res.msg}`) })
+            .catch((err: any) => { setLoading(false); showStatus(bucket.id, 'error', `${err?.msg ?? 'Gagal Mencetak. Printer Offline / Error.'}`) })
+    }
+
+    // === PRINT ALL (semua tab) ===
+    const handlePrintAll = () => {
+        const bucketsToPrint = buckets.filter(b => (b.items?.length ?? 0) > 0)
+        if (!bucketsToPrint.length) return
+
+        setLoadingAll(true)
+
+        const tasks = bucketsToPrint.map(b => {
+            const itemIds = b.items.map(it => String((it as any).id))
+            const payload = {
+                printer: b.id,
+                batch: batch.id,                 // <— batch id
+                invoice: header.invoice,
+                itemIds,
+                merge_variant: true
+            }
+            // @ts-ignore
+            return window.api.invoke("api.transaction.batch:print", payload)
+                .then((res: any) => { showStatus(b.id, 'success', `${res.msg}`); return { ok: true, id: b.id } })
+                .catch((err: any) => { showStatus(b.id, 'error', `${err?.msg ?? 'Gagal Mencetak. Printer Offline / Error.'}`); return { ok: false, id: b.id } })
+        })
+
+        Promise.all(tasks).then(() => setLoadingAll(false))
+    }
+
+    const currentBucket = buckets[tab]
 
     return (
         <>
@@ -156,36 +218,17 @@ const LeftContainerBatchPrintChecker: React.FC<Props> = ({ header, batch }) => {
                 onClose={handleClose}
                 fullWidth
                 maxWidth="md"
-                PaperProps={{
-                    sx: {
-                        p: 0,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        maxHeight: '80vh'
-                    }
-                }}
+                PaperProps={{ sx: { p: 0, display: 'flex', flexDirection: 'column', maxHeight: '80vh' } }}
             >
                 {/* Shield wrapper */}
-                <Box
-                    role="presentation"
-                    onMouseDown={stop}
-                    onClick={stop}
-                    onKeyDown={stop}
-                    sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}
-                >
+                <Box role="presentation" onMouseDown={stop} onClick={stop} onKeyDown={stop} sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                     {/* Header + Tabs */}
                     <Box sx={{ px: 1.25, pt: 1, pb: 0.5 }}>
                         <Typography variant="subtitle2" fontWeight={800}>
                             Cetak Checker • #{header.invoice} • Batch {batch.batch}
                         </Typography>
                     </Box>
-                    <Tabs
-                        value={tab}
-                        onChange={(_, v) => setTab(v)}
-                        variant="scrollable"
-                        scrollButtons="auto"
-                        sx={{ px: 1 }}
-                    >
+                    <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto" sx={{ px: 1 }}>
                         {buckets.map(b => <Tab key={b.id} label={b.description || b.name} />)}
                     </Tabs>
                     <Divider />
@@ -204,12 +247,12 @@ const LeftContainerBatchPrintChecker: React.FC<Props> = ({ header, batch }) => {
                                             <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                                                 <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false }}>
                                                     <Stack spacing={1.25} sx={{ px: 1.25, py: 1.25 }}>
-                                                        {b.items.map((it) => {
+                                                        {mergeItemsByVariant(b.items).map(({ sample: it, qty }) => {
                                                             const cat = categoriesForPrinter(it, b.id)
                                                             const imgSrc = ph(it.product?.name, it.product?.image)
                                                             return (
                                                                 <MotionItem
-                                                                    key={it.id}
+                                                                    key={`${it.product?.id ?? ''}-${it.variant?.id ?? 'novar'}`}
                                                                     variant="outlined"
                                                                     initial={{ opacity: 0, y: 4 }}
                                                                     animate={{ opacity: 1, y: 0 }}
@@ -229,34 +272,10 @@ const LeftContainerBatchPrintChecker: React.FC<Props> = ({ header, batch }) => {
                                                                         borderColor: 'divider',
                                                                         bgcolor: 'background.paper',
                                                                         boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-                                                                        transition: (t) => t.transitions.create(['box-shadow', 'transform', 'border-color'], {
-                                                                            duration: t.transitions.duration.shorter
-                                                                        }),
-                                                                        '&:hover': {
-                                                                            transform: 'translateY(-1px)',
-                                                                            borderColor: 'primary.outlinedBorder',
-                                                                            boxShadow: '0 12px 28px rgba(0,0,0,0.12)',
-                                                                        },
-                                                                        '&::before': {
-                                                                            content: '""',
-                                                                            position: 'absolute',
-                                                                            left: 0, top: 0, bottom: 0,
-                                                                            width: 4,
-                                                                            borderTopLeftRadius: 8,
-                                                                            borderBottomLeftRadius: 8,
-                                                                            background: ACCENT,
-                                                                        },
-                                                                        '&::after': {
-                                                                            content: '""',
-                                                                            position: 'absolute',
-                                                                            inset: -2,
-                                                                            borderRadius: 10,
-                                                                            background: ACCENT,
-                                                                            filter: 'blur(14px)',
-                                                                            opacity: 0,
-                                                                            transition: 'opacity .2s ease',
-                                                                            zIndex: -1
-                                                                        },
+                                                                        transition: (t) => t.transitions.create(['box-shadow', 'transform', 'border-color'], { duration: t.transitions.duration.shorter }),
+                                                                        '&:hover': { transform: 'translateY(-1px)', borderColor: 'primary.outlinedBorder', boxShadow: '0 12px 28px rgba(0,0,0,0.12)' },
+                                                                        '&::before': { content: '""', position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, borderTopLeftRadius: 8, borderBottomLeftRadius: 8, background: ACCENT },
+                                                                        '&::after': { content: '""', position: 'absolute', inset: -2, borderRadius: 10, background: ACCENT, filter: 'blur(14px)', opacity: 0, transition: 'opacity .2s ease', zIndex: -1 },
                                                                         '&:hover::after': { opacity: .18 }
                                                                     }}
                                                                 >
@@ -267,38 +286,19 @@ const LeftContainerBatchPrintChecker: React.FC<Props> = ({ header, batch }) => {
 
                                                                     {/* Info */}
                                                                     <Stack sx={{ minWidth: 0, flex: 1 }}>
-                                                                        <Typography variant="subtitle1" fontWeight={800} noWrap>
-                                                                            {it.product?.name ?? '-'}
-                                                                        </Typography>
+                                                                        <Typography variant="subtitle1" fontWeight={800} noWrap>{it.product?.name ?? '-'}</Typography>
                                                                         <Typography variant="body2" color="text.secondary" noWrap>
-                                                                            {cat || 'Tanpa kategori'} {it.variant?.name ? `• ${it.variant.name}` : ''}
+                                                                            {cat || 'Tanpa kategori'}{it.variant?.name ? ` • ${it.variant.name}` : ''}
                                                                         </Typography>
                                                                     </Stack>
 
-                                                                    {/* Qty */}
-                                                                    <Chip
-                                                                        size="small"
-                                                                        label={`× ${it.qty}`}
-                                                                        sx={{ fontWeight: 800, background: PURPLE_GRAD, color: '#fff' }}
-                                                                    />
+                                                                    {/* Qty merged */}
+                                                                    <Chip size="small" label={`× ${qty}`} sx={{ fontWeight: 800, background: PURPLE_GRAD, color: '#fff' }} />
                                                                 </MotionItem>
                                                             )
                                                         })}
                                                     </Stack>
                                                 </PerfectScrollbar>
-
-                                                {/* Footer per-tab */}
-                                                <Divider />
-                                                <Box sx={{ p: 1, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                                                    <Button
-                                                        variant="contained"
-                                                        size="small"
-                                                        startIcon={<PrintRounded />}
-                                                        onClick={() => handlePrintOne(b)}
-                                                    >
-                                                        Print
-                                                    </Button>
-                                                </Box>
                                             </Box>
                                         )}
                                     </Box>
@@ -310,9 +310,57 @@ const LeftContainerBatchPrintChecker: React.FC<Props> = ({ header, batch }) => {
                     {/* Footer global */}
                     <Divider />
                     <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ px: .5 }}>
-                            Total printer: {buckets.length}
-                        </Typography>
+                        {/* Status global mengikuti tab aktif */}
+                        <Box sx={{ minHeight: 28, display: 'flex', alignItems: 'center' }}>
+                            <AnimatePresence initial={false} mode="wait">
+                                {currentBucket && statusMap[currentBucket.id] && (
+                                    <Stack
+                                        component={motion.div}
+                                        key={`${currentBucket.id}-${statusMap[currentBucket.id]?.type}-${statusMap[currentBucket.id]?.text}`}
+                                        direction="row"
+                                        alignItems="center"
+                                        spacing={0.75}
+                                        initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                                        transition={{ type: 'spring', stiffness: 400, damping: 28, mass: 0.6 }}
+                                        sx={{
+                                            px: 1, py: 0.25, borderRadius: 1,
+                                            bgcolor: (t) => statusMap[currentBucket.id]?.type === 'error' ? t.palette.error.main + '20' : t.palette.success.main + '20',
+                                            border: '1px solid',
+                                            borderColor: (t) => statusMap[currentBucket.id]?.type === 'error' ? t.palette.error.main + '55' : t.palette.success.main + '55',
+                                        }}
+                                    >
+                                        {statusMap[currentBucket.id]?.type === 'error' ? <ErrorOutlineRounded fontSize="small" /> : <CheckCircleRounded fontSize="small" />}
+                                        <Typography variant="body2" fontWeight={700} sx={{ color: (t) => statusMap[currentBucket.id]?.type === 'error' ? t.palette.error.main : t.palette.success.main, letterSpacing: 0.2 }}>
+                                            {statusMap[currentBucket.id]?.text}
+                                        </Typography>
+                                    </Stack>
+                                )}
+                            </AnimatePresence>
+                        </Box>
+
+                        {/* Tombol kanan */}
+                        <Stack direction="row" spacing={1}>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={isLoading ? <AutorenewRounded /> : <PrintRounded />}
+                                onClick={handlePrintCurrent}
+                                disabled={!currentBucket || isLoading || isLoadingAll}
+                            >
+                                {isLoading ? 'Loading…' : 'Cetak'}
+                            </Button>
+                            <Button
+                                variant="contained"
+                                size="small"
+                                startIcon={isLoadingAll ? <AutorenewRounded /> : <DoneAllRounded />}
+                                onClick={handlePrintAll}
+                                disabled={buckets.length === 0 || isLoadingAll || isLoading}
+                            >
+                                {isLoadingAll ? 'Mencetak Semua…' : 'Cetak Semua'}
+                            </Button>
+                        </Stack>
                     </Box>
                 </Box>
             </Dialog>

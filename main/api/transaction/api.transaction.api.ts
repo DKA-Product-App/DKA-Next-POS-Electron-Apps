@@ -214,7 +214,7 @@ export function Transaction(mainWindow ?: BrowserWindow) {
                 });
         });
     });
-    // DELETE ONE
+    // PRINT ONE
     mainWindow?.webContents?.ipc?.handle?.("api.transaction:print", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/print`);
         return new Promise(async (resolve, reject) => {
