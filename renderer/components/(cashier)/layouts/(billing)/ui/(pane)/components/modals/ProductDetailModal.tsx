@@ -123,7 +123,7 @@ export const ProductDetailModal = forwardRef<DetailProductModalHandle, DetailPro
             </DialogTitle>
 
             <DialogContent dividers sx={{ p: 0 }}>
-                <PerfectScrollbar options={{ suppressScrollX: true }}>
+                <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false }}>
                     <Box sx={{ p: 0 }}>
                         {/* Gambar besar + HARGA (teks besar kiri-bawah) */}
                         {/* Gambar besar + HARGA (teks besar kiri-bawah) */}

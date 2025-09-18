@@ -27,6 +27,7 @@ import { ClearRounded, DoneAllRounded } from '@mui/icons-material'
 import { TxProvider, useTx } from './context/TransactionContext'
 import dynamic from "next/dynamic";
 import ShimmerMenuSelectLoading from "../(loading)/ShimmerMenuSelectLoading";
+import {useLayoutManipulatorResizable} from "../../../../../../contexts/LayoutManipulatorResizableContext";
 
 const rupiah = (n: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
@@ -50,8 +51,7 @@ const RightContainerBatchDetail = dynamic(() => import('./(pane)/RightContainerB
     ssr: false,
 })
 /* ===== Header + Grid + Footer composed with Context ===== */
-/* ===== Header + Grid + Footer composed with Context ===== */
-function Body({ children }: { children?: React.ReactNode }) {
+function Body() {
     const { header, selectedItemIds, selectedTotal, clearSelection, selectedBatchId, txId, bumpReload } = useTx()
 
     const [voidOpen, setVoidOpen] = React.useState(false)
@@ -257,7 +257,7 @@ function Body({ children }: { children?: React.ReactNode }) {
                     defaultSize="23%"
                     minSize={330}
                     left={<LeftContainerBatchList />}
-                    right={children ?? <RightContainerBatchDetail />}
+                    right={<RightContainerBatchDetail />}
                 />
             </Box>
             {Footer}
@@ -266,26 +266,10 @@ function Body({ children }: { children?: React.ReactNode }) {
 }
 
 
-export default function TransactionContainer({ children }: { children?: React.ReactNode }) {
-    const searchParams = useSearchParams()
-    const pathname = usePathname()
-    const router = useRouter()
-
-    // Pastikan pathmu tetap /cashier/transaction/batch?id=...
-    React.useEffect(() => {
-        const id = searchParams?.get('id') || ''
-        const norm = (pathname || '').replace(/\/+$/, '')
-        if (norm.endsWith('/batch')) return
-        if (id) router.replace(`${norm}/batch?${searchParams?.toString()}`, { scroll: false })
-    }, [pathname, router, searchParams])
-
-    const txId = searchParams?.get('id') || ''
-
-
-
+export default function TransactionContainer({ id }: { id: string }) {
     return (
-        <TxProvider key={txId} txId={txId}>
-            <Body>{children}</Body>
+        <TxProvider key={id} txId={id}>
+            <Body/>
         </TxProvider>
     )
 }

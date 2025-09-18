@@ -228,7 +228,7 @@ export const SelectMenuAndVariant: FC = () => {
             </Box>
 
             {/* ===== Grid / Error container */}
-            <PerfectScrollbar options={{ suppressScrollX: true }}>
+            <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false }}>
                 <Box
                     sx={{
                         p: 2,

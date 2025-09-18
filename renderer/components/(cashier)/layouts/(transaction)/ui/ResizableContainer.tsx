@@ -45,7 +45,7 @@ export default function ResizableGrid({
     }, [minSize])
 
     return (
-        <PerfectScrollbar style={{ height: '100%' }} options={{ suppressScrollX: true }}>
+        <PerfectScrollbar style={{ height: '100%' }} options={{ suppressScrollX: true, wheelPropagation: false }}>
             <Box sx={{ height: '100%', overflow: 'hidden' }}>
                 {/* @ts-expect-error */}
                 <SplitPane

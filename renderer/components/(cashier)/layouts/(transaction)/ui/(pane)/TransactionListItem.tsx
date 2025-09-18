@@ -23,6 +23,8 @@ import PrintRounded from '@mui/icons-material/PrintRounded'
 import dynamic from "next/dynamic";
 import ShimmerMenuSelectLoading from "../(loading)/ShimmerMenuSelectLoading";
 import ShimmerLoading from '../../../../../(shared)/(loading)/ShimmerLoading'
+import {useLayoutManipulatorResizable} from "../../../../../../contexts/LayoutManipulatorResizableContext";
+import TransactionContainer from "./TransactionContainer";
 
 // ===== Types =====
 export type Name = { first_name: string; last_name?: string }
@@ -169,12 +171,9 @@ const TransactionListItemHeaderWidget = dynamic(() => import('./widgets/Transact
 
 // ===== Main =====
 const TransactionListItem: React.FC = () => {
+    const { layout, setLayout } = useLayoutManipulatorResizable();
     const [transaction, setTransaction] = useState<Array<Transaction>>([])
     const [selectedId, setSelectedId] = useState<string | undefined>()
-
-    const router = useRouter()
-    const pathname = usePathname()
-    const searchParams = useSearchParams()
 
     // Filters state (dikontrol header widget)
     const [filters, setFilters] = useState<Filters>({
@@ -187,12 +186,6 @@ const TransactionListItem: React.FC = () => {
         batchRange: [0, 0],
     })
     const onFiltersChange = (patch: Partial<Filters>) => setFilters(prev => ({ ...prev, ...patch }))
-
-    // Sync selected from URL ?id=
-    useEffect(() => {
-        const fromUrl = searchParams?.get('id') || undefined
-        setSelectedId(fromUrl)
-    }, [searchParams])
 
     // === FETCH: minta data sesuai range waktu ke server (tidak read-all) ===
     useEffect(() => {
@@ -308,34 +301,29 @@ const TransactionListItem: React.FC = () => {
     }, [transactions, filters])
 
     useEffect(() => {
-        const norm = (pathname || '').replace(/\/+$/, '')
-        const root = norm.replace(/\/batch$/, '') // path tanpa /batch
 
         if (filtered.length === 0) {
             // kosong: unselect & hapus ?id lalu balik ke root (pakai replace biar ga nambah history)
             if (selectedId) setSelectedId(undefined)
-            const params = new URLSearchParams(searchParams?.toString() || '')
-            if (params.has('id') || norm !== root) {
-                params.delete('id')
-                const qs = params.toString()
-                router.replace(qs ? `${root}?${qs}` : root, { scroll: false })
-            }
-            return
+            return setLayout((prev) => {
+                return {
+                    ...prev,
+                    right: undefined
+                }
+            })
         }
 
         // ada data tapi id sekarang nggak ada di hasil (misal ganti filter): unselect & rapikan URL
         if (selectedId && !filtered.some(t => t.id === selectedId)) {
             setSelectedId(undefined)
-            const params = new URLSearchParams(searchParams?.toString() || '')
-            if (params.has('id') || norm !== root) {
-                params.delete('id')
-                const qs = params.toString()
-                router.replace(qs ? `${root}?${qs}` : root, { scroll: false })
-            }
+            return setLayout((prev) => {
+                return {
+                    ...prev,
+                    right: undefined
+                }
+            })
         }
-    }, [filtered, selectedId, pathname, router, searchParams])
-
-
+    }, [filtered, selectedId])
 
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -352,13 +340,17 @@ const TransactionListItem: React.FC = () => {
 
             <Divider />
 
-            <Box sx={{ flex: 1, minHeight: 0 }}>
+            <Box sx={{ flex: 1, minHeight: 0, overflow : 'hidden' }}>
                 {filtered.length === 0 ? (
                     <Box sx={{ display: 'grid', placeItems: 'center', height: '100%', color: 'text.secondary' }}>
                         <Typography variant="body2">Data nggak ketemu. Coba filter/kata kunci lain ya~</Typography>
                     </Box>
                 ) : (
-                    <PerfectScrollbar options={{ suppressScrollX: true }}>
+                    <PerfectScrollbar options={{
+                        suppressScrollX: true,
+                        wheelPropagation: false,
+                        swipeEasing: true,
+                    }}>
                         <List sx={{
                             py : 1,
                             pr: 1
@@ -369,21 +361,24 @@ const TransactionListItem: React.FC = () => {
                                     o={o}
                                     selected={o.id === selectedId}
                                     onClick={() => {
-                                        const norm = (pathname || '').replace(/\/+$/, '')
-                                        const root = norm.replace(/\/batch$/, '')
-                                        const base = norm.split('/').pop() === 'batch' ? norm : `${norm}/batch`
-                                        const params = new URLSearchParams(searchParams?.toString() || '')
-
                                         if (o.id === selectedId) {
                                             // klik kedua: unselect
                                             setSelectedId(undefined)
-                                            params.delete('id')
-                                            router.push(params.toString() ? `${root}?${params.toString()}` : root, { scroll: false })
+                                            return setLayout((prev) => {
+                                                return {
+                                                    ...prev,
+                                                    right: undefined
+                                                }
+                                            })
                                         } else {
                                             // select
                                             setSelectedId(o.id)
-                                            params.set('id', o.id)
-                                            router.push(`${base}?${params.toString()}`, { scroll: false })
+                                            return setLayout((prev) => {
+                                                return {
+                                                    ...prev,
+                                                    right: <TransactionContainer id={o.id} />
+                                                }
+                                            })
                                         }
                                     }}
                                 />

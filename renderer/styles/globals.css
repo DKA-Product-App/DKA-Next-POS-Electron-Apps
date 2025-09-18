@@ -35,7 +35,9 @@
     @font-face { font-family:'Material Symbols Sharp';   font-style:normal; font-weight:100 700; font-display:block; src:url('/fonts/material-symbols/MaterialSymbolsSharp[FILL,GRAD,opsz,wght].woff2')   format('woff2'); }
     */
 
-    body { @apply bg-gray-900 text-white antialiased; }
+    body {
+        @apply bg-gray-900 text-white antialiased;
+    }
 
     /* 🔒 Disable text selection global (termasuk form) */
     html, body, #__next, #root, * { @apply select-none; }
@@ -53,6 +55,27 @@
 
 /* --- UTILITIES (ikon + helper) --- */
 @layer utilities {
+    /* === PerfectScrollbar: sembunyikan scrollbar native, tetap pakai CSS default PS === */
+    .ps {
+        position: relative !important;
+        overflow: hidden !important;   /* kunci, biar native scrollbar gak pernah nongol */
+        -ms-overflow-style: none;      /* IE/Edge lama */
+        scrollbar-width: none;         /* Firefox */
+    }
+    .ps::-webkit-scrollbar { width: 0; height: 0; display: none; } /* WebKit */
+
+    /* Optional: biar rail PS lebih terlihat saat interaksi */
+    .ps:hover > .ps__rail-x,
+    .ps:hover > .ps__rail-y,
+    .ps.ps--focus > .ps__rail-x,
+    .ps.ps--focus > .ps__rail-y,
+    .ps.ps--scrolling-x > .ps__rail-x,
+    .ps.ps--scrolling-y > .ps__rail-y { opacity: .6; }
+    @media (hover:hover) {
+        .ps__rail-x:hover, .ps__rail-y:hover { opacity: .8; }
+        .ps__thumb-x:hover, .ps__thumb-y:hover { background: rgba(255,255,255,.5); }
+    }
+
     /* Utility versi Tailwind-friendly */
     .material-symbols-outlined,
     .ms {

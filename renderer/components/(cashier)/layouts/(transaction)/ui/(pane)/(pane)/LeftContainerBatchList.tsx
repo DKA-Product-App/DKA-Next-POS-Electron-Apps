@@ -6,12 +6,9 @@ import 'react-perfect-scrollbar/dist/css/styles.css'
 import { Box, Chip, List, ListItemButton, Stack, Typography, Button } from '@mui/material'
 import LayersRounded from '@mui/icons-material/LayersRounded'
 import LocalMallRounded from '@mui/icons-material/LocalMallRounded'
-import PrintRounded from '@mui/icons-material/PrintRounded'
-import AddRounded from '@mui/icons-material/AddRounded'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useTx } from '../context/TransactionContext'
 import LeftContainerBatchListNewOrder from './(components)/LeftContainerBatchListNewOrder'
-import {DiningModeProvider} from "../../../context/DiningModeContext";
 import LeftContainerBatchPrintChecker from './(components)/LeftContainerBatchPrintChecker'
 
 export type Name = { first_name: string; last_name?: string }
@@ -143,8 +140,14 @@ const LeftContainerBatchList: React.FC = () => {
             </Box>
 
             {/* ===== Area scroll (TETAP) ===== */}
-            <Box sx={{ flex:1, minHeight:0 }}>
-                <PerfectScrollbar options={{ suppressScrollX:true }}>
+            <Box sx={{ flex:1, minHeight:0, overflow: 'hidden' }}>
+                <PerfectScrollbar
+                    options={{
+                        suppressScrollX:true,
+                        wheelPropagation: false,
+                        swipeEasing: true,
+                    }}
+                >
                     <List
                         disablePadding
                         sx={{
@@ -160,10 +163,6 @@ const LeftContainerBatchList: React.FC = () => {
                                     selected={selected}
                                     onClick={() => {
                                         setSelectedBatchId(b.id)
-                                        const base = (pathname || '').replace(/\/+$/, '')
-                                        const params = new URLSearchParams(searchParams?.toString() || '')
-                                        params.set('id', txId); params.set('batch', b.id)
-                                        router.push(`${base}?${params.toString()}`, { scroll: false })
                                     }}
                                     sx={{
                                         position:'relative', alignItems:'flex-start', py:1.1, px:1.4, mb:1, borderRadius:2,

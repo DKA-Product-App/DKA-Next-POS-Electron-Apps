@@ -234,7 +234,7 @@ const PreviewSelectCheckout: React.FC<{ diningModeDefault?: string}> = () => {
             <Box sx={{ flex: 1, minHeight: 0 }}>
                 <PerfectScrollbar
                     style={{ height: "100%" }}
-                    options={{ suppressScrollX: true }}
+                    options={{ suppressScrollX: true, wheelPropagation: false }}
                     onScrollY={() => {
                         window.dispatchEvent(new CustomEvent(BUS_EVENT));
                         Object.values(refMap.current).forEach((ref) => ref?.close());

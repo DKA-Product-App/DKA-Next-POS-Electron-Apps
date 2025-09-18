@@ -84,7 +84,7 @@ const RightContainerBatchDetail: React.FC = () => {
 
     return (
         <Box sx={{ flex:1, minHeight:0, px:1.5 }}>
-            <PerfectScrollbar options={{ suppressScrollX:true }}>
+            <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false }}>
                 <Grid container spacing={2} sx={{ py:1 }}>
                     {items.map(it => {
                         const selected = selectedItemIds.has(it.id)

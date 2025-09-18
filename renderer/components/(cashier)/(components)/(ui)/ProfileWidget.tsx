@@ -124,7 +124,7 @@ export default function ProfileWidget({
                 </Box>
 
                 {/* Menu (scrollable) */}
-                <PerfectScrollbar style={{ maxHeight }}>
+                <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false }}  style={{ maxHeight }}>
                     <List disablePadding>
                         <Item
                             icon={<SettingsRoundedIcon />}

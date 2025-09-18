@@ -135,7 +135,7 @@ const DetailItemWidget = React.forwardRef<DetailItemHandle, {}>(function DetailI
                     {/* Ornamen ungu atas */}
                     <Box sx={{ height: 4, background: GRADIENT_BAR }} />
 
-                    <PerfectScrollbar style={{ maxHeight: 'calc(72vh - 8px)' }} options={{ suppressScrollX: true }}>
+                    <PerfectScrollbar style={{ maxHeight: 'calc(72vh - 8px)' }} options={{ suppressScrollX: true, wheelPropagation: false }}>
                         <Box sx={{ p: 1.75, pb: 1.25 }}>
                             {/* Info Produk */}
                             <Stack spacing={0.75}>

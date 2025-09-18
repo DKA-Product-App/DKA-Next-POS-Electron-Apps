@@ -158,7 +158,7 @@ export default function NetworkWidget({
                 </Box>
 
                 {/* Scroll area */}
-                <PerfectScrollbar style={{ maxHeight }}>
+                <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false }} style={{ maxHeight }}>
                     <List disablePadding>
                         {/* Server status */}
                         <ListItem sx={{ px: 1.5, py: 1 }}>

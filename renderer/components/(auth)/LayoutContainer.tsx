@@ -76,7 +76,7 @@ export function LayoutContainer({ children }) {
             >
                 {/* Scrollable content */}
                 <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                    <PerfectScrollbar options={{ suppressScrollX: true }}>
+                    <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false }}>
                         <Stack
                             direction="column"
                             component="main"

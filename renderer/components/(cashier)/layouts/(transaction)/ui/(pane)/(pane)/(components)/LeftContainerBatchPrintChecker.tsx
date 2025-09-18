@@ -202,7 +202,7 @@ const LeftContainerBatchPrintChecker: React.FC<Props> = ({ header, batch }) => {
                                     <Box key={b.id} role="tabpanel" hidden={tab !== i} sx={{ height: '100%' }}>
                                         {tab === i && (
                                             <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                                                <PerfectScrollbar options={{ suppressScrollX: true }}>
+                                                <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false }}>
                                                     <Stack spacing={1.25} sx={{ px: 1.25, py: 1.25 }}>
                                                         {b.items.map((it) => {
                                                             const cat = categoriesForPrinter(it, b.id)

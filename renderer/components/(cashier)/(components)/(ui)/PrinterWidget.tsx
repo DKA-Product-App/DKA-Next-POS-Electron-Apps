@@ -153,7 +153,7 @@ export default function PrinterWidget({
                 </Box>
 
                 {/* List dengan PerfectScrollbar */}
-                <PerfectScrollbar style={{ maxHeight: maxHeight }}>
+                <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false }} style={{ maxHeight: maxHeight }}>
                     <List disablePadding>
                         {filtered.map(p => (
                             <ListItemButton

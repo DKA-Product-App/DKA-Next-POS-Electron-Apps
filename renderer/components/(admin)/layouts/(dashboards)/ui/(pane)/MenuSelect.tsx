@@ -266,7 +266,7 @@ export const MenuSelect: FC = memo(function MenuSelect() {
         >
             <HeaderBar />
             <Box sx={{ flex: 1, minHeight: 0 }}>
-                <PerfectScrollbar style={{ height: '100%' }} options={{ suppressScrollX: true }}>
+                <PerfectScrollbar style={{ height: '100%' }} options={{ suppressScrollX: true, wheelPropagation: false }}>
                     <List disablePadding sx={{ py: 0.5 }}>
                         {groups.map((g, gi) => (
                             <Box key={g.title || gi}>

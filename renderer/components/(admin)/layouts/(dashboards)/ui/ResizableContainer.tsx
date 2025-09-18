@@ -48,7 +48,7 @@ export default function ResizableGrid({
     return (
         <PerfectScrollbar
             style={{ height: '100%' }}
-            options={{ suppressScrollX: true }} // ✅ opsi valid
+            options={{ suppressScrollX: true, wheelPropagation: false }} // ✅ opsi valid
         >
             <Box sx={{ height: '100%', overflow: 'hidden' /* matiin outer scroll */ }}>
                 {/* @ts-expect-error */}
