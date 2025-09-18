@@ -6,10 +6,15 @@ import {
     Dialog, DialogContent
 } from '@mui/material'
 import PrintRounded from '@mui/icons-material/PrintRounded'
+import AutorenewRounded from '@mui/icons-material/AutorenewRounded'
+import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded'
+import ErrorOutlineRounded from '@mui/icons-material/ErrorOutlineRounded'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 import Image, { ImageLoader } from 'next/image'
 import Skeleton from '@mui/material/Skeleton'
+import { motion, AnimatePresence } from 'framer-motion'
+import {useState} from "react";
 
 /* ===== Types (selaraskan dengan project kamu) ===== */
 export type Name = { first_name: string; last_name?: string }
@@ -21,11 +26,11 @@ export type Variant = { id: string; code?: string; name?: string; price?: string
 export type Item = { id: string; qty: number; price: string; sub_total: string; note?: string | null; reference?: Reference | null; product: Product; variant?: Variant }
 export type Batch = { id: string; batch: number; items: Item[] }
 export type Transaction = {
-    id: string; invoice: string; total: string; time_created: string; time_updated: string; time_closed?: string | null;
-    reference?: Reference; shift?: { id: string; name: string }; order_type: OrderType; table?: Table; batches: Batch[]
+    id?: string; invoice?: string; total?: string; time_created?: string; time_updated?: string; time_closed?: string | null;
+    reference?: Reference; shift?: { id?: string; name?: string }; order_type?: OrderType; table?: Table; batches: Batch[]
 }
 
-/* ====== IMG helpers (disalin dari detail component) ====== */
+/* ====== IMG helpers ====== */
 const uploadsLoader: ImageLoader = ({ src }) => {
     if (src?.startsWith('uploads:///')) {
         const base = process.env.NEXT_PUBLIC_UPLOADS_BASE_URL || ''
@@ -111,42 +116,53 @@ function groupTxItemsByPrinter(tx: Transaction): PrinterBucket[] {
 /* ===== Komponen utama ===== */
 const PURPLE_GRAD = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
 
-type Props = { tx: Transaction }
-
-const TransactionListItemPrintTransaction: React.FC<Props> = ({ tx }) => {
-    // ganti anchorEl ➜ boolean open
+const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx }) => {
     const [open, setOpen] = React.useState(false)
-
     const buckets = React.useMemo(() => groupTxItemsByPrinter(tx), [tx])
+    const [ isLoading, setLoading ] = useState(false);
+
     const [tab, setTab] = React.useState(0)
     React.useEffect(() => { if (open) setTab(0) }, [open])
 
-    // event shield
+    // status per printer
+    const [statusMap, setStatusMap] = React.useState<Record<string, { type: 'success' | 'error'; text: string } | undefined>>({})
     const stop = (e: React.SyntheticEvent) => { e.stopPropagation() }
-
-    const handleOpen = (e: React.MouseEvent<HTMLElement>) => {
-        e.stopPropagation()
-        setOpen(true)
-    }
+    const handleOpen = (e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); setOpen(true) }
     const handleClose = () => setOpen(false)
 
-    const handlePrintOne = (b: PrinterBucket) => {
-        const payload = [{
-            id: b.id,
+    const showStatus = (id: string, type: 'success' | 'error', text: string, ms = 2500) => {
+        setStatusMap(prev => ({ ...prev, [id]: { type, text } }))
+        ms > 0 ? setTimeout(() => setStatusMap(prev => ({ ...prev, [id]: undefined })), ms) : undefined
+    }
+
+    const handlePrintCurrent = () => {
+        const bucket = buckets[tab]
+        if (!bucket) return
+        const payload = {
+            id: bucket.id,
             header: {
                 id: tx.id, invoice: tx.invoice, total: tx.total, time_closed: tx.time_closed ?? null,
                 reference: tx.reference, shift: tx.shift, order_type: tx.order_type, table: tx.table
             },
-            items: b.items
-        }]
-        // @ts-ignore
-        console.log('print one:', payload)
-        // window.api.invoke('api.transaction.printer:send', payload)
+            items: bucket.items
+        }
+        setLoading(true)
+        window.api.invoke("api.transaction:print", payload)
+            .then(() => {
+                setLoading(false);
+                showStatus(bucket.id, 'success', 'Order Receipt Berhasil di Cetak')
+            })
+            .catch((err: any) => {
+                setLoading(false);
+                showStatus(bucket.id, 'error', "Printer Mungkin Offline, Tidak Tersambung / Mati, Periksa Jaringan Anda")
+            })
     }
+
+    const currentBucket = buckets[tab]
 
     return (
         <>
-            {/* Trigger — menggantikan Chip "Transaksi" lama */}
+            {/* Trigger */}
             <Chip
                 size="small"
                 icon={<PrintRounded />}
@@ -160,22 +176,14 @@ const TransactionListItemPrintTransaction: React.FC<Props> = ({ tx }) => {
                 sx={{ ml: 'auto' }}
             />
 
-            {/* Dialog (fullWidth + maxWidth="md") */}
+            {/* Dialog */}
             <Dialog
                 open={open}
                 onClose={handleClose}
                 fullWidth
                 maxWidth="md"
-                PaperProps={{
-                    sx: {
-                        p: 0,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        maxHeight: '80vh'
-                    }
-                }}
+                PaperProps={{ sx: { p: 0, display: 'flex', flexDirection: 'column', maxHeight: '80vh' } }}
             >
-                {/* 🔒 Event shield wrapper */}
                 <Box
                     role="presentation"
                     onMouseDown={(e) => e.stopPropagation()}
@@ -185,25 +193,15 @@ const TransactionListItemPrintTransaction: React.FC<Props> = ({ tx }) => {
                 >
                     {/* Header + Tabs */}
                     <Box sx={{ px: 1.5, pt: 1.25, pb: 0.5 }}>
-                        <Typography variant="subtitle1" fontWeight={900}>
-                            Cetak Transaksi • #{tx.invoice}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                            {buckets.length} printer ditemukan
-                        </Typography>
+                        <Typography variant="subtitle1" fontWeight={900}>Cetak Transaksi • #{tx.invoice}</Typography>
+                        <Typography variant="caption" color="text.secondary">{buckets.length} printer ditemukan</Typography>
                     </Box>
-                    <Tabs
-                        value={tab}
-                        onChange={(_, v) => setTab(v)}
-                        variant="scrollable"
-                        scrollButtons="auto"
-                        sx={{ px: 1 }}
-                    >
+                    <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto" sx={{ px: 1 }}>
                         {buckets.map(b => <Tab key={b.id} label={b.description || b.name} />)}
                     </Tabs>
                     <Divider />
 
-                    {/* Body scrollable per tab */}
+                    {/* Body (tanpa tombol print per-tab) */}
                     <DialogContent sx={{ p: 0, flex: 1, minHeight: '30%', maxHeight: '30%', display: 'flex', flexDirection: 'column' }}>
                         <Box sx={{ flex: 1, minHeight: '30%', maxHeight: '30%' }}>
                             {buckets.length === 0 ? (
@@ -257,42 +255,19 @@ const TransactionListItemPrintTransaction: React.FC<Props> = ({ tx }) => {
 
                                                                     {/* Info */}
                                                                     <Stack sx={{ minWidth: 0, flex: 1 }}>
-                                                                        <Typography variant="subtitle1" fontWeight={800} noWrap>
-                                                                            {it.product?.name ?? '-'}
-                                                                        </Typography>
+                                                                        <Typography variant="subtitle1" fontWeight={800} noWrap>{it.product?.name ?? '-'}</Typography>
                                                                         <Typography variant="body2" color="text.secondary" noWrap>
                                                                             {cat || 'Tanpa kategori'}{it.variant?.name ? ` • ${it.variant.name}` : ''}
                                                                         </Typography>
                                                                     </Stack>
 
                                                                     {/* Qty */}
-                                                                    <Chip
-                                                                        size="small"
-                                                                        label={`× ${it.qty}`}
-                                                                        sx={{
-                                                                            fontWeight: 800,
-                                                                            background: PURPLE_GRAD,
-                                                                            color: '#fff'
-                                                                        }}
-                                                                    />
+                                                                    <Chip size="small" label={`× ${it.qty}`} sx={{ fontWeight: 800, background: PURPLE_GRAD, color: '#fff' }} />
                                                                 </Stack>
                                                             )
                                                         })}
                                                     </Stack>
                                                 </PerfectScrollbar>
-
-                                                {/* Footer per-tab */}
-                                                <Divider />
-                                                <Box sx={{ p: 1, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                                                    <Button
-                                                        variant="outlined"
-                                                        size="small"
-                                                        startIcon={<PrintRounded />}
-                                                        onClick={() => handlePrintOne(b)}
-                                                    >
-                                                        Print
-                                                    </Button>
-                                                </Box>
                                             </Box>
                                         )}
                                     </Box>
@@ -301,12 +276,61 @@ const TransactionListItemPrintTransaction: React.FC<Props> = ({ tx }) => {
                         </Box>
                     </DialogContent>
 
-                    {/* Footer global */}
+                    {/* Footer global: status (kiri) + Print (kanan) */}
                     <Divider />
                     <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ px: .5 }}>
-                            Total printer: {buckets.length}
-                        </Typography>
+                        {/* Status global mengikuti tab aktif */}
+                        <Box sx={{ minHeight: 28, display: 'flex', alignItems: 'center' }}>
+                            <AnimatePresence initial={false} mode="wait">
+                                {currentBucket && statusMap[currentBucket.id] && (
+                                    <Stack
+                                        component={motion.div}
+                                        key={`${currentBucket.id}-${statusMap[currentBucket.id]?.type}-${statusMap[currentBucket.id]?.text}`}
+                                        direction="row"
+                                        alignItems="center"
+                                        spacing={0.75}
+                                        initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                                        transition={{ type: 'spring', stiffness: 400, damping: 28, mass: 0.6 }}
+                                        sx={{
+                                            px: 1,
+                                            py: 0.25,
+                                            borderRadius: 1,
+                                            bgcolor: (t) => statusMap[currentBucket.id]?.type === 'error' ? t.palette.error.main + '20' : t.palette.success.main + '20',
+                                            border: '1px solid',
+                                            borderColor: (t) => statusMap[currentBucket.id]?.type === 'error' ? t.palette.error.main + '55' : t.palette.success.main + '55',
+                                        }}
+                                    >
+                                        {statusMap[currentBucket.id]?.type === 'error'
+                                            ? <ErrorOutlineRounded fontSize="small" />
+                                            : <CheckCircleRounded fontSize="small" />
+                                        }
+                                        <Typography
+                                            variant="body2"
+                                            fontWeight={700}
+                                            sx={{
+                                                color: (t) => statusMap[currentBucket.id]?.type === 'error' ? t.palette.error.main : t.palette.success.main,
+                                                letterSpacing: 0.2
+                                            }}
+                                        >
+                                            {statusMap[currentBucket.id]?.text}
+                                        </Typography>
+                                    </Stack>
+                                )}
+                            </AnimatePresence>
+                        </Box>
+
+                        {/* Tombol Print global: hanya print tab aktif */}
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={(isLoading) ? <AutorenewRounded/> : <PrintRounded />}
+                            onClick={handlePrintCurrent}
+                            disabled={!currentBucket || isLoading}
+                        >
+                            { (isLoading) ? "Loading ..." : "Cetak" }
+                        </Button>
                     </Box>
                 </Box>
             </Dialog>

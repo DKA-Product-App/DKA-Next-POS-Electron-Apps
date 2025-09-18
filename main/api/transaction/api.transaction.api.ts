@@ -2,7 +2,21 @@ import {BrowserWindow} from "electron";
 import { compile } from "path-to-regexp";
 import { ApiConfig } from "../../config/api.config";
 import { ApiRequestInstance } from "../../functions/api/api.request.instance";
+import { Printer } from "@dkaframework/iot";
 
+const printer = new Printer.Escpos({
+    state: Printer.Escpos.Options.STATE.DEVELOPMENT,
+    connection: Printer.Escpos.Options.CONNECTION.ESCPOS_NETWORK,
+    address: "192.168.1.8",
+    port: 9100,
+    settings: {
+        showNetwork: false,
+        showSystem: false,
+        showLibrary: false,
+        autoCut: false,
+        autoClose: true,
+    },
+});
 export function Transaction(mainWindow ?: BrowserWindow) {
     // CREATE
     mainWindow?.webContents?.ipc?.handle?.("api.transaction:create", (_event, args) => {
@@ -213,6 +227,89 @@ export function Transaction(mainWindow ?: BrowserWindow) {
                     }
                 });
         });
+    });
+
+    // DELETE ONE
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction:print", (_event, args) => {
+        return printer
+            .Job(async (p) => {
+                // --- reset & “rapetin” ---
+                p
+                    .encode("cp437")
+                    .font("A")
+                    .style("normal")
+                    .size(0.5, 0.5)
+                    .raw(Buffer.from([0x1b, 0x20, 0x00]))             // ESC SP 0 -> character spacing 0 (rapat)
+
+                p
+                    .size(2,2)
+                    .style("B")
+                    .text("Athena Caffe & Resto")
+                    .size(1, 1)
+                    .style("I")
+                    .text("Center Point Indonesia")
+                    .size(0.5, 0.5)
+                    .feed(1)
+                    .drawLine()
+                    .feed(2)
+                    .style("NORMAL")
+
+                p.size(1, 1)
+                    .text("Order Receipt")
+                    .size(0.5, 0.5)
+                    .drawLine()
+                    .feed(2);
+                // --- header ringkas ---
+
+                p
+                    .size(0,0)
+                    .tableCustom([
+                        { text: "Kasir", align: "LEFT", width: 0.35, style: "B", },
+                        { text: `${args.header.reference.name.first_name} ${args.header.reference.name.last_name ?? ""}`.trim(), align: "RIGHT", style: "B", width: 0.65 },
+                    ])
+                    .tableCustom([
+                        { text: "Shift", align: "LEFT", width: 0.35, style: "B" },
+                        { text: `${args.header.shift.name}`, align: "RIGHT", style: "B",  width: 0.65 },
+                    ])
+                    .tableCustom([
+                        { text: "Meja", align: "LEFT", width: 0.35, style: "B" },
+                        { text: `${args.header.table.floor.name} - ${args.header.table.name}`, align: "RIGHT", style: "B", width: 0.65 },
+                    ])
+                    .tableCustom([
+                        { text: "Invoice", align: "LEFT", width: 0.35, style: "B" },
+                        { text: `${args.header.invoice}`, align: "RIGHT", style: "B", width: 0.65 },
+                    ])
+                    .drawLine();
+
+                // --- items (rapat, nama kiri – qty kanan) ---
+                p.tableCustom([
+                    { text: `NAMA ITEM`, align: "LEFT", width: 0.70, style: "BU" },
+                    { text: `JUMLAH`, align: "RIGHT", width: 0.30, style: "BU" },
+                ]).feed(2)
+                args.items.forEach((it) => {
+                    p.tableCustom([
+                        { text: `${it.product.name}${it.variant?.name ? ` (${it.variant.name})` : ""}`, align: "LEFT", width: 0.70, style: "B" },
+                        { text: `${it.qty}`, align: "RIGHT", width: 0.30 },
+                    ]);
+                });
+
+                p.drawLine();
+
+                // --- total (opsional tapi useful) ---
+                const total = parseFloat(args.header.total || "0");
+                const idr = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(total);
+
+                p.tableCustom([
+                    { text: "TOTAL", align: "LEFT", width: 0.50, style: "B" },
+                    { text: idr, align: "RIGHT", width: 0.50, style: "B" },
+                ])
+                    .text("".padEnd(42, "="))
+                    .align("CT")
+                    .text("Terima kasih")
+                    .feed(3)
+                    .newLine(30)
+                    .cut();
+            })
     });
 }
 

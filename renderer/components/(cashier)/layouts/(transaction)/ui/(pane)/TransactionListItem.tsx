@@ -2,29 +2,25 @@
 
 import * as React from 'react'
 import {
-    Box, Chip, List, ListItemButton, Stack, Typography, Divider
+    Box, Chip, List, ListItemButton, Stack, Typography, Divider, Button
 } from '@mui/material'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
 
-import type { Filters } from './widgets/TransactionListItemHeaderWidget'
-import TransactionListItemPrintTransaction from './(components)/TransactionListItemPrintTransaction' // sesuaikan path
+import ShimmerLoading from '../../../../../(shared)/(loading)/ShimmerLoading'
+import { useLayoutManipulatorResizable } from '../../../../../../contexts/LayoutManipulatorResizableContext'
+import TransactionContainer from './TransactionContainer'
 
-// Icons
 import ReceiptLongRounded from '@mui/icons-material/ReceiptLongRounded'
-import TableRestaurantRounded from '@mui/icons-material/TableRestaurantRounded'
 import LocalMallRounded from '@mui/icons-material/LocalMallRounded'
 import LayersRounded from '@mui/icons-material/LayersRounded'
 import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded'
 import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
-import PrintRounded from '@mui/icons-material/PrintRounded'
-import dynamic from "next/dynamic";
-import ShimmerMenuSelectLoading from "../(loading)/ShimmerMenuSelectLoading";
-import ShimmerLoading from '../../../../../(shared)/(loading)/ShimmerLoading'
-import {useLayoutManipulatorResizable} from "../../../../../../contexts/LayoutManipulatorResizableContext";
-import TransactionContainer from "./TransactionContainer";
+import CallMergeRounded from '@mui/icons-material/CallMergeRounded'
+
+import type { Filters } from './widgets/TransactionListItemHeaderWidget'
+import TransactionListItemPrintTransaction from './(components)/TransactionListItemPrintTransaction'
 
 // ===== Types =====
 export type Name = { first_name: string; last_name?: string }
@@ -33,11 +29,11 @@ export type OrderType = { id: string; code: string; name: string }
 export type Table = { id: string; code: string; name: string }
 export type Product = { id: string; name: string; description?: string; image?: string }
 export type Variant = { id: string; code?: string; name?: string; price?: string }
-export type Item = { id: string; qty: number; price: string; sub_total: string; note?: string | null; reference?: Reference | null; product: Product; variant?: Variant }
+export type Item = { id: number; price: string; qty: number; sub_total: string; note?: string | null; reference?: Reference | null; product: Product; variant?: Variant }
 export type Batch = { id: string; batch: number; note?: string | null; items: Item[] }
 export type Transaction = {
-    id: string; invoice: string; total: string; time_created: string; time_updated: string; time_closed?: string | null;
-    reference?: Reference; shift?: { id: string; name: string }; order_type: OrderType; table?: Table; batches: Batch[]
+    id?: string; invoice?: string; total?: string; time_created?: string; time_updated?: string; time_closed?: string | null;
+    reference?: Reference; shift?: { id?: string; name?: string }; order_type?: OrderType; table?: Table; batches: Batch[]
 }
 
 // ===== Utils & TZ =====
@@ -58,10 +54,7 @@ const matchesQuery = (o: Transaction, q: string) => {
 const getPrinterIdsFromItem = (it: Item): string[] => {
     const cats: any[] = Array.isArray((it as any)?.product?.category) ? (it as any).product.category : []
     const ids: string[] = []
-    cats.forEach(c => {
-        const printers: any[] = Array.isArray(c?.printer) ? c.printer : []
-        printers.forEach(p => { if (p?.id) ids.push(String(p.id)) })
-    })
+    cats.forEach(c => (Array.isArray(c?.printer) ? c.printer : []).forEach(p => p?.id ? ids.push(String(p.id)) : undefined))
     return ids.length ? Array.from(new Set(ids)) : ['__no_printer__']
 }
 const groupTxItemsByPrinter = (tx: Transaction) => {
@@ -69,11 +62,7 @@ const groupTxItemsByPrinter = (tx: Transaction) => {
     const allItems: Item[] = tx.batches.flatMap(b => Array.isArray(b.items) ? b.items : [])
     allItems.forEach(it => {
         const pids = getPrinterIdsFromItem(it)
-        pids.forEach(pid => {
-            const list = map.get(pid) ?? []
-            list.push(it)
-            map.set(pid, list)
-        })
+        pids.forEach(pid => map.set(pid, (map.get(pid) ?? []).concat(it)))
     })
     return map
 }
@@ -95,8 +84,7 @@ const TransactionListItemRow: React.FC<{ o: Transaction; selected?: boolean; onC
             .filter(([pid]) => pid !== '__no_printer__')
             .map(([pid, items]) => ({ id: pid, header, items }))
         console.log(bulk)
-        // @ts-ignore
-        // window.api.invoke('api.transaction.printer:send', bulk)
+        // window.api.invoke?.('api.transaction.printer:send', bulk)
     }
 
     return (
@@ -148,6 +136,7 @@ const TransactionListItemRow: React.FC<{ o: Transaction; selected?: boolean; onC
                         <Chip size="small" icon={<LocalMallRounded />} label={`${items} item`} />
                         <Chip size="small" icon={<LayersRounded />} label={`${batches} batch`} />
                     </Stack>
+                    { /** @ts-ignore **/}
                     <TransactionListItemPrintTransaction tx={o} />
                 </Stack>
 
@@ -164,19 +153,20 @@ const TransactionListItemRow: React.FC<{ o: Transaction; selected?: boolean; onC
 }
 
 const TransactionListItemHeaderWidget = dynamic(() => import('./widgets/TransactionListItemHeaderWidget'), {
-    loading : () => <ShimmerLoading/>,
+    loading: () => <ShimmerLoading />,
     ssr: false,
 })
 
-
-// ===== Main =====
+/* =========================
+ * ======== MAIN ===========
+ * =======================*/
 const TransactionListItem: React.FC = () => {
-    const { layout, setLayout } = useLayoutManipulatorResizable();
-    const [transaction, setTransaction] = useState<Array<Transaction>>([])
-    const [selectedId, setSelectedId] = useState<string | undefined>()
+    const { setLayout } = useLayoutManipulatorResizable()
 
-    // Filters state (dikontrol header widget)
-    const [filters, setFilters] = useState<Filters>({
+    const [transaction, setTransaction] = React.useState<Array<Transaction>>([])
+    const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
+
+    const [filters, setFilters] = React.useState<Filters>({
         query: '',
         status: 'all',
         shiftName: 'all',
@@ -187,49 +177,41 @@ const TransactionListItem: React.FC = () => {
     })
     const onFiltersChange = (patch: Partial<Filters>) => setFilters(prev => ({ ...prev, ...patch }))
 
-    // === FETCH: minta data sesuai range waktu ke server (tidak read-all) ===
-    useEffect(() => {
+    // === FETCH by date range ===
+    React.useEffect(() => {
         const { startAt, endAt } = filters
         if (!startAt || !endAt) return
         const payload = {
-            // kirim dengan offset Asia/Makassar (detik diset untuk presisi server)
             startAt: `${startAt}:00${TZ_OFFSET}`,
             endAt: `${endAt}:59${TZ_OFFSET}`,
         }
         // @ts-ignore
         window.api.invoke('api.transaction:read.all', payload)
-            .then((result: { data: Transaction[] }) => {
-                setTransaction(result?.data ?? []);
-                console.log(result);
-            })
-            .catch((error) => {
-                console.error(error);
-                setTransaction([])
-            })
+            .then((result: { data: Transaction[] }) => setTransaction(result?.data ?? []))
+            .catch(() => setTransaction([]))
     }, [filters.startAt, filters.endAt])
 
-    // Opsi select
-    const shiftOptions = useMemo(() => {
+    // Opsi filter
+    const shiftOptions = React.useMemo(() => {
         const set = new Set<string>()
-        transaction.forEach(t => { if (t.shift?.name) set.add(t.shift.name) })
+        transaction.forEach(t => t.shift?.name ? set.add(t.shift.name) : undefined)
         return Array.from(set).sort()
     }, [transaction])
 
-    const cashierOptions = useMemo(() => {
+    const cashierOptions = React.useMemo(() => {
         const set = new Set<string>()
         transaction.forEach(t => {
             const label = t.reference?.name?.first_name ?? t.reference?.username ?? shortId(t.reference?.id)
-            if (label) set.add(label)
+            label ? set.add(label) : undefined
         })
         return Array.from(set).sort()
     }, [transaction])
 
     // Slider max
-    const maxItems = useMemo(() => transaction.length ? Math.max(...transaction.map(totalItems)) : 0, [transaction])
-    const maxBatches = useMemo(() => transaction.length ? Math.max(...transaction.map(totalBatches)) : 0, [transaction])
+    const maxItems = React.useMemo(() => transaction.length ? Math.max(...transaction.map(totalItems)) : 0, [transaction])
+    const maxBatches = React.useMemo(() => transaction.length ? Math.max(...transaction.map(totalBatches)) : 0, [transaction])
 
-    // …setelah const maxItems = useMemo(...), const maxBatches = useMemo(...)
-    useEffect(() => {
+    React.useEffect(() => {
         setFilters(prev => {
             const patch: Partial<Filters> = {}
             let changed = false
@@ -238,49 +220,32 @@ const TransactionListItem: React.FC = () => {
             const maxI = Math.max(0, maxItems)
             const maxB = Math.max(0, maxBatches)
 
-            // ITEM RANGE
             const [i0, i1] = prev.itemRange
-            if (i0 === 0 && i1 === 0) {
-                // default ketika belum pernah diset
-                patch.itemRange = [0, maxI]
-                changed = true
-            } else {
-                // jaga-jaga kalau max berubah turun/naik
+            if (i0 === 0 && i1 === 0) { patch.itemRange = [0, maxI]; changed = true }
+            else {
                 const ni0 = clamp(i0, maxI)
                 const ni1 = clamp(i1 === 0 ? maxI : i1, maxI)
-                if (ni0 !== i0 || ni1 !== i1) {
-                    patch.itemRange = [ni0, ni1]
-                    changed = true
-                }
+                if (ni0 !== i0 || ni1 !== i1) { patch.itemRange = [ni0, ni1]; changed = true }
             }
 
-            // BATCH RANGE
             const [b0, b1] = prev.batchRange
-            if (b0 === 0 && b1 === 0) {
-                patch.batchRange = [0, maxB]
-                changed = true
-            } else {
+            if (b0 === 0 && b1 === 0) { patch.batchRange = [0, maxB]; changed = true }
+            else {
                 const nb0 = clamp(b0, maxB)
                 const nb1 = clamp(b1 === 0 ? maxB : b1, maxB)
-                if (nb0 !== b0 || nb1 !== b1) {
-                    patch.batchRange = [nb0, nb1]
-                    changed = true
-                }
+                if (nb0 !== b0 || nb1 !== b1) { patch.batchRange = [nb0, nb1]; changed = true }
             }
 
             return changed ? { ...prev, ...patch } : prev
         })
     }, [maxItems, maxBatches])
 
-
-    const transactions = useMemo(
+    const transactions = React.useMemo(
         () => [...transaction].sort((a, b) => new Date(b.time_created).getTime() - new Date(a.time_created).getTime()),
         [transaction]
     )
 
-    // Filter final (query/status/shift/kasir/range item & batch).
-    // Catatan: range waktu sudah di-handle server via payload di atas.
-    const filtered = useMemo(() => {
+    const filtered = React.useMemo(() => {
         const { query, status, shiftName, cashierName, itemRange, batchRange } = filters
         return transactions
             .filter(o => matchesQuery(o, query))
@@ -300,34 +265,72 @@ const TransactionListItem: React.FC = () => {
             })
     }, [transactions, filters])
 
-    useEffect(() => {
+    // ====== Selection State Helpers ======
+    const txById = React.useMemo(() => new Map(filtered.map(t => [t.id, t] as const)), [filtered])
+    const selectedTxs = React.useMemo(
+        () => Array.from(selectedIds).map(id => txById.get(id)).filter(Boolean) as Transaction[],
+        [selectedIds, txById]
+    )
+    const hasClosed = React.useMemo(() => selectedTxs.some(t => Boolean(t.time_closed)), [selectedTxs])
 
-        if (filtered.length === 0) {
-            // kosong: unselect & hapus ?id lalu balik ke root (pakai replace biar ga nambah history)
-            if (selectedId) setSelectedId(undefined)
-            return setLayout((prev) => {
-                return {
-                    ...prev,
-                    right: undefined
-                }
-            })
+    // === Sinkronisasi selection & right pane terhadap filtered ===
+    React.useEffect(() => {
+        const idsInList = new Set(filtered.map(t => t.id))
+        const cleaned = new Set<string>()
+        selectedIds.forEach(id => idsInList.has(id) ? cleaned.add(id) : undefined)
+
+        const changed = cleaned.size !== selectedIds.size
+        if (changed) setSelectedIds(new Set(cleaned))
+
+        const size = cleaned.size
+        if (size === 1) {
+            const onlyId = Array.from(cleaned)[0]
+            setLayout(prev => ({ ...prev, right: <TransactionContainer id={onlyId} /> }))
+        } else {
+            setLayout(prev => ({ ...prev, right: undefined }))
         }
 
-        // ada data tapi id sekarang nggak ada di hasil (misal ganti filter): unselect & rapikan URL
-        if (selectedId && !filtered.some(t => t.id === selectedId)) {
-            setSelectedId(undefined)
-            return setLayout((prev) => {
-                return {
-                    ...prev,
-                    right: undefined
-                }
-            })
-        }
-    }, [filtered, selectedId])
+        if (filtered.length === 0 && selectedIds.size) setSelectedIds(new Set())
+    }, [filtered]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // === Handler toggle selection per row ===
+    const toggleSelection = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev)
+            next.has(id) ? next.delete(id) : next.add(id)
+
+            const size = next.size
+            if (size === 0) {
+                setLayout(p => ({ ...p, right: undefined }))
+            } else if (size === 1) {
+                const onlyId = Array.from(next)[0]
+                setLayout(p => ({ ...p, right: <TransactionContainer id={onlyId} /> }))
+            } else {
+                // >1 → mode gabung, kosongkan right pane
+                setLayout(p => ({ ...p, right: undefined }))
+            }
+            return next
+        })
+    }
+
+    // === Join click stub (biar gampang di-wire ke API) ===
+    const onJoin = () => {
+        const ids = Array.from(selectedIds)
+        console.log('[JOIN] selected ids:', ids)
+        // TODO: implement gabung transaksi di sini
+    }
+
+    // === UI Footer State ===
+    const selectedCount = selectedIds.size
+    const joinEnabled = selectedCount > 1 && !hasClosed
+
+    // Tambahan: kondisi & pesan banner merah (tepat di atas footer)
+    const showJoinAlert = selectedCount > 1 && hasClosed
+    const joinAlertMsg = 'Tidak Bisa Join • Jika Ada Transaksi Selesai •'
 
     return (
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {/* Header (search + filter) */}
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {/* Header */}
             <TransactionListItemHeaderWidget
                 filters={filters}
                 onFiltersChange={onFiltersChange}
@@ -340,53 +343,77 @@ const TransactionListItem: React.FC = () => {
 
             <Divider />
 
-            <Box sx={{ flex: 1, minHeight: 0, overflow : 'hidden' }}>
+            {/* List Area */}
+            <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
                 {filtered.length === 0 ? (
                     <Box sx={{ display: 'grid', placeItems: 'center', height: '100%', color: 'text.secondary' }}>
                         <Typography variant="body2">Data nggak ketemu. Coba filter/kata kunci lain ya~</Typography>
                     </Box>
                 ) : (
-                    <PerfectScrollbar options={{
-                        suppressScrollX: true,
-                        wheelPropagation: false,
-                        swipeEasing: true,
-                    }}>
-                        <List sx={{
-                            py : 1,
-                            pr: 1
-                        }}>
+                    <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false, swipeEasing: true }}>
+                        <List sx={{ py: 1, pr: 1 }}>
                             {filtered.map(o => (
                                 <TransactionListItemRow
                                     key={o.id}
                                     o={o}
-                                    selected={o.id === selectedId}
-                                    onClick={() => {
-                                        if (o.id === selectedId) {
-                                            // klik kedua: unselect
-                                            setSelectedId(undefined)
-                                            return setLayout((prev) => {
-                                                return {
-                                                    ...prev,
-                                                    right: undefined
-                                                }
-                                            })
-                                        } else {
-                                            // select
-                                            setSelectedId(o.id)
-                                            return setLayout((prev) => {
-                                                return {
-                                                    ...prev,
-                                                    right: <TransactionContainer id={o.id} />
-                                                }
-                                            })
-                                        }
-                                    }}
+                                    selected={selectedIds.has(o.id)}
+                                    onClick={() => toggleSelection(o.id)}
                                 />
                             ))}
                         </List>
                     </PerfectScrollbar>
                 )}
             </Box>
+
+            {/* Footer Actions */}
+            {/* Banner merah tepat di atas footer */}
+            {showJoinAlert && (
+                <Box
+                    role="alert"
+                    sx={{
+                        px: 1.5,
+                        py: 1,
+                        bgcolor: 'error.main',
+                        color: 'error.contrastText',
+                        borderTop: '1px solid',
+                        borderColor: 'error.dark',
+                    }}
+                >
+                    <Typography variant="body2" fontWeight={800} sx={{ textAlign: 'left', whiteSpace: 'nowrap' }}>
+                        {joinAlertMsg}
+                    </Typography>
+                </Box>
+            )}
+
+            {/* Footer Actions */}
+            <Divider />
+            <Box sx={{
+                p: 1.25,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 1,
+                bgcolor: 'background.paper'
+            }}>
+                <Typography variant="body2" color="text.secondary">
+                    {selectedCount === 0
+                        ? 'Tidak ada transaksi yang dipilih'
+                        : selectedCount === 1
+                            ? '1 transaksi terpilih'
+                            : `${selectedCount} transaksi terpilih`}
+                </Typography>
+
+                <Button
+                    variant="contained"
+                    startIcon={<CallMergeRounded />}
+                    disabled={!joinEnabled}
+                    onClick={onJoin}
+                >
+                    Join
+                </Button>
+            </Box>
+
+
         </Box>
     )
 }
