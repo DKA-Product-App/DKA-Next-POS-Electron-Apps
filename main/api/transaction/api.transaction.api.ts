@@ -2,21 +2,7 @@ import {BrowserWindow} from "electron";
 import { compile } from "path-to-regexp";
 import { ApiConfig } from "../../config/api.config";
 import { ApiRequestInstance } from "../../functions/api/api.request.instance";
-import { Printer } from "@dkaframework/iot";
 
-const printer = new Printer.Escpos({
-    state: Printer.Escpos.Options.STATE.DEVELOPMENT,
-    connection: Printer.Escpos.Options.CONNECTION.ESCPOS_NETWORK,
-    address: "192.168.1.8",
-    port: 9100,
-    settings: {
-        showNetwork: false,
-        showSystem: false,
-        showLibrary: false,
-        autoCut: false,
-        autoClose: true,
-    },
-});
 export function Transaction(mainWindow ?: BrowserWindow) {
     // CREATE
     mainWindow?.webContents?.ipc?.handle?.("api.transaction:create", (_event, args) => {
@@ -228,7 +214,6 @@ export function Transaction(mainWindow ?: BrowserWindow) {
                 });
         });
     });
-
     // DELETE ONE
     mainWindow?.webContents?.ipc?.handle?.("api.transaction:print", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/print`);
