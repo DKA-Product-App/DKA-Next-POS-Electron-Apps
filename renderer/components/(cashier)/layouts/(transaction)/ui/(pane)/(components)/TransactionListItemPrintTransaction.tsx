@@ -185,7 +185,7 @@ const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx
 
         const tasks = bucketsToPrint.map(b => {
             const itemIds = b.items.map(it => String((it as any).id))
-            const payload = { printer: b.id, transaction: tx.id, invoice: tx.invoice, itemIds }
+            const payload = { printer: b.id, transaction: tx.id, invoice: tx.invoice, itemIds, merge_variant: true }
             return window.api.invoke("api.transaction:print", payload)
                 .then((res: any) => { showStatus(b.id, 'success', `${res.msg}`); return { ok: true, id: b.id } })
                 .catch((err: any) => { showStatus(b.id, 'error', `${err.msg ?? "Gagal Mencetak. Printer Offline / Error. Harap Periksa Printer Anda"}`); return { ok: false, id: b.id } })
