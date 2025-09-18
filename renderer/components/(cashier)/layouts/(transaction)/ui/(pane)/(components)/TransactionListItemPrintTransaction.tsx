@@ -114,6 +114,20 @@ function groupTxItemsByPrinter(tx: Transaction): PrinterBucket[] {
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
 }
 
+/* ===== Merge helpers (UI only) ===== */
+type MergedItem = { sample: Item; qty: number }
+const keyOf = (it: Item) => `${it.product?.id ?? ''}::${it.variant?.id ?? it.product?.id ?? ''}`
+
+function mergeItemsByVariant(items: Item[]): MergedItem[] {
+    const rec = items.reduce((acc, it) => {
+        const key = keyOf(it)
+        const cur = acc[key]
+        acc[key] = cur ? { sample: cur.sample, qty: cur.qty + Number(it.qty ?? 0) } : { sample: it, qty: Number(it.qty ?? 0) }
+        return acc
+    }, {} as Record<string, MergedItem>)
+    return Object.values(rec)
+}
+
 /* ===== Komponen utama ===== */
 const PURPLE_GRAD = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
 
@@ -146,8 +160,15 @@ const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx
     const handlePrintCurrent = () => {
         const bucket = buckets[tab]
         if (!bucket) return
+        // NOTE: print tetap pakai itemIds asli (bukan hasil merge) — biar backend tetap konsisten
         const itemIds = bucket.items.map(it => String((it as any).id))
-        const payload = { printer: bucket.id, transaction: tx.id, invoice: tx.invoice, itemIds }
+        const payload = {
+            printer: bucket.id,
+            transaction: tx.id,
+            invoice: tx.invoice,
+            itemIds,
+            merge_variant: true
+        }
 
         setLoading(true)
         window.api.invoke("api.transaction:print", payload)
@@ -230,12 +251,12 @@ const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx
                                             <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                                                 <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false }}>
                                                     <Stack spacing={1.25} sx={{ px: 1.25, py: 1.25 }}>
-                                                        {b.items.map((it) => {
+                                                        {mergeItemsByVariant(b.items).map(({ sample: it, qty }) => {
                                                             const cat = categoriesForPrinter(it, b.id)
                                                             const imgSrc = ph(it.product?.name, it.product?.image)
                                                             return (
                                                                 <Stack
-                                                                    key={it.id}
+                                                                    key={`${it.product?.id ?? ''}-${it.variant?.id ?? 'novar'}`}
                                                                     direction="row"
                                                                     alignItems="center"
                                                                     spacing={1.25}
@@ -276,8 +297,8 @@ const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx
                                                                         </Typography>
                                                                     </Stack>
 
-                                                                    {/* Qty */}
-                                                                    <Chip size="small" label={`× ${it.qty}`} sx={{ fontWeight: 800, background: PURPLE_GRAD, color: '#fff' }} />
+                                                                    {/* Qty merged */}
+                                                                    <Chip size="small" label={`× ${qty}`} sx={{ fontWeight: 800, background: PURPLE_GRAD, color: '#fff' }} />
                                                                 </Stack>
                                                             )
                                                         })}
