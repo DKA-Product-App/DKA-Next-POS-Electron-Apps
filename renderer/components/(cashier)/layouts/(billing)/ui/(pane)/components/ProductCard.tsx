@@ -7,16 +7,17 @@ import LocalOfferRoundedIcon from '@mui/icons-material/LocalOfferRounded'
 import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import Skeleton from '@mui/material/Skeleton'
+import { motion } from 'framer-motion'
 
-import { Products } from '../../../types/products.type'
-import { ProductDetailModal, DetailProductModalHandle } from './modals/ProductDetailModal'
-import {motion} from "framer-motion";
+import type { Products } from '../../../types/products.type'
+import type { ProductsVariants } from '../../../types/products.variants.type'
+import { ProductDetailModal, DetailProductModalHandle, type ProductWithVariants } from './modals/ProductDetailModal'
 
 export type ProductCardProps = {
-    product: Products
+    product: ProductWithVariants
     variantId?: string
     onSelectVariant?: (productId: string, variantId?: string) => void
-    onAdd?: (product: Products, variant?: Products['variants'][number]) => void
+    onAdd?: (product: Products, variant?: ProductsVariants) => void
     uploadsLoader?: ImageLoader
     gradient?: string
 }
@@ -28,7 +29,7 @@ const MotionPaper = motion(Paper)
 
 const rupiah = (n: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n)
-const toUploadUrl = (s?: string) => (!s ? undefined : /^(uploads|http|https):\/\//i.test(s) ? s : `uploads:///${s.replace(/^\/+/, '')}`)
+const toUploadUrl = (s?: string | null) => (!s ? undefined : /^(uploads|http|https):\/\//i.test(s) ? s : `uploads:///${s.replace(/^\/+/, '')}`)
 const placeholderOf = (p: Products) => toUploadUrl(p.image) ?? `https://placehold.co/600x400/png?text=${encodeURIComponent(p.name)}`
 
 /** drag-to-scroll (kategori) */
@@ -88,7 +89,6 @@ const ImgWithSkeleton: FC<{ src: string; alt: string; priority?: boolean; loader
     )
 }
 
-
 const ProductCard: FC<ProductCardProps> = ({ product: p, variantId, onSelectVariant, onAdd, uploadsLoader, gradient = GRADIENT_DEFAULT }) => {
     const hasVariants = Array.isArray(p.variants) && p.variants.length > 0
     const selectedVarId = variantId ?? p.variants?.[0]?.id
@@ -106,7 +106,7 @@ const ProductCard: FC<ProductCardProps> = ({ product: p, variantId, onSelectVari
             variant="outlined"
             whileHover="hover"
             initial={false}
-            variants={{ hover: { scale: [1, 0.97, 1.04, 1] } }}  // ⬅️ agak lebih “nendang”
+            variants={{ hover: { scale: [1, 0.97, 1.04, 1] } }}
             transition={{ duration: 1, times: [0, 0.25, 0.7, 1], ease: [0.16, 1, 0.3, 1] }}
             style={{ willChange: 'transform' }}
             sx={{
@@ -229,7 +229,7 @@ const ProductCard: FC<ProductCardProps> = ({ product: p, variantId, onSelectVari
                     variant="outlined"
                     fullWidth
                     value={hasVariants ? (selectedVarId ?? '') : ''}
-                    onChange={(e) => onSelectVariant?.(String((p as any).id), String(e.target.value))}
+                    onChange={(e) => onSelectVariant?.(String(p.id), String(e.target.value))}
                     displayEmpty
                     disabled={!hasVariants}
                     renderValue={(selected) => {

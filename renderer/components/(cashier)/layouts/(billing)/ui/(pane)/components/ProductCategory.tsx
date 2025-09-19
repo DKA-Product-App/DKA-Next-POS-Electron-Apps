@@ -2,18 +2,25 @@
 
 import React, { FC, memo } from 'react'
 import { Tabs, Tab, Chip, Stack } from '@mui/material'
-import { ProductsCategories } from '../../../types/product.categories.type'
+import type { Category } from '../../../types/product.categories.type'
 
 type Props = {
     value: number
     onChange: (idx: number) => void
-    categories: Array<ProductsCategories & { id: string; name: string }>
+    categories: Category[]
     counts: Map<string, number>
     total: number
     indicatorGradient?: string
 }
 
-const CategoryTabs: FC<Props> = ({value, onChange, categories, counts, total, indicatorGradient = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'}) => {
+const CategoryTabs: FC<Props> = ({
+                                     value,
+                                     onChange,
+                                     categories,
+                                     counts,
+                                     total,
+                                     indicatorGradient = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)',
+                                 }) => {
     return (
         <Tabs
             value={value}
@@ -42,11 +49,11 @@ const CategoryTabs: FC<Props> = ({value, onChange, categories, counts, total, in
             />
             {categories.map((c) => (
                 <Tab
-                    key={c.id}
+                    key={String(c.id)}
                     label={
                         <Stack direction="row" spacing={1} alignItems="center">
                             <span>{c.name}</span>
-                            <Chip size="small" variant="outlined" label={counts.get(c.id) ?? 0} />
+                            <Chip size="small" variant="outlined" label={counts.get(String(c.id)) ?? 0} />
                         </Stack>
                     }
                 />

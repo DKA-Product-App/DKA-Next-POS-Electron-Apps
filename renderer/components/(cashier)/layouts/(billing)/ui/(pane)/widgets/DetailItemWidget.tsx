@@ -61,7 +61,7 @@ const DetailItemWidget = React.forwardRef<DetailItemHandle, {}>(function DetailI
             window.dispatchEvent(new CustomEvent(BUS_EVENT))
             setAnchorEl(anchor)
             setKey(item.key)
-            setDraft(item.description ?? '')
+            setDraft(item.note ?? '')
             setOpen(true)
         },
         close: () => {
@@ -73,7 +73,7 @@ const DetailItemWidget = React.forwardRef<DetailItemHandle, {}>(function DetailI
     }))
 
     const activeItem = key ? items.find(i => i.key === key) : undefined
-    const activeSubtotal = activeItem ? activeItem.unitPrice * activeItem.qty : 0
+    const activeSubtotal = activeItem ? activeItem.price * activeItem.qty : 0
 
     // Auto-close jika item hilang (qty 0 / dihapus)
     React.useEffect(() => {
@@ -140,14 +140,14 @@ const DetailItemWidget = React.forwardRef<DetailItemHandle, {}>(function DetailI
                             {/* Info Produk */}
                             <Stack spacing={0.75}>
                                 <Typography variant="subtitle1" fontWeight={900} sx={{ lineHeight: 1.1 }}>
-                                    {activeItem?.name ?? 'Produk'}
+                                    {activeItem?.variant?.product?.name ?? 'Produk'}
                                 </Typography>
                                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                                    {activeItem?.variantLabel && (
-                                        <Chip size="small" label={activeItem.variantLabel} variant="outlined" sx={{ borderRadius: 1 }} />
+                                    {activeItem?.variant && (
+                                        <Chip size="small" label={activeItem.variant.name} variant="outlined" sx={{ borderRadius: 1 }} />
                                     )}
                                     <Typography variant="body2" color="text.secondary">
-                                        Harga: <b>{activeItem ? currency(activeItem.unitPrice) : '-'}</b>
+                                        Harga: <b>{activeItem ? currency(activeItem.price) : '-'}</b>
                                     </Typography>
                                 </Stack>
                             </Stack>
@@ -189,7 +189,7 @@ const DetailItemWidget = React.forwardRef<DetailItemHandle, {}>(function DetailI
                                     <Typography variant="subtitle2" fontWeight={800}>Catatan</Typography>
                                     <Tooltip title="Hapus catatan">
                     <span>
-                      <IconButton size="small" onClick={clearNote} disabled={!activeItem?.description}>
+                      <IconButton size="small" onClick={clearNote} disabled={!activeItem?.note}>
                         <DeleteOutline fontSize="small" />
                       </IconButton>
                     </span>

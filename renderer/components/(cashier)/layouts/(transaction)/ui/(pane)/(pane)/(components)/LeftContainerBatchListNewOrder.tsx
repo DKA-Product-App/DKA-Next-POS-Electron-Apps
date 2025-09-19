@@ -12,6 +12,9 @@ import {useTx} from "../../context/TransactionContext";
 import {Batch, TransactionHeader} from "../LeftContainerBatchList";
 import {useDiningMode} from "../../../../context/DiningModeContext";
 import {useEffect} from "react";
+import {CartItem} from "../../../../../(billing)/context/CartContext";
+import { useLayoutManipulatorResizable } from '../../../../../../../../contexts/LayoutManipulatorResizableContext'
+import TransactionListItem from '../../TransactionListItem'
 
 const Billing = dynamic(() => import("../../../../../(billing)"), {
     ssr: true,
@@ -21,9 +24,8 @@ const rupiah = (n: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
         .format(typeof n === 'string' ? parseFloat(n) : n)
 
-const LeftContainerBatchListNewOrder: React.FC = () => {
-
-    const { txId, header, setHeader, selectedBatchId, setSelectedBatchId, reloadKey } = useTx()
+const LeftContainerBatchListNewOrder: React.FC<{tx : string }> = ({ tx }) => {
+    const { txId, setTxId, header, setHeader, selectedBatchId, setSelectedBatchId, reloadKey } = useTx()
     const { setDefaultValue, setDisableOtherDefault } = useDiningMode();
     const [batches, setBatches] = React.useState<Batch[]>([])
     const isClosed = Boolean(header?.time_closed)
@@ -38,10 +40,48 @@ const LeftContainerBatchListNewOrder: React.FC = () => {
         }
     }, [header]);
 
-    const openDialog = () => setOpen(true)
+    const openDialog = () => {
+        console.log(header);
+        setOpen(true)
+    }
     const closeDialog = () => setOpen(false)
 
-// fetch semua batch utk transaksi ini
+
+    const submitNewBatchTransaction = (item : CartItem[]) => {
+        console.table(item);
+        const itemRefactor = item.map((item) => {
+            return {
+                ...item.variant,
+                product: item.variant.product,
+                variant: item.variant,
+                qty : Number(item.qty),
+                price: Number(item.price),
+                sub_total: Number(Number(item.price) * Number(item.qty))
+            }
+        });
+        console.table(itemRefactor)
+        window.api.invoke('api.transaction.batch:create', {
+            transaction: {
+                id: txId
+            },
+            branch: {
+              id : header
+            },
+            reference: header.reference,
+            batch: batches.length + 1,
+            items: itemRefactor,
+        })
+            .then((res) => {
+                closeDialog();
+                setTxId(tx);
+                console.log(res)
+            })
+            .catch((error) => {
+                console.error(error)
+            })
+    }
+
+    // fetch semua batch utk transaksi ini
     React.useEffect(() => {
         if (!txId) { setBatches([]); return }
         // @ts-ignore
@@ -49,12 +89,9 @@ const LeftContainerBatchListNewOrder: React.FC = () => {
             .then((res: any) => {
                 const list = (res?.data ?? []) as any[]
                 const t = list[0]?.transaction
-                if (t) {
-                    setHeader({
-                        id: t.id, invoice: t.invoice, total: t.total, time_closed: t.time_closed,
-                        reference: t.reference, shift: t.shift, order_type: t.order_type, table: t.table,
-                    } as TransactionHeader)
-                }
+                setHeader({
+                    ...t
+                })
                 const mapped: Batch[] = list.map(b => ({
                     id: String(b.id),
                     batch: Number(b.batch),
@@ -114,7 +151,7 @@ const LeftContainerBatchListNewOrder: React.FC = () => {
                 >
                     {/* Hindari nested Paper yang bikin height auto; kalau mau, pastikan 100% */}
                     <Box sx={{ height: '100%', overflow: 'hidden' }}>
-                        <Billing />
+                        <Billing onSubmit={submitNewBatchTransaction} />
                     </Box>
                 </DialogContent>
             </Dialog>

@@ -28,6 +28,7 @@ import { TxProvider, useTx } from './context/TransactionContext'
 import dynamic from "next/dynamic";
 import ShimmerMenuSelectLoading from "../(loading)/ShimmerMenuSelectLoading";
 import {useLayoutManipulatorResizable} from "../../../../../../contexts/LayoutManipulatorResizableContext";
+import {useEffect} from "react";
 
 const rupiah = (n: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
@@ -52,7 +53,7 @@ const RightContainerBatchDetail = dynamic(() => import('./(pane)/RightContainerB
 })
 /* ===== Header + Grid + Footer composed with Context ===== */
 function Body() {
-    const { header, selectedItemIds, selectedTotal, clearSelection, selectedBatchId, txId, bumpReload } = useTx()
+    const { header, txId, setTxId, selectedItemIds, selectedTotal, clearSelection, selectedBatchId, bumpReload } = useTx()
 
     const [voidOpen, setVoidOpen] = React.useState(false)
     const [voidReason, setVoidReason] = React.useState('')
@@ -180,6 +181,7 @@ function Body() {
                         variant="outlined"
                         disabled={selectedItemIds.size === 0 || isClosed}
                         onClick={doSplitBill}
+                        size={'large'}
                         sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 1.5 }}
                     >
                         Split Bill
@@ -191,6 +193,7 @@ function Body() {
                         color="error"
                         disabled={selectedItemIds.size === 0 || isClosed}
                         onClick={openVoid}
+                        size={'large'}
                         sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 1.5 }}
                     >
                         Void
@@ -201,6 +204,7 @@ function Body() {
                         variant="outlined"
                         disabled={selectedItemIds.size > 0 || !selectedBatchId || isClosed}
                         onClick={doPay}
+                        size={'large'}
                         sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 1.5 }}
                     >
                         Bayar
@@ -254,7 +258,7 @@ function Body() {
             {Header}
             <Box sx={{ flex:1, minHeight:0 }}>
                 <ResizableGrid
-                    defaultSize="23%"
+                    defaultSize="25%"
                     minSize={330}
                     left={<LeftContainerBatchList />}
                     right={<RightContainerBatchDetail />}
@@ -266,7 +270,7 @@ function Body() {
 }
 
 
-export default function TransactionContainer({ id }: { id: string }) {
+export default function TransactionContainer({ id }) {
     return (
         <TxProvider key={id} txId={id}>
             <Body/>

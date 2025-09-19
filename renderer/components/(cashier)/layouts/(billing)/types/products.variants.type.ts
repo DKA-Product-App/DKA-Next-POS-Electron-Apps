@@ -1,24 +1,19 @@
-import {Accounts} from "../../../../../types/Accounts.type";
-import {Organization, Project} from "../../../../../types/Enterprises.type";
-import {Products} from "./products.type";
+// products.variants.type.ts
+import type { Products, ReferenceUser, Branch } from './products.type'
 
-export type UUID = string;
-
-export interface TimeStamp {
-    unix: number;
-    humanize: string;
-}
-
-export interface ProductsVariants {
-    id: UUID;
-    reference?: Accounts;
-    organization?: Organization;
-    project?: Project;
-    product?: Products;
-    code?: string;
-    name: string;
-    description: string;
-    price : number;
-    time_created: TimeStamp;
-    status: boolean;
+/**
+ * Satu baris varian seperti di contoh JSON: ada relasi ke product, branches, dan reference user.
+ * price berupa string (mis. "31000.00") sesuai payload.
+ */
+export type ProductsVariants = {
+    id: string
+    code: string
+    name: string
+    description: string
+    price: string
+    time_created: string // ISO string
+    time_updated: string // ISO string
+    reference: ReferenceUser
+    branches: Branch[]
+    product: Products
 }

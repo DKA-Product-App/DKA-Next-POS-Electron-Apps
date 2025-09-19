@@ -85,7 +85,7 @@ const HeaderBar: FC = () => (
     >
         <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="subtitle1" fontWeight={800}>
-                Main Menu
+                Apps & Features
             </Typography>
         </Stack>
     </Box>
@@ -104,10 +104,10 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                 title: 'Transaksi',
                 items: [
                     {
-                        label: 'Pesanan Baru',
+                        label: 'New Order',
                         action: 'new_order',
                         icon: <AddShoppingCartRoundedIcon />,
-                        hint: 'Buat transaksi baru',
+                        hint: 'New Order',
                         forward: 'billing',
                     },
                     {
@@ -117,14 +117,6 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                         hint: 'Pilih Meja',
                         disabled: false,
                         forward: 'select-tables',
-                    },
-                    {
-                        label: 'Pesanan',
-                        action: 'hold_orders',
-                        icon: <ReplayRoundedIcon />,
-                        disabled: false,
-                        forward: 'transaction',
-                        hint: 'Transaksi',
                     },
                     {
                         label: 'Reservasi',
@@ -188,12 +180,6 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                     <List disablePadding>
                         {groups.map((g) => (
                             <Box key={g.title}>
-                                <Divider textAlign="left" sx={{ px: 1.5, py: 1 }}>
-                                    <Typography variant="overline" color="text.secondary">
-                                        {g.title}
-                                    </Typography>
-                                </Divider>
-
                                 {g.items.map((it) => (
                                     <Tooltip key={it.action} title={it.hint || ''} placement="right" arrow>
                                         <ListItemButton

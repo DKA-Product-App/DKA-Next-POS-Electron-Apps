@@ -4,18 +4,23 @@ import React from 'react'
 import type { Products } from '../types/products.type'
 import type { ProductsVariants } from '../types/products.variants.type'
 
+/* =========================
+ *  TIPE DATA BARU
+ *  - CartItem langsung pegang variant (full object)
+ *  - key = variant.id (unique)
+ *  - price = Number(variant.price) aman utk "31000.00"
+ * ========================= */
 export type CartItem = {
     key: string
-    productId: string
-    name: string
-    variantLabel?: string
-    unitPrice: number
+    variant: ProductsVariants
+    price: number
     qty: number
-    description?: string
+    note?: string
 }
 
 type CartState = {
     items: CartItem[]
+    onSubmit: (() => void) | undefined
     taxRate: number
 }
 
@@ -26,10 +31,10 @@ type Action =
     | { type: 'REMOVE'; payload: { key: string } }
     | { type: 'CLEAR' }
     | { type: 'SET_TAX_RATE'; payload: { taxRate: number } }
-    | { type: 'SET_DESC'; payload: { key: string; description: string } }
+    | { type: 'SET_DESC'; payload: { key: string; description: string } } // tetap kompatibel – map ke "note"
 
 const STORAGE_KEY = 'cashier_cart'
-const STORAGE_VERSION = 1
+const STORAGE_VERSION = 2 // bump karena shape CartItem berubah
 
 const CartStateCtx = React.createContext<CartState | null>(null)
 const CartActionsCtx = React.createContext<{
@@ -42,19 +47,37 @@ const CartActionsCtx = React.createContext<{
     setDescription: (key: string, description: string) => void
 } | null>(null)
 
-// ---------- Reducer ----------
+/* =========================
+ *  HELPERS
+ * ========================= */
+const numberFromMoney = (n: unknown): number =>
+    typeof n === 'number' ? n : typeof n === 'string' ? Number(n) : 0
+
+// fallback bikin "varian base" kalau user belum milih varian
+const makeBaseVariant = (p: Products): ProductsVariants =>
+    ({
+        id: `${(p as any).id ?? 'unknown'}:BASE`,
+        code: 'BASE',
+        name: 'Default',
+        description: (p as any).description ?? 'Base variant',
+        price: (p as any).price ?? 0,
+        product: { id: (p as any).id, name: (p as any).name },
+    } as unknown as ProductsVariants)
+
+/* =========================
+ *  REDUCER
+ * ========================= */
 const reducer = (state: CartState, action: Action): CartState => {
     if (action.type === 'ADD') {
-        const { p, v } = action.payload
-        const key = `${p.id}:${v?.id ?? 'base'}`
-        const unitPrice = v?.price ?? (p as any).price ?? 0
-        const variantLabel = v?.name
+        const { p } = action.payload
+        const v = action.payload.v ?? makeBaseVariant(p)
+        const key = v.id
+        const price = numberFromMoney((v as any).price)
 
         const items = state.items.some(i => i.key === key)
             ? state.items.map(it => (it.key === key ? { ...it, qty: it.qty + 1 } : it))
-            : state.items.concat([
-                { key, productId: p.id, name: p.name, variantLabel, unitPrice, qty: 1 },
-            ])
+            : state.items.concat([{ key, variant: v, price, qty: 1 }])
+
         return { ...state, items }
     }
 
@@ -83,7 +106,7 @@ const reducer = (state: CartState, action: Action): CartState => {
 
     if (action.type === 'SET_DESC') {
         const items = state.items.map(it =>
-            it.key === action.payload.key ? { ...it, description: action.payload.description } : it
+            it.key === action.payload.key ? { ...it, note: action.payload.description } : it
         )
         return { ...state, items }
     }
@@ -91,24 +114,52 @@ const reducer = (state: CartState, action: Action): CartState => {
     return state
 }
 
-// ---------- Storage helpers ----------
+/* =========================
+ *  STORAGE
+ * ========================= */
 type PersistedState = { version: number; payload: CartState }
 
 const loadInitialState = (initialTaxRate: number): CartState => {
     const raw = typeof window !== 'undefined' ? sessionStorage.getItem(STORAGE_KEY) : null
-    if (!raw) return { items: [], taxRate: initialTaxRate }
+    if (!raw) return { items: [], onSubmit: undefined, taxRate: initialTaxRate }
 
     const parsed = JSON.parse(raw) as PersistedState | CartState
-    // Backward compatibility (tanpa version)
-    const state: CartState =
-        'version' in (parsed as any)
-            ? (parsed as PersistedState).payload
-            : (parsed as CartState)
 
-    return {
-        items: state.items ?? [],
-        taxRate: typeof state.taxRate === 'number' ? state.taxRate : initialTaxRate,
+    // Upgrade path:
+    // - v1 punya item { product: string; variant: string; price; qty }
+    // - v2 butuh { variant: ProductsVariants; ... }
+    const toV2 = (old: CartState): CartState => {
+        const items = Array.isArray(old.items)
+            ? old.items.map((it: any) =>
+                it?.variant && typeof it.variant === 'object'
+                    ? it // already v2
+                    : ({
+                        key: it?.key ?? it?.variant ?? it?.product ?? crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
+                        variant: {
+                            id: it?.variant ?? `${it?.product ?? 'unknown'}:BASE`,
+                            code: 'BASE',
+                            name: 'Default',
+                            description: 'Migrated item',
+                            price: it?.price ?? 0,
+                            product: it.product,
+                        } as unknown as ProductsVariants,
+                        price: numberFromMoney(it?.price),
+                        qty: Number(it?.qty ?? 1),
+                        note: it?.note ?? it?.description,
+                    } as CartItem)
+            )
+            : []
+
+        return { items, onSubmit: undefined, taxRate: typeof old.taxRate === 'number' ? old.taxRate : initialTaxRate }
     }
+
+    if ('version' in (parsed as any)) {
+        const data = parsed as PersistedState
+        return data.version === STORAGE_VERSION ? data.payload : toV2(data.payload)
+    }
+
+    // Backward: no-version payload
+    return toV2(parsed as CartState)
 }
 
 const persist = (state: CartState) => {
@@ -116,35 +167,32 @@ const persist = (state: CartState) => {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data))
 }
 
-// ---------- Provider ----------
+/* =========================
+ *  PROVIDER
+ * ========================= */
 export const CartProvider: React.FC<{
     children: React.ReactNode
     initialTaxRate?: number
 }> = ({ children, initialTaxRate = 0.11 }) => {
-    // Lazy init agar rehydrate dilakukan sekali, tanpa dispatch tambahan
     const [state, dispatch] = React.useReducer(
         reducer,
         undefined as unknown as CartState,
         () => loadInitialState(initialTaxRate)
     )
 
-    // Persist setiap perubahan state
     React.useEffect(() => {
         if (typeof window === 'undefined') return
         persist(state)
     }, [state])
 
-    // Actions stabil (tidak berubah referensi) karena hanya bergantung pada dispatch
     const valueActions = React.useMemo(
         () => ({
-            add: (p: Products, v?: ProductsVariants) =>
-                dispatch({ type: 'ADD', payload: { p, v } }),
+            add: (p: Products, v?: ProductsVariants) => dispatch({ type: 'ADD', payload: { p, v } }),
             inc: (key: string) => dispatch({ type: 'INC', payload: { key } }),
             dec: (key: string) => dispatch({ type: 'DEC', payload: { key } }),
             remove: (key: string) => dispatch({ type: 'REMOVE', payload: { key } }),
             clear: () => dispatch({ type: 'CLEAR' }),
-            setTaxRate: (n: number) =>
-                dispatch({ type: 'SET_TAX_RATE', payload: { taxRate: n } }),
+            setTaxRate: (n: number) => dispatch({ type: 'SET_TAX_RATE', payload: { taxRate: n } }),
             setDescription: (key: string, description: string) =>
                 dispatch({ type: 'SET_DESC', payload: { key, description } }),
         }),
@@ -160,7 +208,9 @@ export const CartProvider: React.FC<{
     )
 }
 
-// ---------- Hooks konsumen ----------
+/* =========================
+ *  HOOKS
+ * ========================= */
 export const useCart = () => {
     const ctx = React.useContext(CartStateCtx)
     if (!ctx) throw new Error('useCart must be used within CartProvider')
@@ -176,7 +226,7 @@ export const useCartActions = () => {
 export const useCartMoney = () => {
     const { items, taxRate } = useCart()
     const subtotal = React.useMemo(
-        () => items.reduce((acc, it) => acc + it.unitPrice * it.qty, 0),
+        () => items.reduce((acc, it) => acc + it.price * it.qty, 0),
         [items]
     )
     const tax = React.useMemo(() => Math.round(subtotal * taxRate), [subtotal, taxRate])

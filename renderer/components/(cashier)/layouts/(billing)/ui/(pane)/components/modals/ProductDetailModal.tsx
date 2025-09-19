@@ -3,7 +3,7 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react'
 import {
     Box, Button, Dialog, DialogActions, DialogContent, DialogTitle,
-    IconButton, MenuItem, Select, Typography
+    MenuItem, Select, Typography, IconButton
 } from '@mui/material'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded'
@@ -12,15 +12,27 @@ import Image, { ImageLoader } from 'next/image'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 
-import { Products } from '../../../../types/products.type'
+import type { Products } from '../../../../types/products.type'
+import type { ProductsVariants } from '../../../../types/products.variants.type'
+import type { Category } from '../../../../types/product.categories.type'
 
 export type DetailProductModalHandle = { open: () => void; close: () => void }
 
+/**
+ * Komposit product utk komponen ini:
+ * - variants opsional (array)
+ * - category bisa single/array/undefined (kompatibel dgn payload kamu)
+ */
+export type ProductWithVariants = Products & {
+    variants?: ProductsVariants[]
+    category?: Category | Category[] | null
+}
+
 export type DetailProductModalProps = {
-    product: Products
+    product: ProductWithVariants
     variantId?: string
     onSelectVariant?: (productId: string, variantId?: string) => void
-    onAdd?: (product: Products, variant?: Products['variants'][number]) => void
+    onAdd?: (product: Products, variant?: ProductsVariants) => void
     uploadsLoader?: ImageLoader
     gradient?: string
     decorShadowOpacity?: number // 0..1
@@ -28,7 +40,7 @@ export type DetailProductModalProps = {
 
 const GRADIENT_DEFAULT = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
 const rupiah = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n)
-const toUploadUrl = (s?: string) => (!s ? undefined : /^(uploads|http|https):\/\//i.test(s) ? s : `uploads:///${s.replace(/^\/+/, '')}`)
+const toUploadUrl = (s?: string | null) => (!s ? undefined : /^(uploads|http|https):\/\//i.test(s) ? s : `uploads:///${s.replace(/^\/+/, '')}`)
 const placeholderOf = (p: Products) => toUploadUrl(p.image) ?? `https://placehold.co/600x400/png?text=${encodeURIComponent(p.name)}`
 
 const ImgWithSkeleton: React.FC<{ src: string; alt: string; priority?: boolean; loader?: ImageLoader }> = ({ src, alt, priority, loader }) => {
@@ -62,13 +74,17 @@ export const ProductDetailModal = forwardRef<DetailProductModalHandle, DetailPro
     const [open, setOpen] = useState(false)
     const hasVariants = Array.isArray(p.variants) && p.variants.length > 0
 
+    // initial var id (prioritas prop, fallback varian pertama)
     const initialVarId = useMemo(() => variantId ?? p.variants?.[0]?.id, [variantId, p.variants])
     const [dialogVarId, setDialogVarId] = useState<string | undefined>(initialVarId ? String(initialVarId) : undefined)
-
     useEffect(() => setDialogVarId(initialVarId ? String(initialVarId) : undefined), [initialVarId])
 
     const dialogSelectedVar = p.variants?.find(v => String(v.id) === String(dialogVarId))
-    const cats: Array<any> = Array.isArray((p as any).category) ? (p as any).category : (p as any).category ? [(p as any).category] : []
+
+    // normalisasi category → array
+    const cats: Category[] =
+        Array.isArray(p.category) ? p.category.filter(Boolean) as Category[] :
+            p.category ? [p.category as Category] : []
 
     useImperativeHandle(ref, () => ({ open: () => setOpen(true), close: () => setOpen(false) }), [])
 
@@ -79,7 +95,7 @@ export const ProductDetailModal = forwardRef<DetailProductModalHandle, DetailPro
             fullWidth
             maxWidth="sm"
             PaperProps={{
-                sx: (t) => ({
+                sx: {
                     borderRadius: 2,
                     position: 'relative',
                     overflow: 'visible',
@@ -94,11 +110,11 @@ export const ProductDetailModal = forwardRef<DetailProductModalHandle, DetailPro
                         borderRadius: 'inherit',
                         background: gradient,
                         filter: 'blur(18px)',
-                        opacity: decorShadowOpacity ?? (t.palette.mode === 'dark' ? 0.8 : 0.35),
+                        opacity: decorShadowOpacity ?? 0.35,
                         pointerEvents: 'none',
                         zIndex: -1,
                     },
-                }),
+                },
             }}
         >
             <DialogTitle sx={{ pr: 6 }}>
@@ -125,19 +141,17 @@ export const ProductDetailModal = forwardRef<DetailProductModalHandle, DetailPro
             <DialogContent dividers sx={{ p: 0 }}>
                 <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false }}>
                     <Box sx={{ p: 0 }}>
-                        {/* Gambar besar + HARGA (teks besar kiri-bawah) */}
-                        {/* Gambar besar + HARGA (teks besar kiri-bawah) */}
+                        {/* HERO IMAGE + HARGA */}
                         <Box sx={{ position: 'relative', overflow: 'hidden' }}>
                             <ImgWithSkeleton src={placeholderOf(p)} alt={p.name} loader={uploadsLoader} />
 
-                            {/* Bottom gradient opacity (supaya teks putih kebaca) */}
                             <Box
                                 sx={{
                                     position: 'absolute',
                                     left: 0,
                                     right: 0,
                                     bottom: 0,
-                                    height: '38%', // boleh 30–45% sesuai selera
+                                    height: '38%',
                                     background: (t) =>
                                         `linear-gradient(to top,
                                           ${t.palette.mode === 'dark' ? 'rgba(0,0,0,0.72)' : 'rgba(0,0,0,0.58)'} 0%,
@@ -147,7 +161,6 @@ export const ProductDetailModal = forwardRef<DetailProductModalHandle, DetailPro
                                 }}
                             />
 
-                            {/* Harga (tanpa chip) */}
                             <Typography
                                 component="div"
                                 sx={{
@@ -159,7 +172,6 @@ export const ProductDetailModal = forwardRef<DetailProductModalHandle, DetailPro
                                     fontSize: { xs: '1.6rem', sm: '1.8rem', md: '2rem' },
                                     lineHeight: 1,
                                     color: '#fff',
-                                    // sedikit shadow biar makin mantap (tetap halus)
                                     textShadow: '0 1px 2px rgba(0,0,0,.55), 0 10px 30px rgba(0,0,0,.35)',
                                     userSelect: 'none',
                                     pointerEvents: 'none',
@@ -168,7 +180,6 @@ export const ProductDetailModal = forwardRef<DetailProductModalHandle, DetailPro
                                 {rupiah(Number(dialogSelectedVar?.price ?? (p as any).price ?? 0))}
                             </Typography>
                         </Box>
-
 
                         <Box sx={{ p: 3, display: 'grid', gap: 1.5 }}>
                             <Typography
@@ -260,7 +271,7 @@ export const ProductDetailModal = forwardRef<DetailProductModalHandle, DetailPro
                                 onChange={(e) => {
                                     const val = String(e.target.value)
                                     setDialogVarId(val)
-                                    onSelectVariant?.(String((p as any).id), val)
+                                    onSelectVariant?.(String(p.id), val)
                                 }}
                                 displayEmpty
                                 disabled={!hasVariants}

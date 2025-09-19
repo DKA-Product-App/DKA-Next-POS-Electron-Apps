@@ -13,6 +13,7 @@ export type Item = { id: string; qty: number; price: string; sub_total: string; 
 
 export type TxHeader = {
     id?: string
+    batch?: any,
     invoice?: string
     total?: string
     time_closed?: string | null
@@ -24,6 +25,7 @@ export type TxHeader = {
 
 type Ctx = {
     txId: string
+    setTxId: (tx : string) => void;
     header: TxHeader
     setHeader: (p: Partial<TxHeader>) => void
 
@@ -54,11 +56,14 @@ export function useTx() {
 
 export function TxProvider({ txId, children }: { txId: string; children: React.ReactNode }) {
     const [header, setHeaderState] = React.useState<TxHeader>({})
+    const [tx, setTx] = React.useState(txId)
     const [selectedBatchId, setSelectedBatchId] = React.useState<string | undefined>(undefined)
     const [selectedItemIds, setSelectedItemIds] = React.useState<Set<string>>(new Set())
     const [itemsByBatch, setItemsByBatch] = React.useState<Record<string, Item[]>>({})
     const [reloadKey, setReloadKey] = React.useState(0)
 
+
+    const setTxId = (tx : string) => setTx(tx);
     const setHeader = (p: Partial<TxHeader>) => setHeaderState(h => ({ ...h, ...p }))
     const bumpReload = () => setReloadKey(k => k + 1)
 
@@ -92,9 +97,10 @@ export function TxProvider({ txId, children }: { txId: string; children: React.R
         header, setHeader,
         selectedBatchId, setSelectedBatchId,
         selectedItemIds, toggleItem, clearSelection,
+        setTxId,
         registerItems, itemsByBatch, selectedTotal,
         reloadKey, bumpReload,
-    }), [txId, header, selectedBatchId, selectedItemIds, itemsByBatch, selectedTotal, reloadKey])
+    }), [tx, header, selectedBatchId, selectedItemIds, setTxId, itemsByBatch, selectedTotal, reloadKey])
 
     return <TxContext.Provider value={value}>{children}</TxContext.Provider>
 }

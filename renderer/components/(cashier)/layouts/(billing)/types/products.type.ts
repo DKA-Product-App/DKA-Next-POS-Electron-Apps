@@ -1,27 +1,41 @@
-import {Accounts} from "../../../../../types/Accounts.type";
-import {Organization, Project} from "../../../../../types/Enterprises.type";
-import {ProductsCategories} from "./product.categories.type";
-import {ProductsVariants} from "./products.variants.type";
+// products.type.ts
+// Tipe untuk objek "product" yang nongol di dalam setiap variant (embedded)
 
-export type UUID = string;
-
-export interface TimeStamp {
-    unix: number;
-    humanize: string;
+export type Name = {
+    first_name: string
+    last_name?: string
 }
-export interface Products {
-    id : UUID;
-    reference?: Accounts,
-    organization?: Organization,
-    project?: Project,
-    category?: ProductsCategories,
-    name: string;
-    sku: string,
-    description?: string,
-    image?: UUID;
-    variants : ProductsVariants[];
-    time_created: TimeStamp,
-    time_updated?: TimeStamp,
-    time_deleted?: TimeStamp,
-    status: boolean,
+
+export type ReferenceUser = {
+    id: string
+    name?: Name
+    username: string
+    password: string
+    time_created: string // ISO string
+    time_updated: string // ISO string
+}
+
+export type Branch = {
+    id: string
+    name: string
+    address: string
+    phone: string
+    email: string
+    website: string | null
+    time_created: string // ISO string
+    time_updated: string // ISO string
+}
+
+/**
+ * Product yang tertanam pada variant (payload contoh menunjukkan struktur lengkap).
+ * Kalau nanti backend beda (summary vs detail), tinggal pecah ke ProductSummary/ProductDetail.
+ */
+export type Products = {
+    id: string
+    name: string
+    description: string
+    image: string | null
+    time_created: string // ISO string
+    time_updated: string // ISO string
+    status: boolean
 }

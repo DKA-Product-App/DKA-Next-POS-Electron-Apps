@@ -1,6 +1,6 @@
 'use client'
 
-import React, { FC, useEffect, useState } from "react";
+import React, { FC, memo, useEffect, useState } from "react";
 import {
     Box, Chip, MenuItem, Paper, Select,
     TextField, Stack, InputAdornment, IconButton,
@@ -13,32 +13,33 @@ import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
-import { useCartActions } from "../../context/CartContext";
-
-import ProductCardSkeleton from "../(loading)/ShimmerLoadingProductCard"
 import dynamic from "next/dynamic";
+
+import { useCartActions } from "../../context/CartContext";
 import ShiummerLoadingProductCategory from "../(loading)/ShimmerLoadingProductCategory";
 import ProductCard from "./components/ProductCard";
 
+import type { Products } from "../../types/products.type";
+import type { ProductsVariants } from "../../types/products.variants.type";
+import type { Category } from "../../types/product.categories.type";
+import type { ProductWithVariants } from "./components/modals/ProductDetailModal"; // re-use komposit
+
 const GRADIENT = "linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)";
 
-/*const ProductCard = dynamic(() => import('./components/ProductCard'), {
-    loading: () => <ProductCardSkeleton />,
-    ssr: false,
-})*/
-
 const ProductCategory = dynamic(() => import('./components/ProductCategory'), {
-    loading: () => <ShiummerLoadingProductCategory/>,
+    loading: () => <ShiummerLoadingProductCategory />,
     ssr: false,
 })
 
-const catIds = (p: any): string[] => {
-    const c = p?.category ?? p?.categories ?? [];
+/** helper: ambil array id kategori dari product (single/array/undefined) */
+const catIds = (p: ProductWithVariants): string[] => {
+    const c = (p as any)?.category ?? (p as any)?.categories ?? [];
     if (Array.isArray(c)) return c.map((x) => x?.id).filter(Boolean);
-    return c?.id ? [c.id] : [];
+    return c?.id ? [String(c.id)] : [];
 };
 
-const priceOf = (p: any): number => {
+/** helper: harga (fallback ke varian[0] lalu product.price bila ada) */
+const priceOf = (p: ProductWithVariants): number => {
     const raw = p?.variants?.[0]?.price ?? (p as any)?.price ?? 0;
     const n = typeof raw === 'string' ? parseFloat(raw) : Number(raw);
     return Number.isFinite(n) ? n : 0;
@@ -53,8 +54,8 @@ export const SelectMenuAndVariant: FC = () => {
     const [openVariant, setOpenVariant] = React.useState<Record<string, string>>({})
     const searchRef = React.useRef<HTMLInputElement>(null);
 
-    const [products, setProducts] = useState<Array<any>>([]);
-    const [productsCategories, setProductsCategories] = useState<Array<any>>([]);
+    const [products, setProducts] = useState<ProductWithVariants[]>([]);
+    const [productsCategories, setProductsCategories] = useState<Category[]>([]);
     const [prodError, setProdError] = useState<{ code?: number; msg?: string } | null>(null);
 
     const fetchProducts = () => {
@@ -63,7 +64,8 @@ export const SelectMenuAndVariant: FC = () => {
 
         window.api.invoke("api.product:read.all", {})
             .then(async (result: any) => {
-                setProducts(result.data);
+                // diasumsikan result.data sudah berupa array ProductWithVariants atau perlu map di sini
+                setProducts(result.data as ProductWithVariants[]);
                 setProdError(null);
                 console.log(result);
             })
@@ -76,13 +78,14 @@ export const SelectMenuAndVariant: FC = () => {
                 });
             });
     }
+
     const fetchProductsCategory = () => {
         if (window.api === undefined)
             return console.error(`Failed Get Window Api Bridge`);
 
         window.api.invoke("api.product.category:read.all", {})
             .then(async (result: any) => {
-                setProductsCategories(result.data);
+                setProductsCategories(result.data as Category[]);
                 console.log(result);
             })
             .catch(async (error) => {
@@ -117,26 +120,26 @@ export const SelectMenuAndVariant: FC = () => {
         return () => window.removeEventListener('keydown', onKey)
     }, [productsCategories.length])
 
-    const activeCategoryId: string | null = tab === 0 ? null : productsCategories[tab - 1]?.id ?? null
+    const activeCategoryId: string | null = tab === 0 ? null : (productsCategories[tab - 1]?.id ? String(productsCategories[tab - 1]?.id) : null)
 
     const counts = React.useMemo(() => {
         const map = new Map<string, number>()
         products.forEach(p => {
             const ids = catIds(p)
             if (ids.length === 0) map.set('__uncat', (map.get('__uncat') ?? 0) + 1)
-            else ids.forEach(id => map.set(id, (map.get(id) ?? 0) + 1))
+            else ids.forEach(id => map.set(String(id), (map.get(String(id)) ?? 0) + 1))
         })
         return map
     }, [products])
 
-    // A simplified filter for the All tab
+    // Base filter: per tab & query
     const filteredBase = React.useMemo(
         () => {
-            if (tab === 0) { // All products tab
+            if (tab === 0) { // All
                 return products.filter(p => q.trim() === '' || String(p.name ?? '').toLowerCase().includes(q.toLowerCase()));
-            } else { // Specific category tab
+            } else {
                 return products.filter(p => {
-                    const passCat = catIds(p).includes(activeCategoryId);
+                    const passCat = catIds(p).includes(String(activeCategoryId));
                     const passQ = q.trim() === '' || String(p.name ?? '').toLowerCase().includes(q.toLowerCase());
                     return passCat && passQ;
                 });
@@ -144,7 +147,6 @@ export const SelectMenuAndVariant: FC = () => {
         },
         [products, activeCategoryId, q, tab]
     );
-
 
     const filtered = React.useMemo(() => {
         const arr = [...filteredBase]
@@ -220,7 +222,7 @@ export const SelectMenuAndVariant: FC = () => {
                 <ProductCategory
                     value={tab}
                     onChange={setTab}
-                    categories={productsCategories as any}
+                    categories={productsCategories}
                     counts={counts}
                     total={products.length}
                     indicatorGradient={GRADIENT}
@@ -281,15 +283,15 @@ export const SelectMenuAndVariant: FC = () => {
                                     <Typography variant="body2" color="text.secondary">Coba ubah pencarian atau kategori.</Typography>
                                 </Box>
                             ) : (
-                                filtered.map((p: any) => (
+                                filtered.map((p) => (
                                     <ProductCard
-                                        key={p.id}
+                                        key={String(p.id)}
                                         product={p}
-                                        variantId={openVariant[p.id] ?? p.variants?.[0]?.id}
+                                        variantId={openVariant[String(p.id)] ?? p.variants?.[0]?.id}
                                         onSelectVariant={(pid: string, vid: string | number) =>
-                                            setOpenVariant(s => ({ ...s, [pid]: String(vid) }))
+                                            setOpenVariant(s => ({ ...s, [String(pid)]: String(vid) }))
                                         }
-                                        onAdd={(prod: any, variant: any) => add(prod, variant)}
+                                        onAdd={(prod: Products, variant?: ProductsVariants) => add(prod, variant)}
                                         uploadsLoader={({ src }) => src}
                                         gradient={GRADIENT}
                                     />
@@ -303,4 +305,4 @@ export const SelectMenuAndVariant: FC = () => {
     )
 }
 
-export default SelectMenuAndVariant
+export default memo(SelectMenuAndVariant)

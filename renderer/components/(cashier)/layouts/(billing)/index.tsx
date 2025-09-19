@@ -3,7 +3,7 @@ import dynamic from 'next/dynamic'
 import ResizableGrid from './ui/ResizableContainer'
 import ShimmerLoadingPreviewSelectCheckout from './ui/(loading)/ShimmerLoadingPreviewSelectCheckout'
 import ShimmerLoadingSelectMenu from './ui/(loading)/ShimmerLoadingSelectMenu'
-import { CartProvider } from './context/CartContext'
+import {CartItem, CartProvider} from './context/CartContext'
 
 const PreviewSelectCheckout = dynamic(() => import('./ui/(pane)/PreviewSelectCheckout'), {
     loading: () => <ShimmerLoadingPreviewSelectCheckout />,
@@ -15,14 +15,13 @@ const SelectMenuAndVariant = dynamic(() => import('./ui/(pane)/SelectMenuAndVari
     ssr : false,
 })
 
-
-export default function Billing() {
+export default function Billing({ onSubmit } : { onSubmit?: (item: CartItem[]) => void }) {
 
     return (
         <CartProvider initialTaxRate={0.11}>
             <ResizableGrid
                 left={<SelectMenuAndVariant />}
-                right={<PreviewSelectCheckout  />}
+                right={<PreviewSelectCheckout onSubmit={onSubmit}  />}
             />
         </CartProvider>
     )

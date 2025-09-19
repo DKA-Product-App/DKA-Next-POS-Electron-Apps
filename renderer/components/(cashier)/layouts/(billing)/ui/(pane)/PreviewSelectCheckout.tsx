@@ -1,6 +1,6 @@
 'use client';
 
-import React from "react";
+import React, {useEffect} from "react";
 import {
     Box,
     Button,
@@ -21,7 +21,7 @@ import { Add, Block, Remove, Delete, NoteAltRounded } from "@mui/icons-material"
 import PerfectScrollbar from "react-perfect-scrollbar";
 import "react-perfect-scrollbar/dist/css/styles.css";
 
-import { useCart, useCartActions, useCartMoney } from "../../context/CartContext";
+import {CartItem, useCart, useCartActions, useCartMoney} from "../../context/CartContext";
 import dynamic from "next/dynamic";
 
 import DetailItem, { DetailItemHandle } from "./widgets/DetailItemWidget";
@@ -137,7 +137,8 @@ const FooterBar: React.FC<{
     taxRatePct: number;
     rupiah: (n: number) => string;
     disabled: boolean;
-}> = ({ subtotal, tax, total, taxRatePct, rupiah, disabled }) => (
+    onClick?: () => void;
+}> = ({ subtotal, tax, total, taxRatePct, rupiah, disabled, onClick }) => (
     <Box sx={{ position: "sticky", bottom: 0, zIndex: 2 }}>
         <Box
             sx={{
@@ -191,7 +192,7 @@ const FooterBar: React.FC<{
               fullWidth
               variant="contained"
               disabled={disabled}
-              onClick={() => alert(`Lanjut pembayaran: ${rupiah(total)}`)}
+              onClick={onClick}
           >
             Order
           </Button>
@@ -203,7 +204,7 @@ const FooterBar: React.FC<{
 );
 
 // ==== Main
-const PreviewSelectCheckout: React.FC<{ diningModeDefault?: string}> = () => {
+const PreviewSelectCheckout: React.FC<{ onSubmit?: (item : CartItem[]) => void }> = ({ onSubmit }) => {
     const { items } = useCart();
     const { inc, dec, remove, clear } = useCartActions();
     const { subtotal, tax, total, rupiah, taxRatePct } = useCartMoney();
@@ -213,6 +214,15 @@ const PreviewSelectCheckout: React.FC<{ diningModeDefault?: string}> = () => {
     const setDetailRef = (key: string) => (inst: DetailItemHandle | null) => {
         refMap.current[key] = inst;
     };
+
+    const onClickSubmit = () => {
+        if (typeof onSubmit !== 'function') {
+            console.warn('PreviewSelectCheckout: onSubmit tidak dikirim atau bukan fungsi');
+            return;
+        }
+        onSubmit?.(items);
+    }
+
 
     return (
         <Paper
@@ -242,8 +252,8 @@ const PreviewSelectCheckout: React.FC<{ diningModeDefault?: string}> = () => {
                 >
                     <List disablePadding>
                         {items.map((it, idx) => {
-                            const lineTotal = it.unitPrice * it.qty;
-                            const hasNote = Boolean(it.description && it.description.length > 0);
+                            const lineTotal = it.price * it.qty;
+                            const hasNote = Boolean(it.note && it.note.length > 0);
 
                             return (
                                 <Fade in key={it.key} timeout={180}>
@@ -289,7 +299,7 @@ const PreviewSelectCheckout: React.FC<{ diningModeDefault?: string}> = () => {
                                                         <Typography
                                                             fontWeight={900}
                                                             lineHeight={1.2}
-                                                            title={it.name}
+                                                            title={it.variant?.product?.name ?? "-"}
                                                             sx={{
                                                                 overflow: "hidden",
                                                                 textOverflow: "ellipsis",
@@ -298,13 +308,13 @@ const PreviewSelectCheckout: React.FC<{ diningModeDefault?: string}> = () => {
                                                                 flexShrink: 1,
                                                             }}
                                                         >
-                                                            {it.name}
+                                                            {it.variant?.product?.name ?? "-"}
                                                         </Typography>
 
-                                                        {it.variantLabel && (
+                                                        {it.variant && (
                                                             <Chip
                                                                 size="small"
-                                                                label={it.variantLabel}
+                                                                label={it.variant.name}
                                                                 variant="outlined"
                                                                 sx={{ borderRadius: 1, flexShrink: 0 }}
                                                                 onClick={(e) => e.stopPropagation()}
@@ -312,7 +322,7 @@ const PreviewSelectCheckout: React.FC<{ diningModeDefault?: string}> = () => {
                                                         )}
 
                                                         {hasNote && (
-                                                            <Tooltip title={`Ada catatan: ${it.description}`}>
+                                                            <Tooltip title={`Ada catatan: ${it.note}`}>
                                                                 <NoteAltRounded fontSize="small" color="action" style={{ flexShrink: 0 }} />
                                                             </Tooltip>
                                                         )}
@@ -320,7 +330,7 @@ const PreviewSelectCheckout: React.FC<{ diningModeDefault?: string}> = () => {
                                                 }
                                                 secondary={
                                                     <Typography variant="caption" color="text.secondary">
-                                                        {rupiah(it.unitPrice)} × {it.qty} ={" "}
+                                                        {rupiah(it.price)} × {it.qty} ={" "}
                                                         <Typography component="span" variant="body2" fontWeight={900}>
                                                             {rupiah(lineTotal)}
                                                         </Typography>
@@ -355,6 +365,7 @@ const PreviewSelectCheckout: React.FC<{ diningModeDefault?: string}> = () => {
                 taxRatePct={taxRatePct}
                 rupiah={rupiah}
                 disabled={items.length === 0}
+                onClick={onClickSubmit}
             />
         </Paper>
     );

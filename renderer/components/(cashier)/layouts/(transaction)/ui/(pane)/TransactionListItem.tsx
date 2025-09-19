@@ -39,7 +39,7 @@ export type Transaction = {
 // ===== Utils & TZ =====
 const TZ_OFFSET = '+08:00' // Asia/Makassar
 const rupiah = (n: number | string) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(typeof n === 'string' ? parseFloat(n) : n)
-const fmtDT = (iso: string) => new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short', hour12: false, timeZone: 'Asia/Makassar' }).format(new Date(iso))
+const fmtDT = (iso?: string) => iso ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short', hour12: false, timeZone: 'Asia/Makassar' }).format(new Date(iso)) : '-'
 const totalItems = (o: Transaction) => o.batches.reduce((acc, b) => acc + b.items.reduce((a, i) => a + i.qty, 0), 0)
 const totalBatches = (o: Transaction) => o.batches.length
 const shortId = (s?: string) => s ? `${s.slice(0, 8)}…` : '-'
@@ -67,74 +67,199 @@ const groupTxItemsByPrinter = (tx: Transaction) => {
     return map
 }
 
+// ===== Timer Utils: diff tahun/bulan/hari/jam/menit/detik (tanpa minggu) =====
+const addMonths = (d: Date, months: number) => {
+    const nd = new Date(d.getTime())
+    const targetMonth = nd.getMonth() + months
+    const targetYear = nd.getFullYear() + Math.floor(targetMonth / 12)
+    const month = ((targetMonth % 12) + 12) % 12
+    const day = nd.getDate()
+    const end = new Date(targetYear, month + 1, 0).getDate()
+    nd.setFullYear(targetYear, month, Math.min(day, end))
+    return nd
+}
+const diffParts = (start: Date, end: Date) => {
+    if (end < start) return { years: 0, months: 0, days: 0, hours: 0, minutes: 0, seconds: 0 }
+    let years = end.getFullYear() - start.getFullYear()
+    const yAnchor = new Date(start.getTime()); yAnchor.setFullYear(start.getFullYear() + years)
+    if (yAnchor > end) { years--; yAnchor.setFullYear(start.getFullYear() + years) }
+    let months = (end.getMonth() - yAnchor.getMonth()) + (end.getFullYear() - yAnchor.getFullYear()) * 12
+    let ymAnchor = addMonths(yAnchor, months)
+    if (ymAnchor > end) { months--; ymAnchor = addMonths(yAnchor, months) }
+    const ms = end.getTime() - ymAnchor.getTime()
+    const sec = Math.floor(ms / 1000)
+    const days = Math.floor(sec / 86400)
+    const hours = Math.floor((sec % 86400) / 3600)
+    const minutes = Math.floor((sec % 3600) / 60)
+    const seconds = Math.floor(sec % 60)
+    return { years, months, days, hours, minutes, seconds }
+}
+const formatReadable = (p: ReturnType<typeof diffParts>) => {
+    const { years, months, days, hours, minutes, seconds } = p
+    if (years > 0)   return `${years} tahun, ${months} bulan, ${days} hari, ${hours} jam, ${minutes} menit`
+    if (months > 0)  return `${months} bulan, ${days} hari, ${hours} jam, ${minutes} menit, ${seconds} detik`
+    if (days > 0)    return `${days} hari, ${hours} jam, ${minutes} menit, ${seconds} detik`
+    return `${hours} jam, ${minutes} menit, ${seconds} detik`
+}
+const TimerText: React.FC<{ startIso?: string; endIso?: string | null; active: boolean }> = ({ startIso, endIso, active }) => {
+    const [now, setNow] = React.useState(() => Date.now())
+
+    React.useEffect(() => {
+        if (!active) return
+        const id = setInterval(() => setNow(Date.now()), 1000)
+        return () => clearInterval(id)
+    }, [active])
+
+    const label = React.useMemo(() => {
+        // fallback default
+        const zero = '0 jam, 0 menit, 0 detik'
+        if (!startIso) return zero
+        const start = new Date(startIso)
+        if (isNaN(start.getTime())) return zero
+
+        // jika aktif → diff ke "now"; kalau tidak aktif dan ada endIso → diff ke endIso
+        if (active) {
+            return formatReadable(diffParts(start, new Date(now)))
+        } else if (endIso) {
+            const end = new Date(endIso)
+            if (!isNaN(end.getTime())) {
+                return formatReadable(diffParts(start, end))
+            }
+        }
+        return zero
+    }, [active, startIso, endIso, now])
+
+    return (
+        <Typography
+            variant="caption"
+            sx={{
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                fontWeight: 800,
+                letterSpacing: 0.6,
+                color: 'inherit',
+                textAlign: 'right',
+                whiteSpace: 'normal',
+                overflowWrap: 'anywhere',
+                '@keyframes tPulse': {
+                    '0%': { opacity: 0.9 },
+                    '50%': { opacity: 1 },
+                    '100%': { opacity: 0.9 },
+                },
+                animation: active ? 'tPulse 1.8s ease-in-out infinite' : 'none',
+                userSelect: 'none',
+            }}
+            aria-label={active ? 'Durasi transaksi aktif' : 'Durasi saat transaksi ditutup'}
+        >
+            {label}
+        </Typography>
+    )
+}
 // ===== Row =====
 const TransactionListItemRow: React.FC<{ o: Transaction; selected?: boolean; onClick?: () => void }> = ({ o, selected = false, onClick }) => {
     const items = totalItems(o)
     const batches = totalBatches(o)
     const isClosed = Boolean(o.time_closed)
 
+    // samain border footer dgn kartu
+    const cardBorderColor = selected ? 'primary.outlinedBorder' : (isClosed ? 'error.light' : 'divider')
+
     return (
-        <ListItemButton
-            onClick={onClick}
-            selected={selected}
-            sx={{
-                position: 'relative',
-                alignItems: 'flex-start',
-                py: 1.25, px: 1.5, mb: 1, borderRadius: 2,
-                border: '1px solid',
-                borderColor: selected ? 'primary.outlinedBorder' : (isClosed ? 'error.light' : 'divider'),
-                bgcolor: selected ? 'action.selected' : (isClosed ? 'action.hover' : 'background.paper'),
-                boxShadow: selected ? '0 10px 24px rgba(0,0,0,0.12)' : '0 2px 8px rgba(0,0,0,0.04)',
-                transition: 'transform .15s ease, box-shadow .2s ease, border-color .2s ease, background-color .2s ease',
-                transform: 'translateY(0)',
-                '&:hover': {
-                    transform: 'translateY(-1px)',
-                    boxShadow: '0 12px 28px rgba(0,0,0,0.12)',
-                    bgcolor: selected ? 'action.selected' : (isClosed ? 'action.hover' : 'action.hover')
-                },
-                '&::before': {
-                    content: '""', position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
-                    borderTopLeftRadius: 8, borderBottomLeftRadius: 8,
-                    background: selected
-                        ? 'linear-gradient(180deg, #6366F1, #8B5CF6 35%, #EC4899)'
-                        : (isClosed ? 'linear-gradient(180deg, #ef4444, #dc2626 60%, #b91c1c)' : 'transparent'),
-                },
-            }}
-        >
-            <Stack spacing={0.75} width="100%">
-                {/* Baris 1 */}
-                <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
-                    <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
-                        <ReceiptLongRounded fontSize="small" />
-                        <Typography variant="h6" fontWeight={900} noWrap sx={{ letterSpacing: 0.2, lineHeight: 1.2, fontFeatureSettings: '"tnum" 1, "lnum" 1' }}>
-                            # {o.invoice}
-                        </Typography>
-                        <Chip size="small" color="info" label={o.order_type?.name ?? '-'} variant="filled" />
-                        <Chip size="small" color="info" label={o.table?.code ? `${o.table.code}` : 'No table'} variant="filled" />
+        <>
+            <ListItemButton
+                onClick={onClick}
+                selected={selected}
+                sx={{
+                    position: 'relative',
+                    alignItems: 'flex-start',
+                    py: 1.25, px: 1.5, mb: 0, // gabung visual dgn footer
+                    border: '1px solid',
+                    borderColor: cardBorderColor,
+                    bgcolor: selected ? 'action.selected' : (isClosed ? 'action.hover' : 'background.paper'),
+                    boxShadow: selected ? '0 10px 24px rgba(0,0,0,0.12)' : '0 2px 8px rgba(0,0,0,0.04)',
+                    transition: 'transform .15s ease, box-shadow .2s ease, border-color .2s ease, background-color .2s ease',
+                    transform: 'translateY(0)',
+                    '&:hover': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 12px 28px rgba(0,0,0,0.12)',
+                        bgcolor: selected ? 'action.selected' : (isClosed ? 'action.hover' : 'action.hover')
+                    },
+                    // sudut bawah dipegang footer
+                    borderTopLeftRadius: 8,
+                    borderTopRightRadius: 8,
+                    borderBottomLeftRadius: 0,
+                    borderBottomRightRadius: 0,
+                    '&::before': {
+                        content: '""', position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
+                        borderTopLeftRadius: 8, borderBottomLeftRadius: 0,
+                        background: selected
+                            ? 'linear-gradient(180deg, #6366F1, #8B5CF6 35%, #EC4899)'
+                            : (isClosed ? 'linear-gradient(180deg, #ef4444, #dc2626 60%, #b91c1c)' : 'transparent'),
+                    },
+                }}
+            >
+                <Stack spacing={0.75} width="100%">
+                    {/* Baris 1 */}
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
+                        <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
+                            <ReceiptLongRounded fontSize="small" />
+                            <Typography variant="h6" fontWeight={900} noWrap sx={{ letterSpacing: 0.2, lineHeight: 1.2, fontFeatureSettings: '"tnum" 1, "lnum" 1' }}>
+                                # {o.invoice}
+                            </Typography>
+                            <Chip size="small" color="info" label={o.order_type?.name ?? '-'} variant="filled" />
+                            <Chip size="small" color="info" label={o.table?.code ? `${o.table.code}` : 'No table'} variant="filled" />
+                        </Stack>
+                        <Typography variant="subtitle1" fontWeight={900}>{rupiah(o.total)}</Typography>
                     </Stack>
-                    <Typography variant="subtitle1" fontWeight={900}>{rupiah(o.total)}</Typography>
-                </Stack>
 
-                {/* Baris 2 */}
-                <Stack direction="row" alignItems="center" gap={0.75}>
-                    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
-                        <Chip size="small" label={isClosed ? 'Selesai' : 'Aktif'} color={isClosed ? 'error' : 'success'} variant="filled" />
-                        <Chip size="small" icon={<LocalMallRounded />} label={`${items} item`} />
-                        <Chip size="small" icon={<LayersRounded />} label={`${batches} batch`} />
+                    {/* Baris 2 */}
+                    <Stack direction="row" alignItems="center" gap={0.75}>
+                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
+                            <Chip size="small" label={isClosed ? 'Selesai' : 'Aktif'} color={isClosed ? 'error' : 'success'} variant="filled" />
+                            <Chip size="small" icon={<LocalMallRounded />} label={`${items} item`} />
+                            <Chip size="small" icon={<LayersRounded />} label={`${batches} batch`} />
+                        </Stack>
+                        { /** @ts-ignore **/}
+                        <TransactionListItemPrintTransaction tx={o} />
                     </Stack>
-                    { /** @ts-ignore **/}
-                    <TransactionListItemPrintTransaction tx={o} />
-                </Stack>
 
-                {/* Baris 3 */}
-                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                    <Chip size="small" icon={<PersonOutlineRounded />} label={o.reference?.name?.first_name ?? o.reference?.username ?? shortId(o.reference?.id)} title={o.reference?.id ?? ''} />
-                    <Chip size="small" icon={<AccessTimeRounded />} label={o.shift?.name ?? '-'} />
-                </Stack>
+                    {/* Baris 3 — kasir & shift */}
+                    <Stack direction="row" alignItems="center" gap={0.75}>
+                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
+                            <Chip size="small" icon={<PersonOutlineRounded />} label={o.reference?.name?.first_name ?? o.reference?.username ?? shortId(o.reference?.id)} title={o.reference?.id ?? ''} />
+                            <Chip size="small" icon={<AccessTimeRounded />} label={o.shift?.name ?? '-'} />
+                        </Stack>
+                    </Stack>
 
-                <Typography variant="caption" color="text.secondary">{fmtDT(o.time_created)}</Typography>
-            </Stack>
-        </ListItemButton>
+                    {/* Timestamp asli */}
+                    <Typography variant="caption" color="text.secondary">{fmtDT(o.time_created)}</Typography>
+                </Stack>
+            </ListItemButton>
+
+            {/* ===== Footer di LUAR card (nempel) ===== */}
+            <Box
+                sx={{
+                    border: '1px solid',
+                    borderTop: 'none',
+                    borderColor: cardBorderColor,
+                    borderBottomLeftRadius: 8,
+                    borderBottomRightRadius: 8,
+
+                    bgcolor: isClosed ? 'error.main' : 'success.main',
+                    color: isClosed ? 'error.contrastText' : 'success.contrastText',
+
+                    px: 1.5,
+                    py: 0.8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 1,
+
+                    mb: 1,
+                }}
+            >
+                <TimerText startIso={o.time_created} endIso={o.time_closed} active={!isClosed} />
+            </Box>
+        </>
     )
 }
 
@@ -227,7 +352,7 @@ const TransactionListItem: React.FC = () => {
     }, [maxItems, maxBatches])
 
     const transactions = React.useMemo(
-        () => [...transaction].sort((a, b) => new Date(b.time_created).getTime() - new Date(a.time_created).getTime()),
+        () => [...transaction].sort((a, b) => new Date(b.time_created as string).getTime() - new Date(a.time_created as string).getTime()),
         [transaction]
     )
 
@@ -292,14 +417,13 @@ const TransactionListItem: React.FC = () => {
                 const onlyId = Array.from(next)[0]
                 setLayout(p => ({ ...p, right: <TransactionContainer id={onlyId} /> }))
             } else {
-                // >1 → mode gabung, kosongkan right pane
                 setLayout(p => ({ ...p, right: undefined }))
             }
             return next
         })
     }
 
-    // === Join click stub (biar gampang di-wire ke API) ===
+    // === Join click stub ===
     const onJoin = () => {
         const ids = Array.from(selectedIds)
         console.log('[JOIN] selected ids:', ids)
@@ -310,7 +434,7 @@ const TransactionListItem: React.FC = () => {
     const selectedCount = selectedIds.size
     const joinEnabled = selectedCount > 1 && !hasClosed
 
-    // Tambahan: kondisi & pesan banner merah (tepat di atas footer)
+    // Banner merah
     const showJoinAlert = selectedCount > 1 && hasClosed
     const joinAlertMsg = 'Tidak Bisa Join • Jika Ada Transaksi Selesai •'
 
@@ -342,9 +466,9 @@ const TransactionListItem: React.FC = () => {
                                 <TransactionListItemRow
                                     key={o.id}
                                     o={o}
-                                    selected={selectedIds.has(o.id)}
+                                    selected={selectedIds.has(o.id as string)}
                                     onClick={() => {
-                                        toggleSelection(o.id)
+                                        toggleSelection(o.id as string)
                                     }}
                                 />
                             ))}
@@ -353,7 +477,6 @@ const TransactionListItem: React.FC = () => {
                 )}
             </Box>
 
-            {/* Footer Actions */}
             {/* Banner merah tepat di atas footer */}
             {showJoinAlert && (
                 <Box
@@ -400,8 +523,6 @@ const TransactionListItem: React.FC = () => {
                     Join
                 </Button>
             </Box>
-
-
         </Box>
     )
 }
