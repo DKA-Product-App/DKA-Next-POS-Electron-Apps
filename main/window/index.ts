@@ -20,7 +20,7 @@ export default async function MainWindow(){
     const mainWindow = createWindow('main', {
         maximizable: true,
         minimizable: true,
-        autoHideMenuBar: true,
+        autoHideMenuBar: isProd,
         show: false,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
@@ -31,7 +31,6 @@ export default async function MainWindow(){
     //#######################################################
     mainWindow
         .on('show', () => {
-            Menu.setApplicationMenu(null);
 
             // ambil display tempat window muncul
             const display = screen.getDisplayMatching(mainWindow.getBounds())
@@ -59,11 +58,11 @@ export default async function MainWindow(){
     });
     if (isProd) {
         await mainWindow.loadURL('app://-/auth'); // <- wajib trailing slash
+        Menu.setApplicationMenu(null);
         mainWindow.maximize();
     } else {
         const port = process.argv[2];
         await mainWindow.loadURL(`http://localhost:${port}/auth`); // <- slash
-        // test
-        mainWindow.webContents.openDevTools();
+
     }
 }

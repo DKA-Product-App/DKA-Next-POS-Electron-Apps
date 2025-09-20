@@ -9,7 +9,7 @@ const Overview = dynamic(() => import("../../../components/(cashier)/layouts/(ov
     ssr : false,
 })
 
-const Transaction = dynamic(() => import("./../../../components/(cashier)/layouts/(transaction)"), {
+const Transaction = dynamic(() => import("../../../components/(cashier)/layouts/(main)/(transaction)"), {
     loading : () => <ShimmerMenuSelectLoading/>,
     ssr: false,
 })

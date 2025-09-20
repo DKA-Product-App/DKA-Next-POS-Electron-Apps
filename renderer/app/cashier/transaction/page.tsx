@@ -2,7 +2,7 @@ import dynamic from "next/dynamic";
 import ShimmerLoading from "../../../components/(shared)/(loading)/ShimmerLoading";
 import React from "react";
 
-const Transaction = dynamic(() => import("../../../components/(cashier)/layouts/(transaction)"), {
+const Transaction = dynamic(() => import("../../../components/(cashier)/layouts/(main)/(transaction)"), {
     loading : () => <ShimmerLoading/>,
     ssr : false,
 })

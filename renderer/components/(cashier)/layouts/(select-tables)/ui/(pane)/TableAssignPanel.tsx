@@ -52,17 +52,19 @@ const Row: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNo
     </Stack>
 );
 
-const TableAssignPanel: React.FC<{ onSelectTable?: (serverId: string) => void }> = ({ onSelectTable }) => {
+/** NEW: allowWishlistActive => true kalau join mode (boleh pilih occupied) */
+const TableAssignPanel: React.FC<{
+    onSelectTable?: (serverId: string) => void;
+    allowWishlistActive?: boolean;
+}> = ({ onSelectTable, allowWishlistActive = false }) => {
     const { selection, floors, refresh, loading, error, tablesByFloor } = useSeating();
 
-    // nama lantai dari context
     const floorName = React.useMemo(() => {
         if (!selection) return '';
         const f = floors.find(x => x.id === selection.floor);
         return f?.name || selection.floor;
     }, [selection, floors]);
 
-    // table yang terpilih (buat ambil serverId)
     const selectedTable: Table2D | null = React.useMemo(() => {
         if (!selection) return null;
         const list = tablesByFloor[selection.floor] || [];
@@ -71,15 +73,12 @@ const TableAssignPanel: React.FC<{ onSelectTable?: (serverId: string) => void }>
 
     const serverId = selectedTable?.serverId || selection?.tableId || '';
 
-    const confirmDisabled = !selection || selection.status !== 'available';
+    // 🔁 di join mode (allowWishlistActive) Boleh pilih meski occupied.
+    const confirmDisabled = !selection || (!allowWishlistActive && selection.status !== 'available');
 
     const handleConfirm = () => {
         if (!selection) return;
         onSelectTable?.(serverId);
-        // contoh kalau mau invoke langsung:
-        // window.api?.invoke('api.transaction:seat.assign', { tableId: serverId })
-        //   .then(() => {/* success UI */})
-        //   .catch(() => {/* error UI */});
     };
 
     return (
@@ -109,7 +108,6 @@ const TableAssignPanel: React.FC<{ onSelectTable?: (serverId: string) => void }>
                             <EmptyState />
                         ) : (
                             <>
-                                {/* Title + status */}
                                 <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: 'wrap' }}>
                                     <Typography variant="h6" fontWeight={900}>{selection.label}</Typography>
                                     <StatusChip status={selection.status} />
@@ -117,7 +115,6 @@ const TableAssignPanel: React.FC<{ onSelectTable?: (serverId: string) => void }>
 
                                 <Divider />
 
-                                {/* info singkat */}
                                 <Stack spacing={1}>
                                     <Row icon={<GroupRounded fontSize="small" />} label="Kapasitas" value={`${selection.capacity} orang`} />
                                     <Row icon={<LayersRounded fontSize="small" />} label="Lantai" value={floorName || '—'} />
@@ -129,7 +126,7 @@ const TableAssignPanel: React.FC<{ onSelectTable?: (serverId: string) => void }>
                 </PerfectScrollbar>
             </Box>
 
-            {/* Footer: tombol pilih meja ini */}
+            {/* Footer */}
             <Box sx={(t) => ({
                 p: 1.25, borderTop: '1px solid', borderColor: 'divider',
                 position: 'sticky', bottom: 0,
@@ -138,9 +135,13 @@ const TableAssignPanel: React.FC<{ onSelectTable?: (serverId: string) => void }>
             })}>
                 <Tooltip
                     title={
-                        !selection ? 'Pilih meja dulu' :
-                            selection.status !== 'available' ? 'Meja ini tidak tersedia' :
-                                'Pilih meja ini'
+                        !selection
+                            ? 'Pilih meja dulu'
+                            : allowWishlistActive
+                                ? 'Pilih meja ini (boleh occupied saat join)'
+                                : selection.status !== 'available'
+                                    ? 'Meja ini tidak tersedia'
+                                    : 'Pilih meja ini'
                     }
                 >
           <span>

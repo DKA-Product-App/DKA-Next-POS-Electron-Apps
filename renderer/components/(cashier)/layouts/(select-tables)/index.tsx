@@ -19,13 +19,15 @@ const TableAssignPanel = dynamic(() => import('./ui/(pane)/TableAssignPanel'), {
     loading: () => <ShimmerMenuSelectLoading />,
     ssr: false,
 });
-export default function SelectTables({ onSelectTable } : { onSelectTable?: (id : string) => void }) {
+export default function SelectTables({ onSelectTable, allowWishlistIdTable } : { onSelectTable?: (id : string) => void; allowWishlistIdTable?: string[] }) {
 
     return (
         <SeatingProvider>
             <ResizableGrid
-                left={<TablePicker2DWidget />}
-                right={<TableAssignPanel onSelectTable={onSelectTable} />}
+                left={<TablePicker2DWidget
+                    allowWishlistIdTable={allowWishlistIdTable}
+                />}
+                right={<TableAssignPanel onSelectTable={onSelectTable} allowWishlistActive={!!allowWishlistIdTable?.length} />}
             />
         </SeatingProvider>
     )
