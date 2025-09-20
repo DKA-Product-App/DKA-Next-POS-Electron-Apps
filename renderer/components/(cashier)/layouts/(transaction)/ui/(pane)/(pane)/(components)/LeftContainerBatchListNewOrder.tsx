@@ -1,82 +1,86 @@
+// LeftContainerBatchListNewOrder.tsx
 'use client'
 
 import * as React from 'react'
 import {
-    Box, Button, Chip, Dialog, DialogTitle, DialogContent, DialogActions,
-    Stack, TextField, Typography, IconButton, Divider, Paper
+    Box, Button, Dialog, DialogTitle, DialogContent,
+    IconButton, Stack, Typography
 } from '@mui/material'
 import AddRounded from '@mui/icons-material/AddRounded'
 import CloseRounded from '@mui/icons-material/CloseRounded'
-import dynamic from "next/dynamic";
-import {useTx} from "../../context/TransactionContext";
-import {Batch, TransactionHeader} from "../LeftContainerBatchList";
-import {useDiningMode} from "../../../../context/DiningModeContext";
-import {useEffect} from "react";
-import {CartItem} from "../../../../../(billing)/context/CartContext";
-import { useLayoutManipulatorResizable } from '../../../../../../../../contexts/LayoutManipulatorResizableContext'
-import TransactionListItem from '../../TransactionListItem'
+import DarkModeRounded from '@mui/icons-material/DarkModeRounded'
+import LightModeRounded from '@mui/icons-material/LightModeRounded'
+import FullscreenRounded from '@mui/icons-material/FullscreenRounded'
+import FullscreenExitRounded from '@mui/icons-material/FullscreenExitRounded'
+import dynamic from 'next/dynamic'
+import { useTx } from '../../context/TransactionContext'
+import { Batch } from '../LeftContainerBatchList'
+import { useDiningMode } from '../../../../context/DiningModeContext'
+import { CartItem } from '../../../../../(billing)/context/CartContext'
+import { useTheme } from '@mui/material/styles'
+import { useThemeCharger } from '../../../../../../context/ThemeCharger' // ⬅️ sesuaikan alias/path kamu
 
-const Billing = dynamic(() => import("../../../../../(billing)"), {
-    ssr: true,
-})
+const Billing = dynamic(() => import('../../../../../(billing)'), { ssr: true })
 
 const rupiah = (n: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
         .format(typeof n === 'string' ? parseFloat(n) : n)
 
-const LeftContainerBatchListNewOrder: React.FC<{tx : string }> = ({ tx }) => {
+const LeftContainerBatchListNewOrder: React.FC<{ tx: string }> = ({ tx }) => {
     const { txId, setTxId, header, setHeader, selectedBatchId, setSelectedBatchId, reloadKey } = useTx()
-    const { setDefaultValue, setDisableOtherDefault } = useDiningMode();
+    const { setDefaultValue, setDisableOtherDefault } = useDiningMode()
     const [batches, setBatches] = React.useState<Batch[]>([])
     const isClosed = Boolean(header?.time_closed)
     const [open, setOpen] = React.useState(false)
+    const [fullScreen, setFullScreen] = React.useState(false)
 
-    useEffect(() => {
-        setDefaultValue(header.order_type.id);
-        setDisableOtherDefault(true);
+    // theme stuff
+    const muiTheme = useTheme()
+    const isDark = (muiTheme.palette as any)?.mode === 'dark' || (muiTheme.palette as any)?.colorScheme === 'dark'
+    const { toggleMode } = useThemeCharger()
+
+    React.useEffect(() => {
+        if (!header?.order_type?.id) return
+        setDefaultValue(header.order_type.id)
+        setDisableOtherDefault(true)
         return () => {
-            setDefaultValue(header.order_type.id);
-            setDisableOtherDefault(false);
+            setDefaultValue(header.order_type.id)
+            setDisableOtherDefault(false)
         }
-    }, [header]);
+    }, [header])
 
-    const openDialog = () => {
-        console.log(header);
-        setOpen(true)
-    }
+    const openDialog = () => { console.log(header); setOpen(true) }
     const closeDialog = () => setOpen(false)
 
-
-    const submitNewBatchTransaction = (item : CartItem[]) => {
-        console.table(item);
-        const itemRefactor = item.map((item) => {
-            return {
-                ...item.variant,
-                product: item.variant.product,
-                variant: item.variant,
-                qty : Number(item.qty),
-                price: Number(item.price),
-                sub_total: Number(Number(item.price) * Number(item.qty))
-            }
-        });
+    const submitNewBatchTransaction = (item: CartItem[]) => {
+        console.table(item)
+        const itemRefactor = item.map((i) => ({
+            ...i.variant,
+            product: i.variant.product,
+            variant: i.variant,
+            qty: Number(i.qty),
+            price: Number(i.price),
+            sub_total: Number(i.price) * Number(i.qty),
+        }))
         console.table(itemRefactor)
+        // @ts-ignore
         window.api.invoke('api.transaction.batch:create', {
-            transaction: {
-                id: txId
-            },
+            transaction: { id: txId },
             branch: {
-              id : header
+                // NOTE: pastikan ini sesuai struktur header kamu;
+                // sebelumnya "id: header" tampak tidak sengaja
+                id: header
             },
-            reference: header.reference,
+            reference: header?.reference,
             batch: batches.length + 1,
             items: itemRefactor,
         })
-            .then((res) => {
-                closeDialog();
-                setTxId(tx);
+            .then((res: any) => {
+                closeDialog()
+                setTxId(tx)
                 console.log(res)
             })
-            .catch((error) => {
+            .catch((error: any) => {
                 console.error(error)
             })
     }
@@ -89,9 +93,7 @@ const LeftContainerBatchListNewOrder: React.FC<{tx : string }> = ({ tx }) => {
             .then((res: any) => {
                 const list = (res?.data ?? []) as any[]
                 const t = list[0]?.transaction
-                setHeader({
-                    ...t
-                })
+                setHeader({ ...t })
                 const mapped: Batch[] = list.map(b => ({
                     id: String(b.id),
                     batch: Number(b.batch),
@@ -104,11 +106,11 @@ const LeftContainerBatchListNewOrder: React.FC<{tx : string }> = ({ tx }) => {
                 if (!selectedBatchId && mapped.length) setSelectedBatchId(mapped[0].id)
             })
             .catch(() => setBatches([]))
-    }, [txId, reloadKey]) // refetch on reload/bayar/split
+    }, [txId, reloadKey])
 
     return (
         <>
-            {/* Trigger Button (ganti posisi tombol lamamu dengan ini) */}
+            {/* Trigger */}
             <Button
                 size="small"
                 variant="outlined"
@@ -119,43 +121,66 @@ const LeftContainerBatchListNewOrder: React.FC<{tx : string }> = ({ tx }) => {
                 {`Pesanan Meja ${header?.table?.code ?? '—'}`}
             </Button>
 
-            {/* Dialog MD */}
+            {/* Dialog */}
             <Dialog
                 open={open}
                 onClose={closeDialog}
                 fullWidth
                 maxWidth="xl"
+                fullScreen={fullScreen}
                 slotProps={{
-                    paper : {
+                    paper: {
                         sx: {
                             display: 'flex',
                             flexDirection: 'column',
-                            height: '85vh',      // ⬅️ kasih tinggi deterministik
+                            height: fullScreen ? '100vh' : '85vh',
                             overflow: 'hidden',
                         },
                     }
                 }}
             >
-                <DialogTitle sx={{ display: 'flex', alignItems: 'center', pr: 1.5 }}>
-                    <Typography variant="h6" fontWeight={800}>Tambah Pesanan Untuk Transaksi {header.invoice}  - Batch Ke #{batches.length + 1}</Typography>
-                    <Box sx={{ ml: 'auto' }}>
-                        <IconButton onClick={closeDialog} size="small">
+                <DialogTitle sx={{ display: 'flex', alignItems: 'center', pr: 1.5, gap: 1 }}>
+                    <Typography variant="h6" fontWeight={800}>
+                        Tambah Pesanan Untuk Transaksi {header?.invoice} — Batch Ke #{batches.length + 1}
+                    </Typography>
+
+                    {/* Header actions: Fullscreen, Theme, Close */}
+                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ ml: 'auto' }}>
+                        <IconButton
+                            size="small"
+                            onClick={(e) => { e.stopPropagation(); setFullScreen(v => !v) }}
+                            aria-label={fullScreen ? 'Keluar layar penuh' : 'Layar penuh'}
+                            title={fullScreen ? 'Keluar layar penuh' : 'Layar penuh'}
+                        >
+                            {fullScreen ? <FullscreenExitRounded fontSize="small" /> : <FullscreenRounded fontSize="small" />}
+                        </IconButton>
+
+                        <IconButton
+                            size="small"
+                            onClick={(e) => { e.stopPropagation(); toggleMode() }}
+                            aria-label={isDark ? 'Ganti ke tema terang' : 'Ganti ke tema gelap'}
+                            title={isDark ? 'Tema gelap' : 'Tema terang'}
+                        >
+                            {isDark ? <DarkModeRounded fontSize="small" /> : <LightModeRounded fontSize="small" />}
+                        </IconButton>
+
+                        <IconButton
+                            size="small"
+                            onClick={(e) => { e.stopPropagation(); closeDialog() }}
+                            aria-label="Tutup"
+                            title="Tutup"
+                        >
                             <CloseRounded fontSize="small" />
                         </IconButton>
-                    </Box>
+                    </Stack>
                 </DialogTitle>
 
-                <DialogContent
-                    dividers
-                    sx={{ p: 0, flex: 1, overflow: 'hidden' }} // ⬅️ biar isi ikut tinggi Paper
-                >
-                    {/* Hindari nested Paper yang bikin height auto; kalau mau, pastikan 100% */}
+                <DialogContent dividers sx={{ p: 0, flex: 1, overflow: 'hidden' }}>
                     <Box sx={{ height: '100%', overflow: 'hidden' }}>
                         <Billing onSubmit={submitNewBatchTransaction} />
                     </Box>
                 </DialogContent>
             </Dialog>
-
         </>
     )
 }

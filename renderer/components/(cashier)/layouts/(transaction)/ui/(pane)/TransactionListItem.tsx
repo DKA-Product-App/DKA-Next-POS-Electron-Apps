@@ -21,6 +21,7 @@ import CallMergeRounded from '@mui/icons-material/CallMergeRounded'
 
 import type { Filters } from './widgets/TransactionListItemHeaderWidget'
 import TransactionListItemPrintTransaction from './(components)/TransactionListItemPrintTransaction'
+import NewOrderModal from './(components)/NewOrderModal'
 
 // ===== Types =====
 export type Name = { first_name: string; last_name?: string }
@@ -38,6 +39,7 @@ export type Transaction = {
 
 // ===== Utils & TZ =====
 const TZ_OFFSET = '+08:00' // Asia/Makassar
+const GRADIENT_PURPLE = 'linear-gradient(90deg, #6366F1, #8B5CF6 30%, #EC4899)'
 const rupiah = (n: number | string) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(typeof n === 'string' ? parseFloat(n) : n)
 const fmtDT = (iso?: string) => iso ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short', hour12: false, timeZone: 'Asia/Makassar' }).format(new Date(iso)) : '-'
 const totalItems = (o: Transaction) => o.batches.reduce((acc, b) => acc + b.items.reduce((a, i) => a + i.qty, 0), 0)
@@ -111,20 +113,14 @@ const TimerText: React.FC<{ startIso?: string; endIso?: string | null; active: b
     }, [active])
 
     const label = React.useMemo(() => {
-        // fallback default
         const zero = '0 jam, 0 menit, 0 detik'
         if (!startIso) return zero
         const start = new Date(startIso)
         if (isNaN(start.getTime())) return zero
-
-        // jika aktif → diff ke "now"; kalau tidak aktif dan ada endIso → diff ke endIso
-        if (active) {
-            return formatReadable(diffParts(start, new Date(now)))
-        } else if (endIso) {
+        if (active) return formatReadable(diffParts(start, new Date(now)))
+        if (endIso) {
             const end = new Date(endIso)
-            if (!isNaN(end.getTime())) {
-                return formatReadable(diffParts(start, end))
-            }
+            if (!isNaN(end.getTime())) return formatReadable(diffParts(start, end))
         }
         return zero
     }, [active, startIso, endIso, now])
@@ -140,11 +136,7 @@ const TimerText: React.FC<{ startIso?: string; endIso?: string | null; active: b
                 textAlign: 'right',
                 whiteSpace: 'normal',
                 overflowWrap: 'anywhere',
-                '@keyframes tPulse': {
-                    '0%': { opacity: 0.9 },
-                    '50%': { opacity: 1 },
-                    '100%': { opacity: 0.9 },
-                },
+                '@keyframes tPulse': { '0%': { opacity: 0.9 }, '50%': { opacity: 1 }, '100%': { opacity: 0.9 } },
                 animation: active ? 'tPulse 1.8s ease-in-out infinite' : 'none',
                 userSelect: 'none',
             }}
@@ -154,13 +146,12 @@ const TimerText: React.FC<{ startIso?: string; endIso?: string | null; active: b
         </Typography>
     )
 }
+
 // ===== Row =====
 const TransactionListItemRow: React.FC<{ o: Transaction; selected?: boolean; onClick?: () => void }> = ({ o, selected = false, onClick }) => {
     const items = totalItems(o)
     const batches = totalBatches(o)
     const isClosed = Boolean(o.time_closed)
-
-    // samain border footer dgn kartu
     const cardBorderColor = selected ? 'primary.outlinedBorder' : (isClosed ? 'error.light' : 'divider')
 
     return (
@@ -171,23 +162,14 @@ const TransactionListItemRow: React.FC<{ o: Transaction; selected?: boolean; onC
                 sx={{
                     position: 'relative',
                     alignItems: 'flex-start',
-                    py: 1.25, px: 1.5, mb: 0, // gabung visual dgn footer
-                    border: '1px solid',
-                    borderColor: cardBorderColor,
+                    py: 1.25, px: 1.5, mb: 0,
+                    border: '1px solid', borderColor: cardBorderColor,
                     bgcolor: selected ? 'action.selected' : (isClosed ? 'action.hover' : 'background.paper'),
                     boxShadow: selected ? '0 10px 24px rgba(0,0,0,0.12)' : '0 2px 8px rgba(0,0,0,0.04)',
                     transition: 'transform .15s ease, box-shadow .2s ease, border-color .2s ease, background-color .2s ease',
                     transform: 'translateY(0)',
-                    '&:hover': {
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 12px 28px rgba(0,0,0,0.12)',
-                        bgcolor: selected ? 'action.selected' : (isClosed ? 'action.hover' : 'action.hover')
-                    },
-                    // sudut bawah dipegang footer
-                    borderTopLeftRadius: 8,
-                    borderTopRightRadius: 8,
-                    borderBottomLeftRadius: 0,
-                    borderBottomRightRadius: 0,
+                    '&:hover': { transform: 'translateY(-1px)', boxShadow: '0 12px 28px rgba(0,0,0,0.12)', bgcolor: selected ? 'action.selected' : (isClosed ? 'action.hover' : 'action.hover') },
+                    borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
                     '&::before': {
                         content: '""', position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
                         borderTopLeftRadius: 8, borderBottomLeftRadius: 0,
@@ -208,7 +190,7 @@ const TransactionListItemRow: React.FC<{ o: Transaction; selected?: boolean; onC
                             <Chip size="small" color="info" label={o.order_type?.name ?? '-'} variant="filled" />
                             <Chip size="small" color="info" label={o.table?.code ? `${o.table.code}` : 'No table'} variant="filled" />
                         </Stack>
-                        <Typography variant="subtitle1" fontWeight={900}>{rupiah(o.total)}</Typography>
+                        <Typography variant="subtitle1" fontWeight={900}>{rupiah(o.total ?? 0)}</Typography>
                     </Stack>
 
                     {/* Baris 2 */}
@@ -218,7 +200,7 @@ const TransactionListItemRow: React.FC<{ o: Transaction; selected?: boolean; onC
                             <Chip size="small" icon={<LocalMallRounded />} label={`${items} item`} />
                             <Chip size="small" icon={<LayersRounded />} label={`${batches} batch`} />
                         </Stack>
-                        { /** @ts-ignore **/}
+                        {/** @ts-ignore **/}
                         <TransactionListItemPrintTransaction tx={o} />
                     </Stack>
 
@@ -235,26 +217,14 @@ const TransactionListItemRow: React.FC<{ o: Transaction; selected?: boolean; onC
                 </Stack>
             </ListItemButton>
 
-            {/* ===== Footer di LUAR card (nempel) ===== */}
+            {/* Footer nempel */}
             <Box
                 sx={{
-                    border: '1px solid',
-                    borderTop: 'none',
-                    borderColor: cardBorderColor,
-                    borderBottomLeftRadius: 8,
-                    borderBottomRightRadius: 8,
-
+                    border: '1px solid', borderTop: 'none', borderColor: cardBorderColor,
+                    borderBottomLeftRadius: 8, borderBottomRightRadius: 8,
                     bgcolor: isClosed ? 'error.main' : 'success.main',
                     color: isClosed ? 'error.contrastText' : 'success.contrastText',
-
-                    px: 1.5,
-                    py: 0.8,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 1,
-
-                    mb: 1,
+                    px: 1.5, py: 0.8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1,
                 }}
             >
                 <TimerText startIso={o.time_created} endIso={o.time_closed} active={!isClosed} />
@@ -277,6 +247,9 @@ const TransactionListItem: React.FC = () => {
     const [transaction, setTransaction] = React.useState<Array<Transaction>>([])
     const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
 
+    // 🔑 KUNCI REFRESH: dipicu dari NewOrderModal.onCreated() tanpa mengubah filter
+    const [reloadKey, setReloadKey] = React.useState(0)
+
     const [filters, setFilters] = React.useState<Filters>({
         query: '',
         status: 'all',
@@ -292,15 +265,13 @@ const TransactionListItem: React.FC = () => {
     React.useEffect(() => {
         const { startAt, endAt } = filters
         if (!startAt || !endAt) return
-        const payload = {
-            startAt: `${startAt}:00${TZ_OFFSET}`,
-            endAt: `${endAt}:59${TZ_OFFSET}`,
-        }
+        const payload = { startAt: `${startAt}:00${TZ_OFFSET}`, endAt: `${endAt}:59${TZ_OFFSET}` }
         // @ts-ignore
         window.api.invoke('api.transaction:read.all', payload)
             .then((result: { data: Transaction[] }) => setTransaction(result?.data ?? []))
             .catch(() => setTransaction([]))
-    }, [filters.startAt, filters.endAt])
+        // ✅ reloadKey ikut dependency agar refetch setelah create; filter state TAK tersentuh
+    }, [filters.startAt, filters.endAt, reloadKey])
 
     // Opsi filter
     const shiftOptions = React.useMemo(() => {
@@ -322,11 +293,11 @@ const TransactionListItem: React.FC = () => {
     const maxItems = React.useMemo(() => transaction.length ? Math.max(...transaction.map(totalItems)) : 0, [transaction])
     const maxBatches = React.useMemo(() => transaction.length ? Math.max(...transaction.map(totalBatches)) : 0, [transaction])
 
+    // Jaga range agar selalu valid thd data terbaru, tapi TIDAK ngereset pilihan user jika sudah bebeda dari default
     React.useEffect(() => {
         setFilters(prev => {
             const patch: Partial<Filters> = {}
             let changed = false
-
             const clamp = (v: number, max: number) => Math.min(Math.max(v, 0), Math.max(0, max))
             const maxI = Math.max(0, maxItems)
             const maxB = Math.max(0, maxBatches)
@@ -378,13 +349,10 @@ const TransactionListItem: React.FC = () => {
 
     // ====== Selection State Helpers ======
     const txById = React.useMemo(() => new Map(filtered.map(t => [t.id, t] as const)), [filtered])
-    const selectedTxs = React.useMemo(
-        () => Array.from(selectedIds).map(id => txById.get(id)).filter(Boolean) as Transaction[],
-        [selectedIds, txById]
-    )
+    const selectedTxs = React.useMemo(() => Array.from(selectedIds).map(id => txById.get(id)).filter(Boolean) as Transaction[], [selectedIds, txById])
     const hasClosed = React.useMemo(() => selectedTxs.some(t => Boolean(t.time_closed)), [selectedTxs])
 
-    // === Sinkronisasi selection & right pane terhadap filtered ===
+    // Sinkronisasi selection & right pane terhadap filtered
     React.useEffect(() => {
         const idsInList = new Set(filtered.map(t => t.id))
         const cleaned = new Set<string>()
@@ -402,35 +370,32 @@ const TransactionListItem: React.FC = () => {
         }
 
         if (filtered.length === 0 && selectedIds.size) setSelectedIds(new Set())
-    }, [filtered]) // eslint-disable-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filtered])
 
-    // === Handler toggle selection per row ===
+    // Handler toggle selection per row
     const toggleSelection = (id: string) => {
         setSelectedIds(prev => {
             const next = new Set(prev)
             next.has(id) ? next.delete(id) : next.add(id)
-
             const size = next.size
-            if (size === 0) {
-                setLayout(p => ({ ...p, right: undefined }))
-            } else if (size === 1) {
+            if (size === 0) setLayout(p => ({ ...p, right: undefined }))
+            else if (size === 1) {
                 const onlyId = Array.from(next)[0]
                 setLayout(p => ({ ...p, right: <TransactionContainer id={onlyId} /> }))
-            } else {
-                setLayout(p => ({ ...p, right: undefined }))
-            }
+            } else setLayout(p => ({ ...p, right: undefined }))
             return next
         })
     }
 
-    // === Join click stub ===
+    // Join click stub
     const onJoin = () => {
         const ids = Array.from(selectedIds)
         console.log('[JOIN] selected ids:', ids)
-        // TODO: implement gabung transaksi di sini
+        // TODO: implement gabung transaksi
     }
 
-    // === UI Footer State ===
+    // UI Footer State
     const selectedCount = selectedIds.size
     const joinEnabled = selectedCount > 1 && !hasClosed
 
@@ -467,9 +432,7 @@ const TransactionListItem: React.FC = () => {
                                     key={o.id}
                                     o={o}
                                     selected={selectedIds.has(o.id as string)}
-                                    onClick={() => {
-                                        toggleSelection(o.id as string)
-                                    }}
+                                    onClick={() => toggleSelection(o.id as string)}
                                 />
                             ))}
                         </List>
@@ -481,14 +444,7 @@ const TransactionListItem: React.FC = () => {
             {showJoinAlert && (
                 <Box
                     role="alert"
-                    sx={{
-                        px: 1.5,
-                        py: 1,
-                        bgcolor: 'error.main',
-                        color: 'error.contrastText',
-                        borderTop: '1px solid',
-                        borderColor: 'error.dark',
-                    }}
+                    sx={{ px: 1.5, py: 1, bgcolor: 'error.main', color: 'error.contrastText', borderTop: '1px solid', borderColor: 'error.dark' }}
                 >
                     <Typography variant="body2" fontWeight={800} sx={{ textAlign: 'left', whiteSpace: 'nowrap' }}>
                         {joinAlertMsg}
@@ -498,30 +454,35 @@ const TransactionListItem: React.FC = () => {
 
             {/* Footer Actions */}
             <Divider />
-            <Box sx={{
-                p: 1.25,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 1,
-                bgcolor: 'background.paper'
-            }}>
-                <Typography variant="body2" color="text.secondary">
-                    {selectedCount === 0
-                        ? 'Tidak ada transaksi yang dipilih'
-                        : selectedCount === 1
-                            ? '1 transaksi terpilih'
-                            : `${selectedCount} transaksi terpilih`}
+            <Box
+                sx={{
+                    px: 1.5, py: 1.25, minHeight: 72, display: 'flex', alignItems: 'center', gap: 2,
+                    bgcolor: 'background.paper', position: 'relative', boxShadow: '0 -8px 24px rgba(0,0,0,0.08)',
+                    '&::after': { content: '""', position: 'absolute', left: 0, right: 0, bottom: 0, height: 6, background: GRADIENT_PURPLE, borderBottomLeftRadius: 8, borderBottomRightRadius: 8 },
+                    '&::before': { content: '""', position: 'absolute', left: 0, right: 0, top: 0, height: 1 },
+                }}
+            >
+                {/* Kiri: info */}
+                <Typography variant="body1" color="text.secondary" sx={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {selectedCount === 0 ? 'Tidak ada transaksi yang dipilih' : selectedCount === 1 ? '1 transaksi terpilih' : `${selectedCount} transaksi terpilih`}
                 </Typography>
 
-                <Button
-                    variant="contained"
-                    startIcon={<CallMergeRounded />}
-                    disabled={!joinEnabled}
-                    onClick={onJoin}
-                >
-                    Join
-                </Button>
+                {/* Kanan: aksi */}
+                <Stack direction="row" spacing={1.25} alignItems="center" justifyContent="flex-end" sx={{ flexShrink: 0 }}>
+                    {/* ⬇️ Penting: panggil onCreated agar parent refetch TANPA mengubah filter */}
+                    <NewOrderModal onCreated={() => setReloadKey(k => k + 1)} />
+
+                    <Button
+                        variant="contained"
+                        size="large"
+                        startIcon={<CallMergeRounded />}
+                        disabled={!joinEnabled}
+                        onClick={onJoin}
+                        sx={{ fontWeight: 800, letterSpacing: .2, opacity: joinEnabled ? 1 : .6 }}
+                    >
+                        Gabung
+                    </Button>
+                </Stack>
             </Box>
         </Box>
     )

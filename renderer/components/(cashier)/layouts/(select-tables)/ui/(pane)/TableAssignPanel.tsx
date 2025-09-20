@@ -2,22 +2,20 @@
 
 import * as React from 'react';
 import {
-    Box, Button, Chip, Divider, Paper, Stack, TextField, Tooltip, Typography
+    Box, Chip, Divider, Paper, Stack, Tooltip, Typography, IconButton, Button
 } from '@mui/material';
-import TodayRounded from '@mui/icons-material/TodayRounded';
-import PersonRounded from '@mui/icons-material/PersonRounded';
-import PhoneIphoneRounded from '@mui/icons-material/PhoneIphoneRounded';
-import NotesRounded from '@mui/icons-material/NotesRounded';
+import RoomPreferencesRounded from '@mui/icons-material/RoomPreferencesRounded';
+import GroupRounded from '@mui/icons-material/GroupRounded';
+import LayersRounded from '@mui/icons-material/LayersRounded';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
-import ScheduleRounded from '@mui/icons-material/ScheduleRounded';
-import DoorFrontRounded from '@mui/icons-material/DoorFrontRounded';
+import AutorenewRounded from '@mui/icons-material/AutorenewRounded';
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
-import { useSeating } from '../../context/SeatingContext';
+import { useSeating, Table2D } from '../../context/SeatingContext';
 
-type Mode = 'walk_in' | 'reserved';
+type TableStatus = 'available' | 'reserved' | 'occupied';
 
-const StatusChip: React.FC<{ status: 'available' | 'reserved' | 'occupied' }> = ({ status }) => {
+const StatusChip: React.FC<{ status: TableStatus }> = ({ status }) => {
     const map = {
         available: { label: 'Available', color: 'success' as const },
         reserved:  { label: 'Reserved',  color: 'warning' as const },
@@ -25,46 +23,6 @@ const StatusChip: React.FC<{ status: 'available' | 'reserved' | 'occupied' }> = 
     }[status];
     return <Chip size="small" color={map.color} variant="outlined" label={map.label} sx={{ fontWeight: 700 }} />;
 };
-
-const ModeCard: React.FC<{
-    active: boolean; icon: React.ReactNode; title: string; desc: string; onClick: () => void;
-}> = ({ active, icon, title, desc, onClick }) => (
-    <Paper
-        role="button"
-        aria-pressed={active}
-        tabIndex={0}
-        onClick={onClick}
-        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()}
-        variant="outlined"
-        sx={(t) => ({
-            p: 1.25, borderRadius: 2, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 1,
-            borderColor: active ? t.palette.primary.main : 'divider',
-            bgcolor: active
-                ? (t.palette.mode === 'dark' ? 'rgba(25,118,210,0.15)' : 'rgba(25,118,210,0.10)')
-                : (t.palette.mode === 'dark' ? t.palette.grey[900] : t.palette.background.paper),
-            transition: t.transitions.create(['transform','box-shadow','background-color','border-color'], { duration: t.transitions.duration.shorter }),
-            boxShadow: active ? 3 : 'none',
-            '&:hover': { boxShadow: 4, transform: 'translateY(-1px)' },
-        })}
-    >
-        <Box
-            sx={(t) => ({
-                width: 38, height: 38, borderRadius: '50%', display: 'grid', placeItems: 'center',
-                bgcolor: active ? t.palette.primary.main : (t.palette.mode === 'dark' ? t.palette.grey[800] : t.palette.grey[200]),
-                color: active ? t.palette.primary.contrastText : t.palette.text.secondary,
-                flexShrink: 0,
-            })}
-        >
-            {icon}
-        </Box>
-        <Stack minWidth={0}>
-            <Typography fontWeight={800} lineHeight={1.2}>{title}</Typography>
-            <Typography variant="caption" color="text.secondary" noWrap>{desc}</Typography>
-        </Stack>
-        {active && <CheckCircleRounded sx={{ ml: 'auto' }} fontSize="small" color="primary" />}
-    </Paper>
-);
 
 const EmptyState: React.FC = () => (
     <Paper variant="outlined" sx={(t) => ({
@@ -78,31 +36,50 @@ const EmptyState: React.FC = () => (
     </Paper>
 );
 
-const TableAssignPanel: React.FC = () => {
-    const { selection } = useSeating();
+const Row: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode }> = ({ icon, label, value }) => (
+    <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+        <Stack direction="row" spacing={1} alignItems="center">
+            <Box sx={(t) => ({
+                width: 28, height: 28, borderRadius: '50%', display: 'grid', placeItems: 'center',
+                bgcolor: t.palette.mode === 'dark' ? t.palette.grey[800] : t.palette.grey[200],
+                color: t.palette.text.secondary, flexShrink: 0,
+            })}>
+                {icon}
+            </Box>
+            <Typography variant="body2" color="text.secondary">{label}</Typography>
+        </Stack>
+        <Typography variant="body2" fontWeight={800} sx={{ ml: 2 }} noWrap>{value}</Typography>
+    </Stack>
+);
 
-    const [mode, setMode] = React.useState<Mode>('walk_in');
-    const [name, setName] = React.useState('');
-    const [phone, setPhone] = React.useState('');
-    const [note, setNote] = React.useState('');
-    const [time, setTime] = React.useState('');
+const TableAssignPanel: React.FC<{ onSelectTable?: (serverId: string) => void }> = ({ onSelectTable }) => {
+    const { selection, floors, refresh, loading, error, tablesByFloor } = useSeating();
 
-    React.useEffect(() => { setMode('walk_in'); setName(''); setPhone(''); setNote(''); setTime(''); }, [selection?.tableId]);
+    // nama lantai dari context
+    const floorName = React.useMemo(() => {
+        if (!selection) return '';
+        const f = floors.find(x => x.id === selection.floor);
+        return f?.name || selection.floor;
+    }, [selection, floors]);
 
-    const confirmDisabled =
-        !selection || selection.status !== 'available' ||
-        (mode === 'reserved' && (!name || !time));
+    // table yang terpilih (buat ambil serverId)
+    const selectedTable: Table2D | null = React.useMemo(() => {
+        if (!selection) return null;
+        const list = tablesByFloor[selection.floor] || [];
+        return list.find(x => x.id === selection.tableId) || null;
+    }, [selection, tablesByFloor]);
+
+    const serverId = selectedTable?.serverId || selection?.tableId || '';
+
+    const confirmDisabled = !selection || selection.status !== 'available';
 
     const handleConfirm = () => {
         if (!selection) return;
-        const payload = { selection, mode, name, phone, note, time };
-        // ganti ke context/API sesuai use case kamu
-        // eslint-disable-next-line no-alert
-        alert(
-            `Meja: ${selection.label} (${selection.floor})\n` +
-            `Kapasitas: ${selection.capacity}\n` +
-            `Mode: ${mode === 'walk_in' ? 'Datang langsung' : `Dipesan — ${name} @ ${time}`}`
-        );
+        onSelectTable?.(serverId);
+        // contoh kalau mau invoke langsung:
+        // window.api?.invoke('api.transaction:seat.assign', { tableId: serverId })
+        //   .then(() => {/* success UI */})
+        //   .catch(() => {/* error UI */});
     };
 
     return (
@@ -111,11 +88,20 @@ const TableAssignPanel: React.FC = () => {
             borderRadius: 2, bgcolor: t.palette.mode === 'dark' ? t.palette.grey[900] : t.palette.background.paper,
         })}>
             {/* Header */}
-            <Box sx={{ p: 1.25, borderBottom: '1px solid', borderColor: 'divider' }}>
-                <Typography fontWeight={900}>Detail Meja</Typography>
+            <Box sx={{ p: 1.25, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography fontWeight={900} sx={{ flex: 1 }}>Detail Meja</Typography>
+                <Tooltip title={loading ? 'Memuat…' : 'Muat ulang'}>
+          <span>
+            <IconButton size="small" onClick={refresh} disabled={loading}>
+              <AutorenewRounded fontSize="small" />
+            </IconButton>
+          </span>
+                </Tooltip>
+                {loading ? <Chip size="small" label="Loading" color="info" /> : null}
+                {error ? <Chip size="small" label="Gagal load" color="error" /> : null}
             </Box>
 
-            {/* Body scrollable */}
+            {/* Body */}
             <Box sx={{ flex: 1, minHeight: 0 }}>
                 <PerfectScrollbar style={{ height: '100%' }} options={{ suppressScrollX: true }}>
                     <Stack spacing={1.25} sx={{ p: 1.25 }}>
@@ -123,70 +109,27 @@ const TableAssignPanel: React.FC = () => {
                             <EmptyState />
                         ) : (
                             <>
+                                {/* Title + status */}
                                 <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: 'wrap' }}>
                                     <Typography variant="h6" fontWeight={900}>{selection.label}</Typography>
                                     <StatusChip status={selection.status} />
-                                    <Chip size="small" label={`${selection.capacity} orang`} variant="outlined" sx={{ fontWeight: 700 }} />
-                                    <Chip size="small" label={selection.floor === 'L1' ? 'Lantai 1' : 'Lantai 2'} variant="outlined" sx={{ fontWeight: 700 }} />
                                 </Stack>
 
                                 <Divider />
 
+                                {/* info singkat */}
                                 <Stack spacing={1}>
-                                    <Typography variant="subtitle2" fontWeight={900}>Jenis kedatangan</Typography>
-                                    <Stack spacing={1}>
-                                        <ModeCard
-                                            active={mode === 'walk_in'}
-                                            icon={<DoorFrontRounded fontSize="small" />}
-                                            title="Datang langsung"
-                                            desc="Tamu hadir sekarang / tanpa reservasi"
-                                            onClick={() => setMode('walk_in')}
-                                        />
-                                        <ModeCard
-                                            active={mode === 'reserved'}
-                                            icon={<ScheduleRounded fontSize="small" />}
-                                            title="Dipesan (reservasi)"
-                                            desc="Tetapkan data pemesan & jadwal kedatangan"
-                                            onClick={() => setMode('reserved')}
-                                        />
-                                    </Stack>
+                                    <Row icon={<GroupRounded fontSize="small" />} label="Kapasitas" value={`${selection.capacity} orang`} />
+                                    <Row icon={<LayersRounded fontSize="small" />} label="Lantai" value={floorName || '—'} />
+                                    <Row icon={<RoomPreferencesRounded fontSize="small" />} label="ID Meja (REST)" value={serverId || '—'} />
                                 </Stack>
-
-                                {mode === 'reserved' && (
-                                    <Stack spacing={1}>
-                                        <Divider />
-                                        <Typography variant="subtitle2" fontWeight={900}>Data reservasi</Typography>
-
-                                        <TextField
-                                            size="small" label="Nama pemesan" placeholder="Nama lengkap"
-                                            value={name} onChange={(e) => setName(e.target.value)}
-                                            InputProps={{ startAdornment: <PersonRounded sx={{ mr: 1, opacity: .6 }} fontSize="small" /> }}
-                                        />
-                                        <TextField
-                                            size="small" label="Nomor HP (opsional)" placeholder="08xx…"
-                                            value={phone} onChange={(e) => setPhone(e.target.value)}
-                                            InputProps={{ startAdornment: <PhoneIphoneRounded sx={{ mr: 1, opacity: .6 }} fontSize="small" /> }}
-                                        />
-                                        <TextField
-                                            size="small" label="Waktu kedatangan" placeholder="Contoh: 19:30"
-                                            value={time} onChange={(e) => setTime(e.target.value)}
-                                            InputProps={{ startAdornment: <TodayRounded sx={{ mr: 1, opacity: .6 }} fontSize="small" /> }}
-                                        />
-                                        <TextField
-                                            size="small" label="Catatan (opsional)" placeholder="Permintaan khusus…"
-                                            value={note} onChange={(e) => setNote(e.target.value)}
-                                            multiline minRows={2}
-                                            InputProps={{ startAdornment: <NotesRounded sx={{ mr: 1, opacity: .6 }} fontSize="small" /> }}
-                                        />
-                                    </Stack>
-                                )}
                             </>
                         )}
                     </Stack>
                 </PerfectScrollbar>
             </Box>
 
-            {/* Footer sticky */}
+            {/* Footer: tombol pilih meja ini */}
             <Box sx={(t) => ({
                 p: 1.25, borderTop: '1px solid', borderColor: 'divider',
                 position: 'sticky', bottom: 0,
@@ -197,13 +140,17 @@ const TableAssignPanel: React.FC = () => {
                     title={
                         !selection ? 'Pilih meja dulu' :
                             selection.status !== 'available' ? 'Meja ini tidak tersedia' :
-                                'Tetapkan meja ini'
+                                'Pilih meja ini'
                     }
                 >
           <span>
             <Button
-                variant="contained" fullWidth size="large"
-                disabled={confirmDisabled} onClick={handleConfirm}
+                variant="contained"
+                fullWidth
+                size="large"
+                disabled={confirmDisabled}
+                onClick={handleConfirm}
+                startIcon={<CheckCircleRounded />}
                 sx={{
                     textTransform: 'none', fontWeight: 800, borderRadius: 1.5,
                     py: 1.25, boxShadow: 'none',
@@ -211,7 +158,7 @@ const TableAssignPanel: React.FC = () => {
                     transition: (t) => t.transitions.create(['box-shadow','transform'], { duration: t.transitions.duration.shorter }),
                 }}
             >
-              Tetapkan Meja
+              Pilih Meja Ini
             </Button>
           </span>
                 </Tooltip>

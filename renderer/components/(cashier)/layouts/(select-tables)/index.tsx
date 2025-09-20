@@ -19,12 +19,14 @@ const TableAssignPanel = dynamic(() => import('./ui/(pane)/TableAssignPanel'), {
     loading: () => <ShimmerMenuSelectLoading />,
     ssr: false,
 });
-export default function Overview() {
-
+export default function SelectTables({ onSelectTable } : { onSelectTable?: (id : string) => void }) {
 
     return (
         <SeatingProvider>
-            <ResizableGrid left={<TablePicker2DWidget />} right={<TableAssignPanel />} />
+            <ResizableGrid
+                left={<TablePicker2DWidget />}
+                right={<TableAssignPanel onSelectTable={onSelectTable} />}
+            />
         </SeatingProvider>
     )
 }

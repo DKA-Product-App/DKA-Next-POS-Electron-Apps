@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import {
-    Box, Button, Chip, IconButton, Paper, Popover, Stack, Tooltip, Typography
+    Box, Chip, IconButton, Paper, Popover, Stack, Tooltip, Typography, Button
 } from '@mui/material';
 import CenterFocusStrongRounded from '@mui/icons-material/CenterFocusStrongRounded';
 import KeyboardArrowDownRounded from '@mui/icons-material/KeyboardArrowDownRounded';
@@ -11,46 +11,28 @@ import TuneRounded from '@mui/icons-material/TuneRounded';
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
 import { useTheme } from '@mui/material/styles';
-import { FloorLevel, TableStatus, useSeating } from '../../context/SeatingContext';
+import { TableStatus, Table2D, useSeating } from '../../context/SeatingContext';
 
-/* =============== Types & Dummy Data =============== */
-type Shape = 'round' | 'rectangle';
-type Table2D = {
-    id: string; label: string; shape: Shape; capacity: number; status: TableStatus;
-    x: number; y: number; w?: number; h?: number; r?: number; rot?: number;
+/* ===== Utils ===== */
+const statusTintId = (s: TableStatus) => s === 'available' ? 'tintAvail' : s === 'reserved' ? 'tintResv' : 'tintOcc';
+
+const countByStatus = (list: Table2D[]) =>
+    list.reduce(
+        (acc, t) => ({
+            total: acc.total + 1,
+            available: acc.available + (t.status === 'available' ? 1 : 0),
+            reserved: acc.reserved + (t.status === 'reserved' ? 1 : 0),
+            occupied: acc.occupied + (t.status === 'occupied' ? 1 : 0),
+        }),
+        { total: 0, available: 0, reserved: 0, occupied: 0 }
+    );
+
+const friendlyFloorName = (id: string) => {
+    const n = /(?:LT[-\s]?|L)(\d+)/i.exec(id)?.[1];
+    return n ? `Lantai ${Number(n)}` : id;
 };
 
-const TABLES_L1: Table2D[] = [
-    { id: 'T01', label: 'Meja 01', shape: 'round',     capacity: 2, status: 'available', x: 120, y: 120, r: 45 },
-    { id: 'T02', label: 'Meja 02', shape: 'round',     capacity: 4, status: 'reserved',  x: 300, y: 120, r: 55 },
-    { id: 'T03', label: 'Meja 03', shape: 'rectangle', capacity: 4, status  : 'occupied',  x: 480, y: 120, w: 120, h: 70, rot: -6 },
-    { id: 'T04', label: 'Meja 04', shape: 'rectangle', capacity: 2, status: 'available', x: 120, y: 280, w: 90,  h: 60, rot: 8 },
-    { id: 'T05', label: 'Meja 05', shape: 'round',     capacity: 6, status: 'available', x: 300, y: 280, r: 60 },
-    { id: 'T06', label: 'Meja 06', shape: 'rectangle', capacity: 2, status: 'reserved',  x: 480, y: 280, w: 90,  h: 60, rot: 0 },
-];
-
-const TABLES_L2: Table2D[] = [
-    { id: 'T201', label: 'Meja 201', shape: 'rectangle', capacity: 4, status: 'available', x: 140, y: 120, w: 120, h: 70, rot: -4 },
-    { id: 'T202', label: 'Meja 202', shape: 'round',     capacity: 2, status: 'available', x: 320, y: 110, r: 42 },
-    { id: 'T203', label: 'Meja 203', shape: 'round',     capacity: 6, status: 'occupied',  x: 520, y: 150, r: 62 },
-    { id: 'T204', label: 'Meja 204', shape: 'rectangle', capacity: 2, status: 'reserved',  x: 160, y: 290, w: 90,  h: 60, rot: 10 },
-    { id: 'T205', label: 'Meja 205', shape: 'rectangle', capacity: 4, status: 'available', x: 340, y: 300, w: 130, h: 70, rot: 0 },
-    { id: 'T206', label: 'Meja 206', shape: 'round',     capacity: 4, status: 'available', x: 520, y: 290, r: 55 },
-];
-
-/* =============== Utils =============== */
-const statusTintId = (s: TableStatus) =>
-    s === 'available' ? 'tintAvail' : s === 'reserved' ? 'tintResv' : 'tintOcc';
-
-const countByStatus = (list: Table2D[]) => {
-    let total = list.length, a = 0, r = 0, o = 0;
-    for (const t of list) {
-        if (t.status === 'available') a++; else if (t.status === 'reserved') r++; else o++;
-    }
-    return { total, available: a, reserved: r, occupied: o };
-};
-
-/* =============== Table node =============== */
+/* ===== Table node ===== */
 const TableNode: React.FC<{
     t: Table2D; selected: boolean; onSelect: (id: string) => void;
 }> = React.memo(({ t, selected, onSelect }) => {
@@ -63,32 +45,24 @@ const TableNode: React.FC<{
             style={{ cursor: notSelectable ? 'not-allowed' : 'pointer' }}
             onMouseEnter={() => setHover(true)}
             onMouseLeave={() => setHover(false)}
-            onClick={(e) => { e.stopPropagation(); if (!notSelectable) onSelect(t.id); }}
+            onClick={(e) => { e.stopPropagation(); notSelectable ? null : onSelect(t.id); }}
         >
             {t.shape === 'round' ? (
                 <>
                     <circle cx={0} cy={0} r={t.r ?? 40} fill="url(#wood)" filter="url(#hardShadow)" opacity={notSelectable ? 0.85 : 1} />
                     <circle cx={0} cy={0} r={(t.r ?? 40) - 1} fill="url(#woodVar)" opacity={0.35} />
                     <circle cx={0} cy={0} r={(t.r ?? 40) - 1} fill={`url(#${statusTintId(t.status)})`} />
-                    <ellipse cx={-(t.r ?? 40) * 0.25} cy={-(t.r ?? 40) * 0.25}
-                             rx={(t.r ?? 40) * 0.7} ry={(t.r ?? 40) * 0.45}
-                             fill="url(#gloss)" opacity={hover ? 0.35 : 0.22} />
+                    <ellipse cx={-(t.r ?? 40) * 0.25} cy={-(t.r ?? 40) * 0.25} rx={(t.r ?? 40) * 0.7} ry={(t.r ?? 40) * 0.45} fill="url(#gloss)" opacity={hover ? 0.35 : 0.22} />
                     {selected && <circle cx={0} cy={0} r={(t.r ?? 40) - 2} fill="none" stroke="#1976d2" strokeWidth={2} />}
                 </>
             ) : (
                 <>
-                    <rect x={-(t.w ?? 100) / 2} y={-(t.h ?? 60) / 2} width={t.w ?? 100} height={t.h ?? 60}
-                          rx={10} fill="url(#wood)" filter="url(#hardShadow)" opacity={notSelectable ? 0.85 : 1} />
-                    <rect x={-(t.w ?? 100) / 2} y={-(t.h ?? 60) / 2} width={t.w ?? 100} height={t.h ?? 60}
-                          rx={10} fill="url(#woodVar)" opacity={0.35} />
-                    <rect x={-(t.w ?? 100) / 2} y={-(t.h ?? 60) / 2} width={t.w ?? 100} height={t.h ?? 60}
-                          rx={10} fill={`url(#${statusTintId(t.status)})`} />
-                    <ellipse cx={-(t.w ?? 100) * 0.2} cy={-(t.h ?? 60) * 0.25}
-                             rx={(t.w ?? 100) * 0.35} ry={(t.h ?? 60) * 0.35}
-                             fill="url(#gloss)" opacity={hover ? 0.35 : 0.22} />
+                    <rect x={-(t.w ?? 100) / 2} y={-(t.h ?? 60) / 2} width={t.w ?? 100} height={t.h ?? 60} rx={10} fill="url(#wood)" filter="url(#hardShadow)" opacity={notSelectable ? 0.85 : 1} />
+                    <rect x={-(t.w ?? 100) / 2} y={-(t.h ?? 60) / 2} width={t.w ?? 100} height={t.h ?? 60} rx={10} fill="url(#woodVar)" opacity={0.35} />
+                    <rect x={-(t.w ?? 100) / 2} y={-(t.h ?? 60) / 2} width={t.w ?? 100} height={t.h ?? 60} rx={10} fill={`url(#${statusTintId(t.status)})`} />
+                    <ellipse cx={-(t.w ?? 100) * 0.2} cy={-(t.h ?? 60) * 0.25} rx={(t.w ?? 100) * 0.35} ry={(t.h ?? 60) * 0.35} fill="url(#gloss)" opacity={hover ? 0.35 : 0.22} />
                     {selected && (
-                        <rect x={-(t.w ?? 100) / 2} y={-(t.h ?? 60) / 2} width={t.w ?? 100} height={t.h ?? 60}
-                              rx={10} fill="none" stroke="#1976d2" strokeWidth={2} />
+                        <rect x={-(t.w ?? 100) / 2} y={-(t.h ?? 60) / 2} width={t.w ?? 100} height={t.h ?? 60} rx={10} fill="none" stroke="#1976d2" strokeWidth={2} />
                     )}
                 </>
             )}
@@ -105,34 +79,45 @@ const TableNode: React.FC<{
     );
 });
 
-/* =============== Main =============== */
+/* ===== Main ===== */
 const TablePicker2DWidget: React.FC = () => {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
-    const floorFill = isDark ? '#14171a' : '#f4f6f8'; // polos – no gradient
+    const floorFill = isDark ? '#14171a' : '#f4f6f8';
 
-    // context
-    const { floor, setFloor, selection, setSelection } = useSeating();
+    // context dinamis
+    const { floor, setFloor, selection, setSelection, floors: floorList, tablesByFloor, loading, error, refresh } = useSeating();
 
+    // floors dari REST (List + tabelnya)
     const floors = React.useMemo(
-        () => [
-            { id: 'L1' as FloorLevel, name: 'Lantai 1', tables: TABLES_L1 },
-            { id: 'L2' as FloorLevel, name: 'Lantai 2', tables: TABLES_L2 },
-        ],
-        []
+        () => floorList.map(f => ({ id: f.id, name: f.name || f.id, tables: (tablesByFloor[f.id] || []) as Table2D[] })),
+        [floorList, tablesByFloor]
     );
 
-    // local UI state
-    const [floorLevel, setFloorLevel] = React.useState<FloorLevel>(floor); // mirror context
-    React.useEffect(() => setFloorLevel(floor), [floor]);
+    const hasData = floors.length > 0;
 
-    const [selectedByFloor, setSelectedByFloor] = React.useState<Record<FloorLevel, string | null>>({ L1: null, L2: null });
+    // current floor — auto-select ke lantai pertama saat data muncul
+    const [floorLevel, setFloorLevel] = React.useState<string>(floor || '');
+    React.useEffect(() => setFloorLevel(floor || ''), [floor]);
+
+    // selection per-floor (dinamis mengikuti floors)
+    const [selectedByFloor, setSelectedByFloor] = React.useState<Record<string, string | null>>({});
     React.useEffect(() => {
-        // keep highlight in sync when selection comes from right panel (future-proof)
-        if (selection) {
-            setFloorLevel(selection.floor);
-            setSelectedByFloor(prev => ({ ...prev, [selection.floor]: selection.tableId }));
-        }
+        const next = floors.reduce<Record<string, string | null>>((acc, f) => ({ ...acc, [f.id]: selectedByFloor[f.id] ?? null }), {});
+        setSelectedByFloor(next);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [floors.map(f => f.id).join('|')]);
+
+    // === NEW: Auto-pilih lantai pertama saat data tersedia, jika belum ada pilihan ===
+    React.useEffect(() => {
+        if (!hasData || floorLevel) return;
+        const first = floors[0]?.id;
+        first ? (setFloorLevel(first), setFloor(first as any)) : null;
+    }, [hasData, floors, floorLevel, setFloor]);
+
+    React.useEffect(() => {
+        selection ? setSelectedByFloor(prev => ({ ...prev, [selection.floor as string]: selection.tableId })) : null;
+        selection ? setFloorLevel(selection.floor as string) : null;
     }, [selection]);
 
     const [statusFilter, setStatusFilter] = React.useState<'all' | TableStatus>('all');
@@ -141,8 +126,11 @@ const TablePicker2DWidget: React.FC = () => {
     const [statusAnchor, setStatusAnchor] = React.useState<HTMLElement | null>(null);
     const [floorAnchor, setFloorAnchor] = React.useState<HTMLElement | null>(null);
 
-    // data
-    const tables = React.useMemo(() => floors.find(f => f.id === floorLevel)!.tables, [floors, floorLevel]);
+    // data render
+    const tables = React.useMemo(
+        () => (hasData && floorLevel) ? (floors.find(f => f.id === floorLevel)?.tables ?? []) : [],
+        [floors, floorLevel, hasData]
+    );
     const currentCounts = React.useMemo(() => countByStatus(tables), [tables]);
     const visibleTables = React.useMemo(
         () => statusFilter === 'all' ? tables : tables.filter(t => t.status === statusFilter),
@@ -150,11 +138,21 @@ const TablePicker2DWidget: React.FC = () => {
     );
 
     // select
-    const selectedId = selectedByFloor[floorLevel] ?? null;
+    const selectedId = floorLevel ? (selectedByFloor[floorLevel] ?? null) : null;
+
+    // === NEW: debounce untuk refresh agar anti-spam klik ===
+    const refreshTimer = React.useRef<number | null>(null);
+    const debounceRefresh = () => (
+        refreshTimer.current ? window.clearTimeout(refreshTimer.current) : null,
+            refreshTimer.current = window.setTimeout(() => { refresh(); refreshTimer.current = null }, 250)
+    );
+
     const onSelectTable = (id: string) => {
+        if (!floorLevel) return;
         setSelectedByFloor(prev => ({ ...prev, [floorLevel]: id }));
         const t = tables.find(x => x.id === id)!;
         setSelection({ floor: floorLevel, tableId: t.id, label: t.label, capacity: t.capacity, status: t.status });
+        debounceRefresh(); // auto-refresh tiap klik meja
     };
 
     // full size container
@@ -175,8 +173,7 @@ const TablePicker2DWidget: React.FC = () => {
             return { x: cx - size.w / 2, y: cy - size.h / 2, w: size.w, h: size.h };
         });
     }, [size.w, size.h]);
-
-    React.useEffect(() => { setViewBox(v => ({ ...v, x: 0, y: 0, w: size.w, h: size.h })); }, [floorLevel]); // reset on floor switch
+    React.useEffect(() => { setViewBox(v => ({ ...v, x: 0, y: 0, w: size.w, h: size.h })); }, [floorLevel]);
 
     const svgRef = React.useRef<SVGSVGElement | null>(null);
     const isPanning = React.useRef(false);
@@ -221,7 +218,10 @@ const TablePicker2DWidget: React.FC = () => {
     const finishPan = React.useCallback((pointerId?: number) => {
         if (!isPanning.current) return;
         isPanning.current = false; panStart.current = null; setCursor('grab');
-        if (svgRef.current && pointerId != null) { try { svgRef.current.releasePointerCapture(pointerId); } catch {} }
+        if (svgRef.current && typeof pointerId === 'number') {
+            // @ts-ignore
+            svgRef.current.releasePointerCapture && svgRef.current.releasePointerCapture(pointerId);
+        }
     }, []);
     const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => finishPan(e.pointerId);
     const onPointerLeave = () => finishPan();
@@ -231,17 +231,7 @@ const TablePicker2DWidget: React.FC = () => {
         return () => window.removeEventListener('pointerup', onWinPointerUp);
     }, [finishPan]);
 
-    const onWheel = (e: React.WheelEvent<SVGSVGElement>) => {
-        e.preventDefault();
-        const factor = e.deltaY > 0 ? 1.1 : 0.9;
-        setViewBox(v => {
-            const cx = v.x + v.w / 2, cy = v.y + v.h / 2;
-            const nw = Math.max(250, Math.min(3000, v.w * factor));
-            const nh = Math.max(150, Math.min(2000, v.h * factor));
-            return { x: cx - nw / 2, y: cy - nh / 2, w: nw, h: nh };
-        });
-    };
-    const zoom = (factor: number) => {
+    const applyZoom = (factor: number) => {
         setViewBox(v => {
             const cx = v.x + v.w / 2, cy = v.y + v.h / 2;
             const nw = Math.max(250, Math.min(3000, v.w * factor));
@@ -250,43 +240,60 @@ const TablePicker2DWidget: React.FC = () => {
         });
     };
 
+    const onWheel = (e: React.WheelEvent<SVGSVGElement>) => {
+        e.preventDefault();
+        applyZoom(e.deltaY > 0 ? 1.1 : 0.9);
+    };
+
     return (
-        <Paper variant="outlined" sx={{
-            width: '100%', height: '100%', p: 1, borderRadius: 2,
-            display: 'flex', flexDirection: 'column',
-            bgcolor: (t) => t.palette.mode === 'dark' ? t.palette.grey[900] : t.palette.background.paper,
-        }}>
+        <Paper
+            variant="outlined"
+            sx={{
+                width: '100%', height: '100%', p: 1, borderRadius: 2,
+                display: 'flex', flexDirection: 'column',
+                bgcolor: (t) => t.palette.mode === 'dark' ? t.palette.grey[900] : t.palette.background.paper,
+            }}
+        >
             {/* Header */}
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1, gap: 1 }}>
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
                     <RoomPreferencesRounded fontSize="small" />
-                    <Typography fontWeight={900}>Pilih Meja — {floorLevel === 'L1' ? 'Lantai 1' : 'Lantai 2'}</Typography>
+                    <Typography fontWeight={900}>
+                        Pilih Meja{hasData && floorLevel ? ` — ${friendlyFloorName(floorLevel)}` : ''}
+                    </Typography>
                     <Chip size="small" label={selectedId ? selectedId : 'Belum dipilih'} variant="outlined" sx={{ fontWeight: 700 }} />
+                    {loading ? <Chip size="small" color="info" label="Loading..." sx={{ ml: 1 }} /> : null}
+                    {error ? <Chip size="small" color="error" label="Gagal load" sx={{ ml: 1 }} /> : null}
+                    {/* Tombol Refresh DIHAPUS sesuai request */}
                 </Stack>
 
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
-                    {/* Filter status (Popover + PerfectScrollbar) */}
-                    <Button
-                        size="small"
-                        variant="outlined"
-                        startIcon={<TuneRounded />}
-                        endIcon={<KeyboardArrowDownRounded />}
-                        onClick={(e) => setStatusAnchor(e.currentTarget)}
-                        sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
-                    >
-                        {statusFilter === 'all' ? 'All' : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
-                    </Button>
+                    {/* Filter status — sembunyikan kalau belum ada data */}
+                    {hasData && floorLevel ? (
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<TuneRounded />}
+                            endIcon={<KeyboardArrowDownRounded />}
+                            onClick={(e) => setStatusAnchor(e.currentTarget)}
+                            sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
+                        >
+                            {statusFilter === 'all' ? 'All' : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
+                        </Button>
+                    ) : null}
 
-                    {/* Pilih lantai */}
-                    <Button
-                        size="small"
-                        variant="outlined"
-                        endIcon={<KeyboardArrowDownRounded />}
-                        onClick={(e) => setFloorAnchor(e.currentTarget)}
-                        sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
-                    >
-                        {floorLevel === 'L1' ? 'Lantai 1' : 'Lantai 2'}
-                    </Button>
+                    {/* Pilih lantai — auto-selected ke item pertama saat data ada */}
+                    {hasData ? (
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            endIcon={<KeyboardArrowDownRounded />}
+                            onClick={(e) => setFloorAnchor(e.currentTarget)}
+                            sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
+                        >
+                            {floorLevel ? friendlyFloorName(floorLevel) : 'Pilih lantai'}
+                        </Button>
+                    ) : null}
 
                     <Tooltip title="Reset view">
                         <IconButton size="small" onClick={() => setViewBox({ x: 0, y: 0, w: size.w, h: size.h })}>
@@ -363,7 +370,7 @@ const TablePicker2DWidget: React.FC = () => {
                                             bgcolor: active ? (t.palette.mode === 'dark' ? 'rgba(25,118,210,0.15)' : 'rgba(25,118,210,0.10)') : undefined,
                                             '&:hover': { boxShadow: active ? 4 : 2 },
                                         })}
-                                        onClick={() => { setFloorLevel(f.id); setFloor(f.id); setFloorAnchor(null); }}
+                                        onClick={() => { setFloorLevel(f.id); setFloor(f.id as any); setFloorAnchor(null); }}
                                     >
                                         <Stack direction="row" justifyContent="space-between" alignItems="center">
                                             <Typography fontWeight={900}>{f.name}</Typography>
@@ -383,10 +390,10 @@ const TablePicker2DWidget: React.FC = () => {
             </Popover>
 
             {/* Canvas */}
-            <Box ref={containerRef} sx={{
-                position: 'relative', flex: '1 1 0%', minHeight: 0,
-                borderRadius: 1.5, overflow: 'hidden', bgcolor: 'background.default',
-            }}>
+            <Box
+                ref={containerRef}
+                sx={{ position: 'relative', flex: '1 1 0%', minHeight: 0, borderRadius: 1.5, overflow: 'hidden', bgcolor: 'background.default' }}
+            >
                 <svg
                     ref={svgRef}
                     width="100%" height="100%"
@@ -447,8 +454,8 @@ const TablePicker2DWidget: React.FC = () => {
 
                 {/* zoom controls */}
                 <Stack spacing={1} direction="row" sx={{ position: 'absolute', right: 8, bottom: 8 }}>
-                    <Tooltip title="Zoom out"><IconButton size="small" onClick={() => zoom(1.15)}>–</IconButton></Tooltip>
-                    <Tooltip title="Zoom in"><IconButton size="small" onClick={() => zoom(0.85)}>+</IconButton></Tooltip>
+                    <Tooltip title="Zoom out"><IconButton size="small" onClick={() => applyZoom(1.15)}>–</IconButton></Tooltip>
+                    <Tooltip title="Zoom in"><IconButton size="small" onClick={() => applyZoom(0.85)}>+</IconButton></Tooltip>
                 </Stack>
             </Box>
         </Paper>
