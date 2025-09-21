@@ -13,7 +13,7 @@ import dynamic from 'next/dynamic'
 import {useEffect} from "react";
 
 // NOTE: pastikan path-nya sesuai struktur kamu
-const SelectTables = dynamic(() => import('../../../../../(select-tables)'), { ssr: false })
+const SelectTables = dynamic(() => import('../../../../../../(select-tables)'), { ssr: false })
 
 // Minimal type biar aman (atau import dari shared types kamu)
 type TxRef = { table?: { id?: string | null } | null }

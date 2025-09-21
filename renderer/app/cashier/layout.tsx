@@ -1,6 +1,6 @@
 import * as React from 'react'
 import LayoutContainer from "../../components/(cashier)/LayoutContainer";
-import {DiningModeProvider} from "../../components/(cashier)/layouts/(main)/(transaction)/context/DiningModeContext";
+import {DiningModeProvider} from "../../components/(cashier)/layouts/(main)/(component)/(transaction)/context/DiningModeContext";
 
 export default function Layout({ children }) {
 

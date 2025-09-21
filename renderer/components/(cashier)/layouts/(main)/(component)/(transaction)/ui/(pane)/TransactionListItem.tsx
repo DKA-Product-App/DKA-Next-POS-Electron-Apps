@@ -8,8 +8,8 @@ import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 import dynamic from 'next/dynamic'
 
-import ShimmerLoading from '../../../../../../(shared)/(loading)/ShimmerLoading'
-import { useLayoutManipulatorResizable } from '../../../../../../../contexts/LayoutManipulatorResizableContext'
+import ShimmerLoading from '../../../../../../../(shared)/(loading)/ShimmerLoading'
+import { useLayoutManipulatorResizable } from '../../../../../../../../contexts/LayoutManipulatorResizableContext'
 
 import CloseRounded from '@mui/icons-material/CloseRounded'
 import ReplayRounded from '@mui/icons-material/ReplayRounded'

@@ -4,7 +4,7 @@ import React, {FC, memo} from 'react'
 import {Box, Paper, Stack, Tooltip, Typography} from '@mui/material'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
-import {useDiningMode} from "../../../../(main)/(transaction)/context/DiningModeContext"
+import {useDiningMode} from "../../../../(main)/(component)/(transaction)/context/DiningModeContext"
 
 type Option = { id: string; code: string; icon: string; name: string; description?: string }
 type Props = { onChange?: (v: string) => void; options?: Option[] }

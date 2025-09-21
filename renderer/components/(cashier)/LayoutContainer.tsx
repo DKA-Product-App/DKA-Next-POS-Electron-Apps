@@ -7,7 +7,7 @@ import ShimmerFooterLoading from "./(components)/(loading)/ShimmerFooterLoading"
 import { FunctionKeyProvider } from "../../contexts/FunctionKeyProviderContext";
 import { LayoutManipulatorResizableProvider } from "../../contexts/LayoutManipulatorResizableContext";
 import { ThemeChargerProvider, useThemeCharger } from "./context/ThemeCharger";
-import {LayoutManipulatorSingleProvider} from "./layouts/(main)/(transaction)/context/LayoutManipulatorSingleContext";
+import {LayoutManipulatorSingleProvider} from "./layouts/(main)/(component)/(transaction)/context/LayoutManipulatorSingleContext";
 
 const Header = dynamic(() => import('./(components)/Header'), { loading: () => <ShimmerHeaderLoading />, ssr: false });
 const Footer = dynamic(() => import('./(components)/Footer'), { loading: () => <ShimmerFooterLoading />, ssr: false });

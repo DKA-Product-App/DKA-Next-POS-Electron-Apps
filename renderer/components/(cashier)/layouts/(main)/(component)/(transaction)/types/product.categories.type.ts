@@ -1,6 +1,6 @@
 // Biar eksplisit kalau ini UUID, tapi tetap string di runtime
-import {Accounts} from "../../../../../../types/Accounts.type";
-import {Organization, Project} from "../../../../../../types/Enterprises.type";
+import {Accounts} from "../../../../../../../types/Accounts.type";
+import {Organization, Project} from "../../../../../../../types/Enterprises.type";
 
 export type UUID = string;
 

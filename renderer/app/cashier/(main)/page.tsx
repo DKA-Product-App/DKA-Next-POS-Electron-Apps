@@ -9,12 +9,12 @@ const Overview = dynamic(() => import("../../../components/(cashier)/layouts/(ov
     ssr : false,
 })
 
-const Transaction = dynamic(() => import("../../../components/(cashier)/layouts/(main)/(transaction)"), {
+const CashierMain = dynamic(() => import("../../../components/(cashier)/layouts/(main)"), {
     loading : () => <ShimmerMenuSelectLoading/>,
     ssr: false,
 })
 export default function OverviewLayout(){
     return (
-        <Transaction/>
+        <CashierMain/>
     )
 };

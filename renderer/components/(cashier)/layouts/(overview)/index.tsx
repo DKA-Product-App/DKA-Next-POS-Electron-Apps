@@ -8,7 +8,7 @@ const Information = dynamic(() => import('./ui/(pane)/InformationContent'), {
     loading : () => <ShimmerMenuSelectLoading/>,
     ssr: false,
 })
-const Transaction = dynamic(() => import("../(main)/(transaction)"), {
+const Transaction = dynamic(() => import("../(main)/(component)/(transaction)"), {
     loading : () => <ShimmerMenuSelectLoading/>,
     ssr: false,
 })
