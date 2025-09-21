@@ -19,6 +19,7 @@ import type { Transaction } from './(components)/TransactionListItemRow'
 import ShimmerLoadingTransactionListItemRow from '../(loading)/ShimmerLoadingTransactionListItemRow'
 import ShimmerLoadingTransactionContainer from '../(loading)/ShimmerLoadingTransactionContainer'
 import { useTransactionEventTrigger } from './context/TransactionEventTriggerContext'
+import {useLayoutEffect} from "react";
 
 // ===== Const =====
 const TZ_OFFSET = '+08:00' // Asia/Makassar

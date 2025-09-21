@@ -92,12 +92,12 @@ const RightContainerBatchDetail: React.FC = () => {
     return (
         <Box sx={{ flex:1, minHeight:0, px:1.5, height: '100%' }}>
             <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false }}>
-                <Grid container spacing={1} sx={{ py: 1, pr: 2 }}>
+                <Grid container spacing={2} sx={{ py: 1, pr: 2 }}>
                     {items.map(it => {
                         const selected = selectedItemIds.has(it.id)
                         const disabled = isClosed || isPendingVoid(it) || isApprovedVoid(it)
                         return (
-                            <Grid key={it.id} size={{ xs: 12, sm: 12, md: 3, lg: 2 }}>
+                            <Grid key={it.id} size={{ xs: 12, sm: 12, md: 4, lg: 3 }}>
                                 <MotionPaper
                                     variant="outlined"
                                     whileTap={disabled ? undefined : { scale: 0.99 }}
@@ -266,9 +266,6 @@ const RightContainerBatchDetail: React.FC = () => {
                                             </Typography>
                                         </Stack>
                                     </Box>
-
-
-
                                     <Box sx={{ height:3, background:GRADIENT }}/>
                                 </MotionPaper>
                             </Grid>
