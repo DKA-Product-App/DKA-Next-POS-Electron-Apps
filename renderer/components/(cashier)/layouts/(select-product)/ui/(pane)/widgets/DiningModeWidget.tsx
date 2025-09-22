@@ -6,8 +6,8 @@ import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 import {useDiningMode} from "../../../../(main)/(component)/(transaction)/context/DiningModeContext"
 
-type Option = { id: string; code: string; icon: string; name: string; description?: string }
-type Props = { onChange?: (v: string) => void; options?: Option[] }
+type Option = { id: string; code: string; icon: string; name: string; description?: string, required_table_select?: boolean }
+type Props = { onChange?: (opt: Option) => void; options?: Option[] }
 
 const GRADIENT = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
 type IconVariant = 'rounded' | 'outlined' | 'sharp' | 'two-tone'
@@ -110,17 +110,16 @@ const DiningModeWidget: FC<Props> = memo(({onChange}) => {
     const [selected, setSelected] = React.useState<string | null>(defaultValue)
     const [options, setOptions] = React.useState<Array<Option>>([]);
 
-    const pick = (v: string) => (setSelected(v), onChange?.(v));
+    const pick = (opt: Option) => (setSelected(opt.id), onChange?.(opt))
 
     const fetchDiningMode = () =>
         window.api === undefined
             ? console.error(`Failed Get Window Api Bridge`)
             : window.api.invoke("api.config.data.order.type:read.all", {})
-                .then((result: any) => (setOptions(result.data), console.log(result)))
+                .then((result: any) => (setOptions(result.data), console.table(result)))
                 .catch((error: any) => (setOptions([]), console.error(error)));
 
     React.useEffect(() => { fetchDiningMode() }, [defaultValue])
-    React.useEffect(() => { console.log(options); console.log(defaultValue) }, [])
 
     // sinkronkan state lokal saat context berubah
     React.useEffect(() => setSelected(defaultValue ?? null), [defaultValue, options])
@@ -132,39 +131,48 @@ const DiningModeWidget: FC<Props> = memo(({onChange}) => {
 
     const hasDefault = !!defaultValue && options.some(o => o.id === defaultValue)
 
+
+// ... di return JSX ganti wrapper utamanya jadi:
     return (
-        <Box sx={{my: 1, width: '100%', overflow: 'hidden'}}>
-            <Box sx={{height: 4, borderRadius: 2, background: GRADIENT, opacity: 0.8, mb: 1}}/>
+        <Box sx={{ my: 1, width: '100%', overflow: 'visible', textAlign: 'center' }}>
+            {/* Deret kartu — benar2 center */}
+            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                <PerfectScrollbar
+                    // scroll perlu kalau item banyak, tapi jangan paksa fullwidth
+                    style={{ width: '100%' }}
+                    options={{ suppressScrollY: true, useBothWheelAxes: true, swipeEasing: true, wheelPropagation: false }}
+                >
+                    {/* inline-flex + px agar bisa ke-center mengikuti textAlign parent */}
+                    <Box
+                        sx={{
+                            display: 'inline-flex',
+                            gap: 1,
+                            px: 1,
+                        }}
+                    >
+                        {options.map(opt => {
+                            const active = selected === opt.id
+                            const disabled = disableOtherDefault && hasDefault ? opt.id !== defaultValue : false
+                            const tooltipTitle = disabled ? 'Tidak Dapat Dipilih' : (active ? 'Terpilih' : 'Pilih opsi ini')
 
-            <PerfectScrollbar
-                style={{width: '100%', maxWidth: '100%'}}
-                options={{ suppressScrollY: true, suppressScrollX: false, useBothWheelAxes: true, swipeEasing: true, wheelPropagation: false }}
-            >
-                <Box sx={{display: 'flex', gap: 1, pr: 1, minWidth: 'max-content'}}>
-                    {options.map(opt => {
-                        const active = selected === opt.id
-                        const disabled = disableOtherDefault && hasDefault ? opt.id !== defaultValue : false
-                        const tooltipTitle = disabled ? 'Tidak Dapat Dipilih' : (active ? 'Terpilih' : 'Pilih opsi ini')
-
-                        return (
-                            <Tooltip key={opt.id} title={tooltipTitle} placement="top" arrow>
-                                <Box>
-                                    <DiningCard
-                                        active={active}
-                                        disabled={disabled}
-                                        label={opt.name}
-                                        hint={opt.description}
-                                        icon={opt.icon}
-                                        onClick={() => (disabled ? undefined : pick(opt.id))}
-                                    />
-                                </Box>
-                            </Tooltip>
-                        )
-                    })}
-                </Box>
-            </PerfectScrollbar>
-
-            <Box sx={{height: 4, borderRadius: 2, background: GRADIENT, opacity: 0.8, mt: 1}}/>
+                            return (
+                                <Tooltip key={opt.id} title={tooltipTitle} placement="top" arrow>
+                                    <Box>
+                                        <DiningCard
+                                            active={active}
+                                            disabled={disabled}
+                                            label={opt.name}
+                                            hint={opt.description}
+                                            icon={opt.icon}
+                                            onClick={() => (disabled ? undefined : pick(opt))}
+                                        />
+                                    </Box>
+                                </Tooltip>
+                            )
+                        })}
+                    </Box>
+                </PerfectScrollbar>
+            </Box>
         </Box>
     )
 })

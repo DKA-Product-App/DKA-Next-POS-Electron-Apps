@@ -6,7 +6,7 @@ import { ApiRequestInstance } from "../../functions/api/api.request.instance";
 export function TransactionBatchItem(mainWindow ?: BrowserWindow) {
     // CREATE
     mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:create", (_event, args) => {
-        mainWindow?.webContents?.ipc?.removeHandler?.("api.config.base.corporation:create")
+
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item`);
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({

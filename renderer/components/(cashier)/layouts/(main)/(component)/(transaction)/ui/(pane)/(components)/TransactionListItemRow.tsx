@@ -14,6 +14,7 @@ import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
 import CheckRounded from '@mui/icons-material/CheckRounded'
 
 import TransactionListItemPrintTransaction from './TransactionListItemPrintTransaction'
+import {useEffect} from "react";
 
 /* ========= Types (mirror dari parent, biar gak ubah struktur) ========= */
 export type Name = { first_name: string; last_name?: string }
@@ -188,6 +189,9 @@ export const TransactionListItemRow: React.FC<{
     const isClosed = Boolean(o.time_closed)
     const cardBorderColor = singleSelected ? 'primary.outlinedBorder' : (isClosed ? 'error.light' : 'divider')
 
+    useEffect(() => {
+        console.log(prices)
+    }, []);
     return (
         <>
             <ListItemButton

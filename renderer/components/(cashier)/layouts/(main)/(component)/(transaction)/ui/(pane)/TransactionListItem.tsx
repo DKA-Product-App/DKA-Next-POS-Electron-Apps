@@ -1,3 +1,4 @@
+// Left: TransactionListItem.tsx (full revisi)
 'use client'
 
 import * as React from 'react'
@@ -19,7 +20,6 @@ import type { Transaction } from './(components)/TransactionListItemRow'
 import ShimmerLoadingTransactionListItemRow from '../(loading)/ShimmerLoadingTransactionListItemRow'
 import ShimmerLoadingTransactionContainer from '../(loading)/ShimmerLoadingTransactionContainer'
 import { useTransactionEventTrigger } from './context/TransactionEventTriggerContext'
-import {useLayoutEffect} from "react";
 
 // ===== Const =====
 const TZ_OFFSET = '+08:00' // Asia/Makassar
@@ -43,7 +43,7 @@ const toErrorMessage = (err: any) =>
         : (err?.message || err?.error || 'Terjadi kesalahan pada server. Mohon coba lagi beberapa saat lagi.')
 
 const TransactionListItemRow = dynamic(() => import('./(components)/TransactionListItemRow'), {
-    loading: () => <ShimmerLoadingTransactionListItemRow/>,
+    loading: () => <ShimmerLoadingTransactionListItemRow />,
     ssr: true,
 })
 
@@ -80,8 +80,8 @@ const TransactionListItem: React.FC = () => {
     const [singleSelectedId, setSingleSelectedId] = React.useState<string>()
     const [multiSelectedIds, setMultiSelectedIds] = React.useState<Set<string>>(new Set())
 
-    // 🔑 Refresh key dari NewOrderModal.onCreated() / tombol "Coba lagi"
-    const [reloadKey, setReloadKey] = React.useState(0);
+    // 🔑 Refresh key dari tombol "Coba lagi" atau event lain
+    const [reloadKey, setReloadKey] = React.useState(0)
 
     const { token, reason } = useTransactionEventTrigger()
     const lastReasonRef = React.useRef<string | null>(null)
@@ -98,11 +98,32 @@ const TransactionListItem: React.FC = () => {
     const onFiltersChange = (patch: Partial<Filters>) => setFilters(prev => ({ ...prev, ...patch }))
 
     const refetch = () => {
-        // refetch sesuai filter saat ini
         setFetchError(null)
         setReloadKey(k => k + 1)
     }
 
+    // === Soft refetch (tanpa menyentuh reloadKey) ===
+    const softRefetch = React.useCallback(() => {
+        const { startAt, endAt } = filters
+        if (!startAt || !endAt) return
+        const payload = { startAt: `${startAt}:00${TZ_OFFSET}`, endAt: `${endAt}:59${TZ_OFFSET}` }
+
+        setIsFetching(true)
+        setFetchError(null)
+        // @ts-ignore (ipc from Electron)
+        return window.api.invoke('api.transaction:read.all', payload)
+            .then((result: { data: Transaction[] }) => {
+                setTransaction(result?.data ?? [])
+                setFetchError(null)
+                return undefined
+            })
+            .catch((err: any) => {
+                setTransaction([])
+                setFetchError(toErrorMessage(err))
+                return undefined
+            })
+            .finally(() => setIsFetching(false))
+    }, [filters])
 
     // === FETCH by date range ===
     React.useEffect(() => {
@@ -151,7 +172,7 @@ const TransactionListItem: React.FC = () => {
         lastReasonRef.current = reason ?? null
         setFetchError(null)
         setReloadKey(k => k + 1)
-    }, [token])
+    }, [token, reason])
 
     // b) kalau reason === 'batch' → set slider ke maksimal SETELAH max* update
     React.useEffect(() => {
@@ -228,7 +249,7 @@ const TransactionListItem: React.FC = () => {
     const hasClosed = React.useMemo(() => selectedTxs.some(t => Boolean(t.time_closed)), [selectedTxs])
     const selectedCount = multiSelectedIds.size
 
-    // Sinkronisasi selection terhadap filtered
+    // Sinkronisasi selection terhadap filtered TANPA remount right pane
     React.useEffect(() => {
         // bersihkan multi yang tak lagi ada di list, dan EXCLUDE yang sudah closed
         setMultiSelectedIds(prev => {
@@ -237,27 +258,23 @@ const TransactionListItem: React.FC = () => {
             return cleaned.length === prev.size ? prev : new Set(cleaned)
         })
 
-        // reset single jika sudah tidak ada
-        const exists = singleSelectedId && filtered.some(t => t.id === singleSelectedId)
-        if (!exists) {
-            setSingleSelectedId(undefined)
-            setLayout(prev => ({ ...prev, right: <TransactionListItemNotFound/> }))
-        } else if (singleSelectedId) {
-            setLayout(prev => ({ ...prev, right: <TransactionContainer id={singleSelectedId} /> }))
+        // single: kalau item yang dipilih hilang baru reset; kalau masih ada, DIAM.
+        if (singleSelectedId) {
+            const stillExists = filtered.some(t => t.id === singleSelectedId)
+            if (!stillExists) {
+                setSingleSelectedId(undefined)
+                setLayout(prev => ({ ...prev, right: <TransactionListItemNotFound /> }))
+            }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filtered])
+    }, [filtered, singleSelectedId, setLayout])
 
     // Handler single select via row click (TOGGLE on second click)
     const onRowClick = (id: string) => {
-        setReloadKey(k => k + 1)
         setSingleSelectedId(prev => {
             if (prev === id) {
-                // unselect & reset right pane
-                setLayout(p => ({ ...p, right: <TransactionListItemNotFound/> }))
+                setLayout(p => ({ ...p, right: <TransactionListItemNotFound /> }))
                 return undefined
             }
-            // select baru & render kanan
             setLayout(p => ({ ...p, right: <TransactionContainer id={id} /> }))
             return id
         })
@@ -384,7 +401,8 @@ const TransactionListItem: React.FC = () => {
                 }}
             >
                 <Stack direction="row" spacing={1.25} alignItems="center" justifyContent="flex-end" sx={{ flexShrink: 0 }}>
-                    <NewOrderModal onCreated={() => setReloadKey(k => k + 1)} />
+                    {/* pakai softRefetch biar tidak bikin remount */}
+                    <NewOrderModal onCreated={softRefetch} />
                     <TransactionButtonJoinBillWidget
                         key={`join-${selectedCount}`}
                         selectedIds={Array.from(multiSelectedIds)}

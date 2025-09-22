@@ -62,7 +62,6 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: string }> = ({ tx }) => {
     const closeDialog = () => setOpen(false)
 
     const submitNewBatchTransaction = (item: CartItem[]) => {
-        console.table(item)
         const itemRefactor = item.map((i) => ({
             ...i.variant,
             product: i.variant.product,
@@ -72,29 +71,41 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: string }> = ({ tx }) => {
             price: Number(i.price),
             sub_total: Number(i.price) * Number(i.qty),
         }))
-        console.table(itemRefactor)
+
         // @ts-ignore
         window.api.invoke('api.transaction.batch:create', {
             transaction: { id: txId },
-            branch: {
-                // NOTE: pastikan ini sesuai struktur header kamu;
-                // sebelumnya "id: header" tampak tidak sengaja
-                id: "00000000-0000-5000-a000-000000000000"
-            },
+            branch: { id: '00000000-0000-5000-a000-000000000000' },
             reference: header?.reference,
             items: itemRefactor,
         })
             .then((res: any) => {
-                closeDialog()
-                setReloadKey(k => k + 1)
-                // 🔔 kasih tahu global list untuk refresh
+                // 1) map response ke tipe Batch lokal kita (tanpa refetch total)
+                const b = res?.data
+                const mapped: Batch = {
+                    id: String(b.id),
+                    batch: Number(b.batch),
+                    note: b.note ?? null,
+                    items: Array.isArray(b.items) ? b.items : [],
+                }
+
+                // 2) langsung inject ke state —> layout tetep, gak lost
+                setBatches(prev => [...prev, mapped])
+
+                // 3) set selection ke batch yang baru dibuat (opsional)
+                setSelectedBatchId(mapped.id)
+
+                // 4) ping global kalau ada listener lain (boleh dipertahankan)
                 bump('batch')
-                console.log(res)
+
+                // 5) tutup dialog — layout di belakang tetap stay
+                closeDialog()
             })
             .catch((error: any) => {
                 console.error(error)
             })
     }
+
 
     // fetch semua batch utk transaksi ini
     React.useEffect(() => {

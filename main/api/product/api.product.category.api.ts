@@ -6,7 +6,7 @@ import { ApiRequestInstance } from "../../functions/api/api.request.instance";
 export function ProductCategory(mainWindow ?: BrowserWindow) {
     // CREATE
     mainWindow?.webContents?.ipc?.handle?.("api.product.category:create", (_event, args) => {
-        mainWindow?.webContents?.ipc?.removeHandler?.("api.config.base.corporation:create")
+
         const toPath = compile(`/v${ApiConfig.version}/resources/product/category`);
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({

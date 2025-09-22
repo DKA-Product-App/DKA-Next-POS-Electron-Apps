@@ -151,8 +151,8 @@ const FooterBar: React.FC<{
             }}
         >
             <Stack spacing={0.5}>
-                <DiningModeWidget onChange={() => undefined}  />
-                <PromoWidget />
+                {/*<DiningModeWidget onChange={() => undefined}  />*/}
+               {/* <PromoWidget />*/}
 
                 <Stack direction="row" justifyContent="space-between">
                     <Typography color="text.secondary">Subtotal</Typography>

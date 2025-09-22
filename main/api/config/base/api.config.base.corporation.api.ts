@@ -7,7 +7,7 @@ export function ApiConfigBaseCorporation(mainWindow?: BrowserWindow) {
 
     // CREATE
     mainWindow?.webContents?.ipc?.handle?.("api.config.base.corporation:create", (_event, args) => {
-        mainWindow?.webContents?.ipc?.removeHandler?.("api.config.base.corporation:create")
+
         const toPath = compile(`/v${ApiConfig.version}/resources/config/base/corporation`);
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
