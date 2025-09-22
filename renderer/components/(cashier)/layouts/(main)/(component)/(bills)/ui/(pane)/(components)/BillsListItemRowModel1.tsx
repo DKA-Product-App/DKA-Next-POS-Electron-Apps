@@ -2,104 +2,150 @@
 'use client'
 
 import * as React from 'react'
-import { Box, Chip, ListItemButton, Stack, Typography } from '@mui/material'
-import RequestQuoteRounded from '@mui/icons-material/RequestQuoteRounded'
-import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded'
-import EventNoteRounded from '@mui/icons-material/EventNoteRounded'
-import Inventory2Rounded from '@mui/icons-material/Inventory2Rounded'
-import type { BillStub } from '../BillsListItem' // ⬅️ tipe dump-only dari parent
+import { ListItemButton, Stack, Typography, Chip, Box } from '@mui/material'
+import { alpha } from '@mui/material/styles'
+import ReceiptLongRounded from '@mui/icons-material/ReceiptLongRounded'
+import LocalMallRounded from '@mui/icons-material/LocalMallRounded'
+import LayersRounded from '@mui/icons-material/LayersRounded'
+import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
+import ScheduleRounded from '@mui/icons-material/ScheduleRounded'
+import type { ApiBill } from '../BillsListItem'
 
-export type BillsListItemRowProps = {
-    bill: BillStub
+type Props = {
+    bill: ApiBill
     selected?: boolean
     onRowClick?: () => void
 }
 
-const chipSquare = { borderRadius: 0 } as const
-const fmtIDR = (n?: string) =>
-    n ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(+n) : 'Rp —'
+const toIDR = (money?: string) =>
+    money ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(money)) : 'Rp 0'
 
-const statusChip = (status?: BillStub['status']) => {
-    switch (status) {
-        case 'paid':    return { color: 'success' as const, label: 'Paid' }
-        case 'partial': return { color: 'info'    as const, label: 'Partial' }
-        default:        return { color: 'warning' as const, label: 'Unpaid' }
-    }
-}
+const nameJoin = (n?: { first_name?: string; last_name?: string }) =>
+    [n?.first_name, n?.last_name].filter(Boolean).join(' ').trim()
 
-const BillsListItemRowModel1: React.FC<BillsListItemRowProps> = ({ bill, selected = false, onRowClick }) => {
-    const cardBorderColor = selected ? 'primary.outlinedBorder' : 'divider'
-    const st = statusChip(bill.status)
+const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0)
+const fmtTime = (iso?: string) => iso ? new Date(iso).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'
+
+const BillsListItemRowModel1: React.FC<Props> = ({ bill, selected, onRowClick }) => {
+    // ====== derive semua dari bill ======
+    const invoice = bill.transaction?.invoice ?? String(bill.number ?? '')
+    const cashier = nameJoin(bill.reference?.name) || bill.reference?.username || '—'
+
+    // order type, shift, meja
+    const orderLabel = bill.order_type?.name || bill.order_type?.code || '—'
+    const shiftLabel = bill.shift?.name
+        ? (bill.shift.start_time && bill.shift.end_time
+            ? `${bill.shift.name} (${bill.shift.start_time}–${bill.shift.end_time})`
+            : bill.shift.name)
+        : '—'
+    const tableLabel = bill.table?.name || bill.table?.code || '—'
+
+    // status: unpaid kalau paid undefined; kalau ada pakai paid.status
+    const isPaid = bill.paid ? !!bill.paid.status : false
+    const statusLabel: 'paid' | 'unpaid' = isPaid ? 'paid' : 'unpaid'
+    const chipColor = isPaid ? 'success' : 'default'
+
+    // waktu tampil: prioritas paid.time; fallback time_created/transaction/time item
+    const paidAt = bill.paid?.time
+    const issuedAt = bill.time_created || bill.transaction?.time_created || bill.items?.[0]?.time_created
+    const displayTime = paidAt ?? issuedAt
+
+    // total: ambil dari server, fallback hitung items
+    const displayTotal = toIDR(
+        bill.total ??
+        (bill.items?.length ? String(sum(bill.items.map(i => Number(i.sub_total)))) : '0')
+    )
+
+    // jumlah items (panjang array items)
+    const itemsCount = bill.items?.length ?? 0
 
     return (
-        <Box sx={{ mb: 1 }}>
-            <ListItemButton
-                onClick={onRowClick}
-                selected={selected}
-                sx={{
-                    position: 'relative',
-                    alignItems: 'flex-start',
-                    p: 0, // footer full-bleed
-                    border: '1px solid', borderColor: cardBorderColor,
-                    bgcolor: selected ? 'action.selected' : 'background.paper',
-                    boxShadow: selected ? '0 10px 24px rgba(0,0,0,0.12)' : '0 2px 8px rgba(0,0,0,0.06)',
-                    transition: 'transform .15s ease, box-shadow .2s ease, border-color .2s ease, background-color .2s ease',
-                    transform: 'translateY(0)',
-                    '&:hover': { transform: 'translateY(-1px)', boxShadow: '0 12px 28px rgba(0,0,0,0.12)' },
-                    borderRadius: 0,
-                    '&::before': {
-                        content: '""', position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
-                        background: 'linear-gradient(180deg, #7c3aed, #a855f7 60%, #c084fc)',
-                    },
-                }}
-            >
-                <Stack spacing={0} width="100%">
-                    {/* Header content */}
-                    <Box sx={{ px: 1.5, py: 1.25 }}>
-                        {/* Row 1: [Invoice + Status] kiri — [Price] kanan */}
-                        <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
-                            <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
-                                <RequestQuoteRounded fontSize="small" />
-                                <Typography variant="h6" fontWeight={900} noWrap sx={{ letterSpacing: .2, lineHeight: 1.2 }}>
-                                    #{' '}{bill.invoice}
-                                </Typography>
-                                <Chip size="small" color={st.color} label={st.label} sx={chipSquare} />
-                            </Stack>
-                            <Typography variant="subtitle1" fontWeight={900}>
-                                {fmtIDR(bill.total)}
+        <ListItemButton
+            onClick={onRowClick}
+            selected={!!selected}
+            sx={(t) => ({
+                alignItems: 'flex-start',
+                mb: 0.75,
+                px: 1.25,
+                py: 1,
+                borderRadius: 1.5,
+                border: '1px solid',
+                borderColor: selected ? t.palette.primary.main : 'divider',
+                bgcolor: selected ? alpha(t.palette.primary.main, 0.06) : 'background.paper',
+                transition: 'transform 120ms ease',
+                '&:active': { transform: 'scale(0.99)' },
+            })}
+        >
+            <Stack direction="row" spacing={1.25} sx={{ width: '100%', minWidth: 0 }}>
+                {/* ikon */}
+                <Box sx={(t) => ({
+                    mt: 0.2,
+                    p: 0.8,
+                    borderRadius: 1,
+                    bgcolor: alpha(t.palette.primary.main, 0.08),
+                    color: t.palette.primary.main,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                })}>
+                    <ReceiptLongRounded fontSize="small" />
+                </Box>
+
+                {/* konten */}
+                <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
+                    {/* baris atas: invoice, status, count, total */}
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                        <Typography variant="subtitle1" fontWeight={800} noWrap title={invoice}>#{invoice}</Typography>
+                        <Chip size="small" label={statusLabel} color={chipColor as any} />
+                        <Chip
+                            size="small"
+                            variant="outlined"
+                            icon={<LocalMallRounded sx={{ fontSize: 14 }} />}
+                            label={`${itemsCount} item${itemsCount === 1 ? '' : 's'}`}
+                            sx={{ ml: 0.25 }}
+                        />
+                        <Box sx={{ flex: 1 }} />
+                        <Typography variant="subtitle1" fontWeight={800}>{displayTotal}</Typography>
+                    </Stack>
+
+                    {/* baris info: order type, shift, meja, waktu, cashier */}
+                    <Stack direction="row" spacing={1.25} sx={{ color: 'text.secondary', alignItems: 'center', flexWrap: 'wrap' }}>
+                        {/* Order Type */}
+                        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                            <LocalMallRounded sx={{ fontSize: 16 }} />
+                            <Typography variant="body2" noWrap title={orderLabel}>{orderLabel}</Typography>
+                        </Stack>
+
+                        {/* Shift */}
+                        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                            <ScheduleRounded sx={{ fontSize: 16 }} />
+                            <Typography variant="body2" noWrap title={shiftLabel}>{shiftLabel}</Typography>
+                        </Stack>
+
+                        {/* Meja */}
+                        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                            <LayersRounded sx={{ fontSize: 16 }} />
+                            <Typography variant="body2" noWrap title={tableLabel}>{tableLabel}</Typography>
+                        </Stack>
+
+                        {/* Waktu (paid/issued) */}
+                        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                            <AccessTimeRounded sx={{ fontSize: 16 }} />
+                            <Typography
+                                variant="body2"
+                                noWrap
+                                title={paidAt ? `Dibayar: ${paidAt}` : (issuedAt ? `Dibuat: ${issuedAt}` : '')}
+                            >
+                                {fmtTime(displayTime)}
                             </Typography>
                         </Stack>
 
-                        {/* Row 2: meta ringkas */}
-                        <Stack direction="row" alignItems="center" gap={0.75} sx={{ mt: 1 }}>
-                            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
-                                <Chip size="small" icon={<Inventory2Rounded />} label="0 item" sx={chipSquare} />
-                                <Chip size="small" icon={<EventNoteRounded />} label={`Issued — ${bill.issuedAt ?? ''}`} sx={chipSquare} />
-                                <Chip size="small" icon={<PersonOutlineRounded />} label={`Customer — ${bill.customer ?? '—'}`} sx={chipSquare} />
-                            </Stack>
-                        </Stack>
-                    </Box>
+                        <Box sx={{ flex: 1 }} />
 
-                    {/* Footer strip (di dalam button, full-bleed) */}
-                    <Box
-                        sx={{
-                            mt: 0.5,
-                            width: '100%',
-                            py: 0.75,
-                            px: 1.5,
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            bgcolor: 'primary.main',
-                            color: 'primary.contrastText',
-                            borderTop: '1px solid',
-                            borderColor: cardBorderColor,
-                        }}
-                    >
-                        <Typography variant="caption" sx={{ fontWeight: 800 }}>Updated —</Typography>
-                        <Typography variant="caption">Ref — {bill.ref ?? '—'}</Typography>
-                    </Box>
+                        {/* Kasir */}
+                        <Typography variant="body2" noWrap title={cashier}>{cashier}</Typography>
+                    </Stack>
                 </Stack>
-            </ListItemButton>
-        </Box>
+            </Stack>
+        </ListItemButton>
     )
 }
 
