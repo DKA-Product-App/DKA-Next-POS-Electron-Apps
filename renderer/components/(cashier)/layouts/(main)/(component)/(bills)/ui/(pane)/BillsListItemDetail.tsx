@@ -20,8 +20,8 @@ import 'react-perfect-scrollbar/dist/css/styles.css'
 
 import Image, { ImageLoader } from 'next/image'
 import Skeleton from '@mui/material/Skeleton'
-
-import type { ApiBill } from './BillsListItem'
+import { TransactionBill, TransactionBillTransactionItem } from '../../types/transaction.bill.type'
+import {useTabNavigationHandlerContext} from "../../../(transaction)/context/TabNavigationHandlerContext";
 
 /* ================================= THEME ACCENTS ================================= */
 const PURPLE_GRAD = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
@@ -34,19 +34,19 @@ const fmtIDR = (n?: number | string) =>
         ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(n))
         : 'Rp —'
 
-const fmtTimeLong = (iso?: string) =>
-    iso ? new Date(iso).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '—'
+const fmtTimeShort = (iso?: string) =>
+    iso ? new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '—'
 
-const statusChip = (bill: ApiBill) => {
+const statusChip = (bill: TransactionBill) => {
     const paid = (bill as any).paid
     if (!paid) return { color: 'warning' as const, label: 'Unpaid' }
-    return paid.status ? { color: 'success' as const, label: 'Paid' } : { color: 'warning' as const, label: 'Unpaid' }
+    return paid.is_paid ? { color: 'success' as const, label: 'Paid' } : { color: 'warning' as const, label: 'Unpaid' }
 }
 
 const first = <T,>(a?: T[] | T | null): T | undefined =>
     Array.isArray(a) ? a[0] : (a as T | undefined)
 
-/* ------------ Image helpers (match your checker component) ------------- */
+/* ------------ Image helpers ------------- */
 const uploadsLoader: ImageLoader = ({ src }) => {
     if (src?.startsWith('uploads:///')) {
         const base = process.env.NEXT_PUBLIC_UPLOADS_BASE_URL || ''
@@ -84,7 +84,37 @@ const ImgWithSkeleton: React.FC<{ src: string; alt: string; loader?: ImageLoader
     )
 }
 
-/* ================================= TYPES ================================= */
+/* ================================= DATA DERIVERS ================================= */
+const getInvoice = (b: TransactionBill) => (b as any).transaction?.invoice ?? String((b as any).number ?? '')
+const getIssuedAt = (b: TransactionBill) => (b as any).time_created || (b as any).transaction?.time_created
+const getPaidAt = (b: TransactionBill) => (b as any).paid?.time
+const getRef = (b: TransactionBill) =>
+    (b as any).transaction?.table?.name
+    || (b as any).transaction?.table?.code
+    || (b as any).transaction?.order_type?.name
+    || (b as any).transaction?.order_type?.code
+    || undefined
+
+const deriveLineItems = (bill: TransactionBill): TransactionBillTransactionItem[] =>
+    (bill.items ?? []).map((wrap) => {
+        const it = wrap.transactionItem ?? {}
+        return {
+            id: String(wrap.id ?? it.id ?? Math.random()),
+            qty: Number(wrap.qty ?? it.qty ?? 0),
+            price: Number((wrap.price ?? it.price ?? 0) as number),
+            sub_total: Number((wrap.sub_total ?? it.sub_total ?? 0) as number),
+            note: it.note ?? undefined,
+            number: bill.number ?? "# -",
+            time_created: it.time_created,
+            time_updated: it.time_updated,
+            void: it.void,
+            reference: it.reference,
+            product: it.product,
+            variant: it.variant,
+        } as TransactionBillTransactionItem
+    })
+
+/* ================================== SUB-COMPONENTS ================================== */
 type PaymentMethod = {
     id: string
     icon?: string
@@ -95,56 +125,6 @@ type PaymentMethod = {
 }
 type ApiResponse<T> = { status: boolean; code: number; msg: string; data: T }
 
-/* ================================= DATA DERIVERS ================================= */
-const getInvoice = (b: ApiBill) => (b as any).transaction?.invoice ?? String((b as any).number ?? '')
-const getIssuedAt = (b: ApiBill) => (b as any).time_created || (b as any).transaction?.time_created
-const getPaidAt = (b: ApiBill) => (b as any).paid?.time
-const getRef = (b: ApiBill) =>
-    (b as any).table?.name || (b as any).table?.code || (b as any).order_type?.name || (b as any).order_type?.code || undefined
-
-type FlatItem = {
-    id: string
-    productName: string
-    variantName?: string
-    categoryName?: string
-    imageUrl?: string
-    note?: string
-    qty: number
-    price: number
-    subtotal: number
-}
-const deriveLineItems = (bill: ApiBill): FlatItem[] => {
-    const items = ((bill as any).items ?? []) as any[]
-    if (!items.length) return []
-    return items.map((wrap) => {
-        const it = wrap.transactionItem ?? {}
-        const product = it.product ?? {}
-        const variant = it.variant ?? {}
-        const category = first(product?.category) as any
-        const rawImg = product?.image ?? first(product?.images) ?? first(product?.photos)
-        const imageUrl = typeof rawImg === 'string' ? rawImg : rawImg?.url
-
-        const qty = Number(wrap.qty ?? 0)
-        const price = Number(wrap.price ?? 0)
-        const subtotal = Number(wrap.sub_total ?? 0)
-
-        return {
-            id: String(wrap.id ?? it.id ?? Math.random()),
-            productName: String(product?.name ?? 'Item'),
-            variantName: variant?.name,
-            categoryName: category?.name,
-            imageUrl,
-            note: it.note ?? wrap.note ?? undefined,
-            qty,
-            price,
-            subtotal,
-        }
-    })
-}
-
-/* ================================== SUB-COMPONENT ==================================
-   Fetch daftar metode pembayaran dari server, render pilihan, expose pilihan ke parent.
-*/
 const iconFromMethod = (m?: PaymentMethod) => {
     const key = (m?.icon || '').toLowerCase()
     const nm = (m?.name || '').toLowerCase()
@@ -153,7 +133,6 @@ const iconFromMethod = (m?: PaymentMethod) => {
     if (key.includes('takeout')) return <TakeoutDiningRounded fontSize="medium" />
     if (key.includes('restaurant')) return <RestaurantRounded fontSize="medium" />
     if (key.includes('cash') || nm.includes('tunai') || nm.includes('cash')) return <AttachMoneyRounded fontSize="medium" />
-    // default
     return <AttachMoneyRounded fontSize="medium" />
 }
 
@@ -247,12 +226,13 @@ const PaymentMethodsPicker: React.FC<{
 /* ================================= MAIN ================================= */
 type TenderMode = 'idle' | 'entry' | 'ready'
 
-const BillListItemDetail: React.FC<{ bill: ApiBill }> = ({ bill }) => {
+const BillListItemDetail: React.FC<{ bill: TransactionBill }> = ({ bill }) => {
     const st = statusChip(bill)
-    const isPaid = !!(bill as any).paid?.status
+    const isPaid = !!(bill as any).paid?.is_paid
     const items = deriveLineItems(bill)
 
-    const itemsSubtotal = items.reduce((a, it) => a + (it.subtotal || 0), 0)
+    const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0)
+    const itemsSubtotal = items.length ? sum(items.map(i => Number(i.sub_total ?? 0))) : 0
     const [taxRate] = React.useState<number>(0.10)
     const tax = Math.max(0, Math.round(itemsSubtotal * taxRate))
     const grandTotal = Math.max(0, itemsSubtotal + tax)
@@ -260,20 +240,19 @@ const BillListItemDetail: React.FC<{ bill: ApiBill }> = ({ bill }) => {
     const invoice = getInvoice(bill)
     const ref = getRef(bill)
     const itemsCount = items.length
-    const qtyTotal = items.reduce((a, it) => a + it.qty, 0)
+    const qtyTotal = items.reduce((a, it) => a + Number(it.qty ?? 0), 0)
 
     /* ---------------- PAYMENT STATE ---------------- */
     const [method, setMethod] = React.useState<PaymentMethod | null>(null)
     const [needTender, setNeedTender] = React.useState<boolean>(false)
-    const [tenderMode, setTenderMode] = React.useState<TenderMode>('idle')          // 'idle' | 'entry' | 'ready'
-    const [showTotals, setShowTotals] = React.useState<boolean>(true)               // UI-friendly flag
-    const [cashStr, setCashStr] = React.useState<string>('')                        // raw input
+    const [tenderMode, setTenderMode] = React.useState<TenderMode>('idle')
+    const [showTotals, setShowTotals] = React.useState<boolean>(true)
+    const [cashStr, setCashStr] = React.useState<string>('')
     const cash = cashStr === '' ? 0 : Number(cashStr.replaceAll('.', '').replaceAll(',', ''))
     const change = Math.max(0, cash - grandTotal)
     const shortage = Math.max(0, grandTotal - cash)
     const cashRef = React.useRef<HTMLInputElement>(null)
 
-    // Saat memilih metode → set needTender & mode
     React.useEffect(() => {
         const nt = !!method?.need_tender
         setNeedTender(nt)
@@ -293,7 +272,6 @@ const BillListItemDetail: React.FC<{ bill: ApiBill }> = ({ bill }) => {
         }
     }, [method, isPaid])
 
-    // Saat nilai cash cukup + Enter → switch ke READY dan tampilkan total kembali
     const onCashKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
         if (e.key === 'Enter' && cash >= grandTotal) {
             setTenderMode('ready')
@@ -306,7 +284,6 @@ const BillListItemDetail: React.FC<{ bill: ApiBill }> = ({ bill }) => {
         }
     }
 
-    // Jika READY tapi uang jadi kurang (ubah input/tax) → kembali ke ENTRY & sembunyikan total
     React.useEffect(() => {
         if (tenderMode === 'ready' && cash < grandTotal && needTender && !isPaid) {
             setTenderMode('entry')
@@ -318,7 +295,7 @@ const BillListItemDetail: React.FC<{ bill: ApiBill }> = ({ bill }) => {
         ? (cash > 0 ? (cash < grandTotal ? `Kurang ${fmtIDR(shortage)}` : 'Uang cukup • tekan Enter') : 'Masukkan nominal tunai')
         : 'Pilih metode pembayaran'
 
-    const canPay = !isPaid && (needTender ? tenderMode === 'ready' : method !== null)
+    const canPay = !isPaid && (!needTender || tenderMode === 'ready')
 
     /* ---------------- ITEM GRID ---------------- */
     const ITEM_COLS = {
@@ -333,6 +310,8 @@ const BillListItemDetail: React.FC<{ bill: ApiBill }> = ({ bill }) => {
         minWidth: 0,
     })
 
+    const printLabel = isPaid ? 'Print Bukti Pembayaran' : 'Print Tagihan'
+
     return (
         <Box sx={{ height: '100%', width: '100%' }}>
             <Paper elevation={0} sx={{ height: '100%', width: '100%', border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper', borderRadius: 0, display: 'flex', flexDirection: 'column' }}>
@@ -343,7 +322,7 @@ const BillListItemDetail: React.FC<{ bill: ApiBill }> = ({ bill }) => {
                             <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
                                 <RequestQuoteRounded sx={{ fontSize: { xs: 18, md: 20 } }} />
                                 <Typography variant="h5" fontWeight={900} noWrap sx={{ letterSpacing: 0.2 }}>
-                                    #{' '}{invoice}
+                                    #{' '}{bill.number}
                                 </Typography>
                                 <Chip size="small" color={st.color} label={st.label} sx={{ borderRadius: 0, fontSize: { xs: 12, md: 13 } }} />
                                 <Chip size="small" variant="outlined" label={`${itemsCount} item${itemsCount === 1 ? '' : 's'} • ${qtyTotal} qty`} sx={{ borderRadius: 0, fontSize: { xs: 12, md: 13 } }} />
@@ -353,7 +332,7 @@ const BillListItemDetail: React.FC<{ bill: ApiBill }> = ({ bill }) => {
                                 <Stack direction="row" spacing={0.75} alignItems="center">
                                     <AccessTimeRounded sx={{ fontSize: 18 }} />
                                     <Typography variant="body1">
-                                        {isPaid ? `Paid — ${fmtTimeLong(getPaidAt(bill))}` : `Issued — ${fmtTimeLong(getIssuedAt(bill))}`}
+                                        {isPaid ? `Paid — ${fmtTimeShort(getPaidAt(bill))}` : `Issued — ${fmtTimeShort(getIssuedAt(bill))}`}
                                     </Typography>
                                 </Stack>
                                 <Typography variant="body1">Ref — {ref ?? '—'}</Typography>
@@ -383,7 +362,7 @@ const BillListItemDetail: React.FC<{ bill: ApiBill }> = ({ bill }) => {
                         <Box sx={{ px: { xs: 2, md: 2.5 }, pb: 2 }}>
                             <Stack spacing={1}>
                                 {items.map((it, idx) => {
-                                    const imgSrc = ph(it.productName, it.imageUrl)
+                                    const imgSrc = ph(it.product?.name ?? '', it.product?.image ?? '')
                                     return (
                                         <Paper key={it.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', position: 'relative', '&::before': { content: '""', position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: ACCENT } }}>
                                             <ButtonBase sx={{ width: '100%', display: 'grid', alignItems: 'stretch', textAlign: 'left', gridTemplateColumns: { xs: ITEM_COLS.xs, md: ITEM_COLS.md }, p: 0, '&:hover': { backgroundColor: 'action.hover' } }}>
@@ -394,15 +373,15 @@ const BillListItemDetail: React.FC<{ bill: ApiBill }> = ({ bill }) => {
                                                 {/* Produk */}
                                                 <Box sx={{ ...colCell(true), px: 1.25, py: 1.1, display: 'flex', alignItems: 'flex-start', gap: 1.25 }}>
                                                     <Box sx={{ width: 56, flexShrink: 0 }}>
-                                                        <ImgWithSkeleton loader={uploadsLoader} src={imgSrc} alt={it.productName} radius={8} />
+                                                        <ImgWithSkeleton loader={uploadsLoader} src={imgSrc} alt={it.product?.name ?? ''} radius={8} />
                                                     </Box>
                                                     <Box sx={{ minWidth: 0 }}>
-                                                        <Typography variant="body1" fontWeight={900} noWrap title={it.productName}>{it.productName}</Typography>
+                                                        <Typography variant="body1" fontWeight={900} noWrap title={it.product?.name ?? ''}>{it.product?.name ?? ''}</Typography>
                                                         <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 0.25, minWidth: 0, flexWrap: 'wrap' }}>
-                                                            {it.categoryName && (
-                                                                <Typography variant="caption" sx={(t) => ({ px: 0.75, py: 0.25, border: '1px solid', borderColor: 'divider', bgcolor: t.palette.action.hover, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .3 })} noWrap title={it.categoryName}>{it.categoryName}</Typography>
+                                                            {it.product?.category && (
+                                                                <Typography variant="caption" sx={(t) => ({ px: 0.75, py: 0.25, border: '1px solid', borderColor: 'divider', bgcolor: t.palette.action.hover, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .3 })} noWrap title={first(it.product?.category)?.name ?? ''}>{first(it.product?.category)?.name ?? ''}</Typography>
                                                             )}
-                                                            {it.variantName && (<><Typography variant="caption" color="text.disabled">•</Typography><Typography variant="caption" color="text.secondary" noWrap title={it.variantName}>{it.variantName}</Typography></>)}
+                                                            {it.variant && (<><Typography variant="caption" color="text.disabled">•</Typography><Typography variant="caption" color="text.secondary" noWrap title={it.variant.name}>{it.variant.name}</Typography></>)}
                                                         </Stack>
                                                         {it.note && <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.25 }} title={it.note}>{it.note}</Typography>}
                                                     </Box>
@@ -413,7 +392,7 @@ const BillListItemDetail: React.FC<{ bill: ApiBill }> = ({ bill }) => {
                                                 </Box>
                                                 {/* Subtotal */}
                                                 <Box sx={{ ...colCell(true), px: 1.25, py: 1.1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                                    <Typography variant="body1" fontWeight={900}>{fmtIDR(it.subtotal)}</Typography>
+                                                    <Typography variant="body1" fontWeight={900}>{fmtIDR(it.sub_total)}</Typography>
                                                 </Box>
                                             </ButtonBase>
                                         </Paper>
@@ -442,15 +421,13 @@ const BillListItemDetail: React.FC<{ bill: ApiBill }> = ({ bill }) => {
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                             <Paper variant="outlined" sx={{ width: 700, maxWidth: '100%', p: 1.25, borderRadius: 2, position: 'relative', '&::before': { content: '""', position: 'absolute', inset: 0, pointerEvents: 'none', boxShadow: '0 0 0 1px rgba(124,58,237,.35), 0 10px 28px rgba(0,0,0,.06)' } }}>
                                 {/* Tender (ENTRY) */}
-                                {!isPaid && needTender && tenderMode === 'entry' && (
+                                {!isPaid && !!method?.need_tender && tenderMode === 'entry' && (
                                     <>
-                                        {/* Tender (ENTRY) — isi tinggi kartu + footer selalu ada */}
                                         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                                             <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75 }}>
-                                               Masukkan Nilai Uang Pelanggan
+                                                Masukkan Nilai Uang Pelanggan
                                             </Typography>
 
-                                            {/* kotak input mengembang */}
                                             <Box
                                                 sx={{
                                                     p: 1.25,
@@ -458,7 +435,7 @@ const BillListItemDetail: React.FC<{ bill: ApiBill }> = ({ bill }) => {
                                                     borderColor: 'divider',
                                                     borderRadius: 2,
                                                     bgcolor: 'action.hover',
-                                                    flex: 1,                    // ⬅️ isi sisa tinggi
+                                                    flex: 1,
                                                     display: 'flex',
                                                     alignItems: 'center'
                                                 }}
@@ -474,12 +451,12 @@ const BillListItemDetail: React.FC<{ bill: ApiBill }> = ({ bill }) => {
                                                     variant="outlined"
                                                     fullWidth
                                                     InputProps={{ startAdornment: <InputAdornment position="start">Rp</InputAdornment> }}
-                                                    helperText={helper}
+                                                    helperText={!!cash ? (cash < grandTotal ? `Kurang ${fmtIDR(grandTotal - cash)}` : 'Uang cukup • tekan Enter') : 'Masukkan nominal tunai'}
                                                     FormHelperTextProps={{ sx: { fontWeight: 700 } }}
                                                 />
                                             </Box>
 
-                                            {/* Footer: tampil selalu, minus merah kalau kurang */}
+                                            {/* Footer: minus merah kalau kurang */}
                                             <Box sx={{ mt: 'auto' }}>
                                                 <Divider sx={{ my: 1.25 }} />
                                                 <Stack direction="row" alignItems="center">
@@ -498,8 +475,6 @@ const BillListItemDetail: React.FC<{ bill: ApiBill }> = ({ bill }) => {
                                                 </Stack>
                                             </Box>
                                         </Box>
-
-
                                     </>
                                 )}
 
@@ -520,12 +495,12 @@ const BillListItemDetail: React.FC<{ bill: ApiBill }> = ({ bill }) => {
                                             <Typography variant="h6" sx={{ flex: 1, color: '#fff' }} fontWeight={900}>Grand Total</Typography>
                                             <Typography variant="h4" fontWeight={900} sx={{ color: '#fff' }}>{fmtIDR(grandTotal)}</Typography>
                                         </Stack>
-                                        {!isPaid && needTender && tenderMode === 'ready' && (
+                                        {!isPaid && !!method?.need_tender && tenderMode === 'ready' && (
                                             <>
                                                 <Divider sx={{ my: 1.25 }} />
                                                 <Stack direction="row" alignItems="center">
                                                     <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Kembalian</Typography>
-                                                    <Typography variant="h5" fontWeight={900}>{fmtIDR(Math.max(0, cash - grandTotal))}</Typography>
+                                                    <Typography variant="h5" fontWeight={900}>{fmtIDR(Math.max(0, change))}</Typography>
                                                 </Stack>
                                             </>
                                         )}
@@ -540,14 +515,22 @@ const BillListItemDetail: React.FC<{ bill: ApiBill }> = ({ bill }) => {
                 <Box sx={{ p: { xs: 2, md: 2.5 }, borderTop: '1px solid', borderColor: 'divider', display: 'flex', gap: 1.25, justifyContent: 'flex-end', flexShrink: 0 }}>
                     <Button
                         variant="contained"
-                        disabled={!canPay}
-                        sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 0, fontSize: { xs: 14, md: 15 } }}
-                        title={isPaid ? 'Sudah dibayar' : (needTender ? (tenderMode === 'ready' ? 'Bayar sekarang' : 'Masukkan & konfirmasi nominal (Enter)') : (method ? 'Bayar sekarang' : 'Pilih metode'))}
+                        color="success"
+                        disabled={!(!isPaid && (!method?.need_tender || tenderMode === 'ready'))}
+                        startIcon={<AttachMoneyRounded sx={{ fontSize: 36 }} />}
+                        sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, fontSize: { xs: 14, md: 15 }, py: 1.1, px: 2.2 }}
+                        title={isPaid ? 'Sudah dibayar' : (method?.need_tender ? (tenderMode === 'ready' ? 'Bayar sekarang' : 'Masukkan & konfirmasi nominal (Enter)') : (method ? 'Bayar sekarang' : 'Pilih metode'))}
                     >
                         Bayar
                     </Button>
-                    <Button variant="outlined" startIcon={<PrintRounded />} sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 0, fontSize: { xs: 14, md: 15 } }}>
-                        Cetak
+
+                    <Button
+                        variant="outlined"
+                        color={(isPaid) ? 'success' : 'warning'}
+                        startIcon={<PrintRounded sx={{ fontSize: 36 }} />}
+                        sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, fontSize: { xs: 14, md: 15 }, py: 1.1, px: 2.2 }}
+                    >
+                        {printLabel}
                     </Button>
                 </Box>
             </Paper>

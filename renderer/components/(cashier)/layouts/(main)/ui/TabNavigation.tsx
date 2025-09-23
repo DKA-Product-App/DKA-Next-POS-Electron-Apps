@@ -11,6 +11,7 @@ import RequestQuoteRounded from '@mui/icons-material/RequestQuoteRounded';
 
 import { useLayoutManipulatorResizable } from '../../../../../contexts/LayoutManipulatorResizableContext';
 import ShimmerMenuSelectLoading from './../(component)/(transaction)/ui/(loading)/ShimmerMenuSelectLoading';
+import {useTabNavigationHandlerContext} from "../(component)/(transaction)/context/TabNavigationHandlerContext";
 
 /* ===== Types & Constants ===== */
 type TabDef = { key: string; label: string; icon: React.ReactNode; render: () => React.ReactNode };
@@ -35,15 +36,17 @@ const TABS: TabDef[] = [
 
 /* ===== Component ===== */
 const TabNavigation: React.FC = React.memo(() => {
-    const [active, setActive] = useState<string>('orders');
+    const { state, setState } = useTabNavigationHandlerContext();
     const { setLayout } = useLayoutManipulatorResizable();
 
-    const value = Math.max(0, TABS.findIndex(t => t.key === active));
-    const onChange = (_e: React.SyntheticEvent, v: number) => setActive(TABS[v]?.key ?? 'orders');
+    const value = Math.max(0, TABS.findIndex(t => t.key === state.active));
+    const onChange = (_e: React.SyntheticEvent, v: number) => setState((prev) => {
+        return { ...prev, active: TABS[v]?.key ?? 'orders' }
+    });
 
     const Current = useMemo(() => TABS[value]?.render ?? (() => <></>), [value]);
 
-    useEffect(() => { setLayout(prev => ({ ...(prev ?? {}), right: <></> })); }, [active, setLayout]);
+    useEffect(() => { setLayout(prev => ({ ...(prev ?? {}), right: <></> })); }, [state.active, setLayout]);
 
     // ===== Overflow detection =====
     const headerRef = useRef<HTMLDivElement>(null);

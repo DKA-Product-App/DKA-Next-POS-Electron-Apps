@@ -9,10 +9,10 @@ import LocalMallRounded from '@mui/icons-material/LocalMallRounded'
 import LayersRounded from '@mui/icons-material/LayersRounded'
 import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
 import ScheduleRounded from '@mui/icons-material/ScheduleRounded'
-import type { ApiBill } from '../BillsListItem'
+import {TransactionBill} from "../../../types/transaction.bill.type";
 
 type Props = {
-    bill: ApiBill
+    bill: TransactionBill
     selected?: boolean
     onRowClick?: () => void
 }
@@ -28,20 +28,20 @@ const fmtTime = (iso?: string) => iso ? new Date(iso).toLocaleString('id-ID', { 
 
 const BillsListItemRowModel1: React.FC<Props> = ({ bill, selected, onRowClick }) => {
     // ====== derive semua dari bill ======
-    const invoice = bill.transaction?.invoice ?? String(bill.number ?? '')
+    const invoice = String(bill.number ?? '')
     const cashier = nameJoin(bill.reference?.name) || bill.reference?.username || '—'
 
     // order type, shift, meja
-    const orderLabel = bill.order_type?.name || bill.order_type?.code || '—'
-    const shiftLabel = bill.shift?.name
-        ? (bill.shift.start_time && bill.shift.end_time
-            ? `${bill.shift.name} (${bill.shift.start_time}–${bill.shift.end_time})`
-            : bill.shift.name)
+    const orderLabel = bill.transaction?.order_type?.name || bill.transaction?.order_type?.code || '—'
+    const shiftLabel = bill.transaction?.shift?.name
+        ? (bill.transaction?.shift?.start_time && bill.transaction?.shift?.end_time
+            ? `${bill.transaction?.shift?.name} (${bill.transaction?.shift?.start_time}–${bill.transaction?.shift?.end_time})`
+            : bill.transaction?.shift?.name)
         : '—'
-    const tableLabel = bill.table?.name || bill.table?.code || '—'
+    const tableLabel = bill.transaction?.table?.name || bill.transaction?.table?.code || '—'
 
     // status: unpaid kalau paid undefined; kalau ada pakai paid.status
-    const isPaid = bill.paid ? !!bill.paid.status : false
+    const isPaid = bill.paid ? !!bill.paid.is_paid : false
     const statusLabel: 'paid' | 'unpaid' = isPaid ? 'paid' : 'unpaid'
     const chipColor = isPaid ? 'success' : 'default'
 
@@ -51,10 +51,7 @@ const BillsListItemRowModel1: React.FC<Props> = ({ bill, selected, onRowClick })
     const displayTime = paidAt ?? issuedAt
 
     // total: ambil dari server, fallback hitung items
-    const displayTotal = toIDR(
-        bill.total ??
-        (bill.items?.length ? String(sum(bill.items.map(i => Number(i.sub_total)))) : '0')
-    )
+    const displayTotal = toIDR((bill.items?.length ? String(sum(bill.items.map(i => Number(i.sub_total)))) : '0'))
 
     // jumlah items (panjang array items)
     const itemsCount = bill.items?.length ?? 0

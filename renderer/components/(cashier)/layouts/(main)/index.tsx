@@ -8,6 +8,7 @@ import { TransactionEventTriggerProvider } from './(component)/(transaction)/ui/
 
 import dynamic from "next/dynamic";
 import ShimmerMenuSelectLoading from "./(component)/(transaction)/ui/(loading)/ShimmerMenuSelectLoading";
+import {TabNavigationHandlerProvider} from "./(component)/(transaction)/context/TabNavigationHandlerContext";
 
 
 const TabNavigation = dynamic(() => import('./ui/TabNavigation'), {
@@ -30,14 +31,17 @@ export default function CashierMain() {
 
     return (
         <>
-            <TransactionEventTriggerProvider>
-                <ResizableGrid
-                    defaultSize="23%"
-                    minSize={400}
-                    left={layout?.left ?? <TabNavigation />}
-                    right={layout?.right ?? <></>}
-                />
-            </TransactionEventTriggerProvider>
+            <TabNavigationHandlerProvider>
+                <TransactionEventTriggerProvider>
+                    <ResizableGrid
+                        defaultSize="23%"
+                        minSize={400}
+                        left={layout?.left ?? <TabNavigation />}
+                        right={layout?.right ?? <></>}
+                    />
+                </TransactionEventTriggerProvider>
+            </TabNavigationHandlerProvider>
+
         </>
     );
 }

@@ -189,9 +189,6 @@ export const TransactionListItemRow: React.FC<{
     const isClosed = Boolean(o.time_closed)
     const cardBorderColor = singleSelected ? 'primary.outlinedBorder' : (isClosed ? 'error.light' : 'divider')
 
-    useEffect(() => {
-        console.log(prices)
-    }, []);
     return (
         <>
             <ListItemButton

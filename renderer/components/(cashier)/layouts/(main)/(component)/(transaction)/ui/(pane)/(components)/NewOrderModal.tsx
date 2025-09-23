@@ -54,7 +54,7 @@ const DiningIntro: React.FC = () => (
 
 const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
     const [open, setOpen] = useState(false)
-    const [fullScreen, setFullScreen] = useState(false)
+
 
     // wizard data
     const [orderType, setOrderType] = useState<Option | undefined>(undefined)
@@ -66,6 +66,7 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
     const steps = useMemo(() => (needTable ? ['Mode', 'Meja', 'Billing'] : ['Mode', 'Billing']), [needTable])
     const [activeStep, setActiveStep] = useState(0)
 
+    const [fullScreen, setFullScreen] = useState(false)
     // theme
     const theme = useTheme()
     const isDark = (theme.palette as any)?.mode === 'dark' || (theme.palette as any)?.colorScheme === 'dark'

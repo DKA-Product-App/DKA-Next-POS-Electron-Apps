@@ -20,7 +20,26 @@ export type OrderType = { id: string; code: string; name: string }
 export type Table = { id: string; code: string; name: string }
 export type Product = { id: string; name: string; description?: string; image?: string }
 export type Variant = { id: string; code?: string; name?: string; price?: string }
-export type Item = { id: string; qty: number; price: string; sub_total: string; note?: string | null; reference?: Reference | null; product: Product; variant?: Variant, void?: { void_time: string; is_approved: boolean } | null; }
+
+/** Tambahan minimal supaya path bills aman tanpa “drastis” ngubah struktur */
+type BillPaid = { is_paid?: boolean } | null | undefined
+type Bill = { paid?: BillPaid } | null | undefined
+type Tx = { bills?: Bill[] } | null | undefined
+type Batch = { transaction?: Tx } | null | undefined
+
+export type Item = {
+    id: string
+    qty: number
+    price: string
+    sub_total: string
+    note?: string | null
+    reference?: Reference | null
+    product: Product
+    variant?: Variant
+    void?: { void_time: string; is_approved: boolean } | null
+    /** opsional dari backend, biar akses bills aman */
+    batch?: Batch
+}
 
 const MotionPaper = motion(Paper)
 const GRADIENT = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
@@ -58,16 +77,14 @@ const RightContainerBatchDetail: React.FC = () => {
 
     React.useEffect(() => {
         if (!selectedBatchId) { setItems([]); return }
-
-        // kosongkan dulu agar tidak "tercampur" secara visual
-        setItems([])
+        setItems([]) // kosongkan dulu agar tidak tercampur
 
         const seq = ++fetchSeqRef.current
 
         // @ts-ignore
         window.api.invoke('api.transaction.batch.item:read.all', { batch: selectedBatchId })
             .then((res: any) => {
-                if (seq !== fetchSeqRef.current) return // abaikan respons usang
+                if (seq !== fetchSeqRef.current) return
                 const arr: Item[] = res?.data ?? []
                 setItems(arr)
                 registerItems(selectedBatchId, arr)
@@ -78,16 +95,23 @@ const RightContainerBatchDetail: React.FC = () => {
             })
     }, [selectedBatchId, reloadKey])
 
+    const isClosed = Boolean(header?.time_closed)
 
-    const isClosed = Boolean(header.time_closed)
-
-    if (!selectedBatchId) return <Box sx={{ p:2, color:'text.secondary' }}>Pilih batch untuk melihat detail item…</Box>
-
-    const hasNote = (it) => Boolean(it.note?.trim()?.length)
-    // helper status
+    const hasNote = (it: Item) => Boolean(it.note?.trim()?.length)
     const isPendingVoid = (it: Item) => Boolean(it?.void) && it.void!.is_approved !== true
     const isApprovedVoid = (it: Item) => Boolean(it?.void) && it.void!.is_approved === true
 
+    /** ✅ Item dianggap “Pending Paid” jika ada bill dan paid.is_paid === true */
+    /** ✅ Pending jika: bill.paid == null DAN bill.items[*].transactionItem.id === it.id */
+    const isPendingPaid = (it: Item) => {
+        const bills = it?.batch?.transaction?.bills ?? [];
+        return bills.some((b: any) =>
+            b?.paid == null &&
+            (b?.items ?? []).some((bi: any) => bi?.transactionItem?.id === it.id)
+        );
+    };
+
+    if (!selectedBatchId) return <Box sx={{ p:2, color:'text.secondary' }}>Pilih batch untuk melihat detail item…</Box>
 
     return (
         <Box sx={{ flex:1, minHeight:0, px:1.5, height: '100%' }}>
@@ -95,7 +119,8 @@ const RightContainerBatchDetail: React.FC = () => {
                 <Grid container spacing={2} sx={{ py: 1, pr: 2 }}>
                     {items.map(it => {
                         const selected = selectedItemIds.has(it.id)
-                        const disabled = isClosed || isPendingVoid(it) || isApprovedVoid(it)
+                        const disabled = isClosed || isPendingVoid(it) || isApprovedVoid(it) || isPendingPaid(it)
+                        console.log(it?.batch?.transaction?.bills)
                         return (
                             <Grid key={it.id} size={{ xs: 12, sm: 12, md: 4, lg: 3 }}>
                                 <MotionPaper
@@ -118,20 +143,16 @@ const RightContainerBatchDetail: React.FC = () => {
                                         <Box sx={{ filter: disabled ? 'grayscale(1) saturate(0) brightness(0.9)' : 'none' }}>
                                             <ImgWithSkeleton src={ph(it.product?.name, it.product?.image)} alt={it.product?.name || 'Item'} loader={uploadsLoader} />
                                         </Box>
-                                        {/* Pending Void chip kanan atas */}
-                                        {/* VOID chips kanan atas */}
+
+                                        {/* ===== Status chips pojok kanan atas ===== */}
                                         {isPendingVoid(it) && (
                                             <Chip
                                                 size="small"
                                                 label="Pending Void"
                                                 sx={{
                                                     position: 'absolute', top: 8, right: 8,
-                                                    fontWeight: 800,
-                                                    bgcolor: 'warning.main',
-                                                    color: 'warning.contrastText',
-                                                    boxShadow: 1,
-                                                    textTransform: 'uppercase',
-                                                    letterSpacing: .2,
+                                                    fontWeight: 800, bgcolor: 'warning.main', color: 'warning.contrastText',
+                                                    boxShadow: 1, textTransform: 'uppercase', letterSpacing: .2,
                                                 }}
                                                 title={it.void?.void_time ? `Diajukan: ${new Date(it.void.void_time).toLocaleString('id-ID')}` : undefined}
                                             />
@@ -142,14 +163,24 @@ const RightContainerBatchDetail: React.FC = () => {
                                                 label="Voided"
                                                 sx={{
                                                     position: 'absolute', top: 8, right: 8,
-                                                    fontWeight: 800,
-                                                    bgcolor: 'error.main',
-                                                    color: 'error.contrastText',
-                                                    boxShadow: 1,
-                                                    textTransform: 'uppercase',
-                                                    letterSpacing: .2,
+                                                    fontWeight: 800, bgcolor: 'error.main', color: 'error.contrastText',
+                                                    boxShadow: 1, textTransform: 'uppercase', letterSpacing: .2,
                                                 }}
                                                 title={it.void?.void_time ? `Disetujui: ${new Date(it.void.void_time).toLocaleString('id-ID')}` : undefined}
+                                            />
+                                        )}
+
+                                        {/* ===== “Pending Paid” chip pojok kiri atas ===== */}
+                                        {isPendingPaid(it) && (
+                                            <Chip
+                                                size="small"
+                                                label="Pending Paid"
+                                                sx={{
+                                                    position: 'absolute', top: 8, left: 8,
+                                                    fontWeight: 800, bgcolor: 'info.main', color: 'info.contrastText',
+                                                    boxShadow: 1, textTransform: 'uppercase', letterSpacing: .2,
+                                                }}
+                                                title="Item ini tercakup bill yang sudah ditandai terbayar."
                                             />
                                         )}
 
@@ -196,13 +227,13 @@ const RightContainerBatchDetail: React.FC = () => {
                                             ) : null}
                                         </Stack>
 
-                                        {/* Note / Catatan: ellipsis + tooltip, ikon sejajar baris pertama */}
+                                        {/* Note / Catatan */}
                                         <Box
                                             sx={{
                                                 mt: 0.5,
                                                 minHeight: 22,
                                                 display: 'flex',
-                                                alignItems: 'flex-start',   // top-align biar ikon sejajar baris pertama
+                                                alignItems: 'flex-start',
                                                 columnGap: 0.5,
                                             }}
                                         >
@@ -212,15 +243,11 @@ const RightContainerBatchDetail: React.FC = () => {
                                                         sx={(t) => ({
                                                             fontSize: 18,
                                                             color: t.palette.error.main,
-                                                            mt: '2px',            // tweak baseline
-                                                            flexShrink: 0,        // jangan ikut menyusut
+                                                            mt: '2px',
+                                                            flexShrink: 0,
                                                         })}
                                                     />
-                                                    <Tooltip
-                                                        title={it.note}
-                                                        arrow
-                                                        placement="top-start"
-                                                    >
+                                                    <Tooltip title={it.note} arrow placement="top-start">
                                                         <Typography
                                                             variant="body2"
                                                             sx={(t) => ({
@@ -228,14 +255,14 @@ const RightContainerBatchDetail: React.FC = () => {
                                                                 fontWeight: 700,
                                                                 lineHeight: 1.3,
                                                                 overflow: 'hidden',
-                                                                textOverflow: 'ellipsis',  // ⬅️ tampil "…"
+                                                                textOverflow: 'ellipsis',
                                                                 display: '-webkit-box',
                                                                 WebkitLineClamp: 2,
                                                                 WebkitBoxOrient: 'vertical',
                                                                 whiteSpace: 'normal',
                                                                 flex: 1,
-                                                                minWidth: 0,               // ⬅️ wajib di flex container agar ellipsis jalan
-                                                                cursor: 'help',            // hint ada tooltip
+                                                                minWidth: 0,
+                                                                cursor: 'help',
                                                             })}
                                                         >
                                                             {it.note}
@@ -249,15 +276,8 @@ const RightContainerBatchDetail: React.FC = () => {
                                             )}
                                         </Box>
 
-
-                                        {/* Qty x Price (kiri) — Total (kanan) saja yang tidak center */}
-                                        <Stack
-                                            direction="row"
-                                            alignItems="center"
-                                            justifyContent="space-between"
-                                            mt={1}
-                                            sx={{ justifySelf: 'stretch', width: '100%' }}
-                                        >
+                                        {/* Qty x Price — Total */}
+                                        <Stack direction="row" alignItems="center" justifyContent="space-between" mt={1} sx={{ justifySelf: 'stretch', width: '100%' }}>
                                             <Typography variant="body2" color="text.secondary">
                                                 {`${it.qty} x ${rupiah(it.price)}`}
                                             </Typography>
