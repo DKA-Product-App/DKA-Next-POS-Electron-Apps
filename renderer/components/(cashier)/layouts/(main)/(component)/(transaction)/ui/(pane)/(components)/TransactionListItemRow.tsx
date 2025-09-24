@@ -51,7 +51,14 @@ const pickBills = (o: any) => o?.bills ?? o?.transaction?.bills ?? []
 // Item dianggap pending-paid kalau ada bill dgn paid == null yg memuat transactionItem.id === item.id
 const isPendingPaidItem = (item: any, bills: any[]) =>
     bills?.some((bill: any) =>
-        bill?.paid == null &&
+        (bill?.paid == null || bill?.paid?.status === false) &&
+        Array.isArray(bill?.items) &&
+        bill.items.some((bi: any) => bi?.transactionItem?.id === item?.id)
+    )
+
+const isSuccessPaidItem = (item: any, bills: any[]) =>
+    bills?.some((bill: any) =>
+        (bill?.paid == null || bill?.paid?.status === true) &&
         Array.isArray(bill?.items) &&
         bill.items.some((bi: any) => bi?.transactionItem?.id === item?.id)
     )
@@ -63,7 +70,7 @@ const totalPrices = (o: Transaction) => {
         (acc, b) =>
             acc +
             (b.items ?? []).reduce(
-                (a, i) => a + ((isVoided(i) || isPendingPaidItem(i, bills)) ? 0 : (+i.sub_total || 0)),
+                (a, i) => a + ((isVoided(i) || isPendingPaidItem(i, bills) || isSuccessPaidItem(i, bills)) ? 0 : (+i.sub_total || 0)),
                 0
             ),
         0

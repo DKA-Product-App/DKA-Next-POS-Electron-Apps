@@ -41,7 +41,7 @@ const BillsListItemRowModel1: React.FC<Props> = ({ bill, selected, onRowClick })
     const tableLabel = bill.transaction?.table?.name || bill.transaction?.table?.code || '—'
 
     // status: unpaid kalau paid undefined; kalau ada pakai paid.status
-    const isPaid = bill.paid ? !!bill.paid.is_paid : false
+    const isPaid = bill.paid ? !!bill.paid.status : false
     const statusLabel: 'paid' | 'unpaid' = isPaid ? 'paid' : 'unpaid'
     const chipColor = isPaid ? 'success' : 'default'
 

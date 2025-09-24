@@ -106,7 +106,15 @@ const RightContainerBatchDetail: React.FC = () => {
     const isPendingPaid = (it: Item) => {
         const bills = it?.batch?.transaction?.bills ?? [];
         return bills.some((b: any) =>
-            b?.paid == null &&
+            (b?.paid === null || b?.paid?.status === false) &&
+            (b?.items ?? []).some((bi: any) => bi?.transactionItem?.id === it.id)
+        );
+    };
+
+    const isPaid = (it: Item) => {
+        const bills = it?.batch?.transaction?.bills ?? [];
+        return bills.some((b: any) =>
+            (b?.paid?.status === true) &&
             (b?.items ?? []).some((bi: any) => bi?.transactionItem?.id === it.id)
         );
     };
@@ -119,8 +127,7 @@ const RightContainerBatchDetail: React.FC = () => {
                 <Grid container spacing={2} sx={{ py: 1, pr: 2 }}>
                     {items.map(it => {
                         const selected = selectedItemIds.has(it.id)
-                        const disabled = isClosed || isPendingVoid(it) || isApprovedVoid(it) || isPendingPaid(it)
-                        console.log(it?.batch?.transaction?.bills)
+                        const disabled = isClosed || isPendingVoid(it) || isApprovedVoid(it) || isPendingPaid(it) || isPaid(it)
                         return (
                             <Grid key={it.id} size={{ xs: 12, sm: 12, md: 4, lg: 3 }}>
                                 <MotionPaper
@@ -178,6 +185,19 @@ const RightContainerBatchDetail: React.FC = () => {
                                                 sx={{
                                                     position: 'absolute', top: 8, left: 8,
                                                     fontWeight: 800, bgcolor: 'info.main', color: 'info.contrastText',
+                                                    boxShadow: 1, textTransform: 'uppercase', letterSpacing: .2,
+                                                }}
+                                                title="Item ini tercakup bill yang sudah ditandai terbayar."
+                                            />
+                                        )}
+
+                                        {isPaid(it) && (
+                                            <Chip
+                                                size="small"
+                                                label="Success Paid"
+                                                sx={{
+                                                    position: 'absolute', top: 8, left: 8,
+                                                    fontWeight: 800, bgcolor: 'success.main', color: 'info.contrastText',
                                                     boxShadow: 1, textTransform: 'uppercase', letterSpacing: .2,
                                                 }}
                                                 title="Item ini tercakup bill yang sudah ditandai terbayar."

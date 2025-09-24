@@ -159,10 +159,15 @@ const pickBills = (o: any) => o?.transaction?.bills ?? o?.bills ?? []
 // pending paid checker yang langsung pakai bills terpilih
 const isPendingPaidItem = (item: any, bills: any[]) =>
     bills?.some((bill: any) =>
-        bill?.paid == null &&
+        (bill?.paid == null || bill?.paid?.status === false) &&
         (bill?.items ?? []).some((bi: any) => bi?.transactionItem?.id === item?.id)
     )
 
+const isSuccessPaidItem = (item: any, bills: any[]) =>
+    bills?.some((bill: any) =>
+        (bill?.paid == null || bill?.paid?.status === true) &&
+        (bill?.items ?? []).some((bi: any) => bi?.transactionItem?.id === item?.id)
+    )
 // total price: skip kalau void approved atau pending paid
 const totalPrices = (o: any) => {
     const bills = pickBills(o)
@@ -170,7 +175,7 @@ const totalPrices = (o: any) => {
         (acc, b) =>
             acc +
             (b?.items ?? []).reduce(
-                (a, i) => a + ((i?.void?.is_approved === true || isPendingPaidItem(i, bills)) ? 0 : (+i?.sub_total || 0)),
+                (a, i) => a + ((i?.void?.is_approved === true || isPendingPaidItem(i, bills) || isSuccessPaidItem(i, bills)) ? 0 : (+i?.sub_total || 0)),
                 0
             ),
         0
@@ -190,7 +195,7 @@ export const batchTotal = (b: Batch) => {
     const bills = pickBillsFromBatch(b)
     return (b?.items ?? []).reduce(
         (acc: number, i: any) =>
-            acc + ((i?.void?.is_approved === true || isPendingPaidItem(i, bills)) ? 0 : (+i?.sub_total || 0)),
+            acc + ((i?.void?.is_approved === true || isPendingPaidItem(i, bills) || isSuccessPaidItem(i, bills)) ? 0 : (+i?.sub_total || 0)),
         0
     )
 }

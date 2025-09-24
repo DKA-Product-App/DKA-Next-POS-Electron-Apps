@@ -1,6 +1,5 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent, app } from 'electron';
 import packageJSON from "./../package.json";
-import {AxiosRequestConfig, AxiosResponse} from "axios";
 
 const electronVersion = process.versions.electron
 const chromeVersion = process.versions.chrome

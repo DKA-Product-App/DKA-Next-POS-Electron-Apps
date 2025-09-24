@@ -1,6 +1,7 @@
 import { app } from 'electron'
 import serve from 'electron-serve'
 import mainWindow from "./window";
+import log from 'electron-log'
 import { registerDataProtocol } from "./functions";
 
 const isProd = process.env.NODE_ENV === 'production'
@@ -11,6 +12,18 @@ if (isProd) {
     app.setPath('userData', `${app.getPath('userData')} (development)`)
 }
 
+// 1) Matikan console transport jika tidak ada TTY (production Linux GUI)
+if (!process.stdout || !process.stdout.isTTY) {
+    log.transports.console.level = false
+    // opsional: bungkam console bawaan juga
+    console.log = () => {}
+    console.info = () => {}
+    console.warn = () => {}
+    // arahkan error ke file (biar tetap ada jejak)
+    const e = (...args: any[]) => log.error(...args)
+    // @ts-ignore
+    console.error = e
+}
 (async () => {
     const gotTheLock = app.requestSingleInstanceLock()
     if (!gotTheLock) {

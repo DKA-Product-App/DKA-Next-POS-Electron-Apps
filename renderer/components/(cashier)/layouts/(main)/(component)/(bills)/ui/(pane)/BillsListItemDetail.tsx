@@ -39,8 +39,8 @@ const fmtTimeShort = (iso?: string) =>
 
 const statusChip = (bill: TransactionBill) => {
     const paid = (bill as any).paid
-    if (!paid) return { color: 'warning' as const, label: 'Unpaid' }
-    return paid.is_paid ? { color: 'success' as const, label: 'Paid' } : { color: 'warning' as const, label: 'Unpaid' }
+    if (!paid || !paid.status) return { color: 'warning' as const, label: 'Unpaid' }
+    return paid.status ? { color: 'success' as const, label: 'Paid' } : { color: 'warning' as const, label: 'Unpaid' }
 }
 
 const first = <T,>(a?: T[] | T | null): T | undefined =>
@@ -228,7 +228,7 @@ type TenderMode = 'idle' | 'entry' | 'ready'
 
 const BillListItemDetail: React.FC<{ bill: TransactionBill }> = ({ bill }) => {
     const st = statusChip(bill)
-    const isPaid = !!(bill as any).paid?.is_paid
+    const isPaid = !!(bill as any).paid?.status
     const items = deriveLineItems(bill)
 
     const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0)
@@ -343,10 +343,6 @@ const BillListItemDetail: React.FC<{ bill: TransactionBill }> = ({ bill }) => {
 
                 {/* ===== Items header ===== */}
                 <Box sx={{ px: { xs: 2, md: 2.5 }, pt: 1, pb: 1, flexShrink: 0 }}>
-                    <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mb: 1 }}>
-                        <LocalMallRounded sx={{ fontSize: { xs: 18, md: 20 } }} />
-                        <Typography variant="subtitle1" fontWeight={800}>Ringkasan Item</Typography>
-                    </Stack>
 
                     <Box sx={(t) => ({ display: 'grid', gridTemplateColumns: { xs: ITEM_COLS.xs, md: ITEM_COLS.md }, gap: 0, border: '1px solid', borderColor: 'divider', bgcolor: t.palette.action.hover })}>
                         <Box sx={{ ...colCell(false), px: 1.25, py: 1 }}><Typography variant="body2" fontWeight={900} textAlign="center">#</Typography></Box>

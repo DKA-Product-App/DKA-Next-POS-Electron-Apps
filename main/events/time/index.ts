@@ -1,7 +1,6 @@
 // events/time.event.ts
 import { app, BrowserWindow } from 'electron'
 import moment from 'moment-timezone'
-import log from 'electron-log'
 
 type NodeTimeout = ReturnType<typeof setInterval>
 
@@ -20,14 +19,12 @@ export function TimeEvent(intervalMs = 100) {
         timer = setInterval(tick, intervalMs)
         ;(timer as unknown as { unref?: () => void })?.unref?.()
         running = true
-        log.info('[time.event] registered')
         return true
     }
 
     const stop = () => {
         timer ? clearInterval(timer) : undefined
         timer = undefined
-        running ? log.info('[time.event] unregistered') : undefined
         running = false
     }
     // Mulai segera saat app siap; kalau dipanggil sebelum ready, tunggu.

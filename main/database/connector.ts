@@ -1,7 +1,7 @@
 import { Kysely, SqliteDialect } from 'kysely'
 import Database from 'better-sqlite3-multiple-ciphers'
 import path from "path";
-import {getExternalDatabaseDir} from "../functions/dirs/getExternalDatabaseDir";
+import {getExternalDatabaseDir} from "../functions";
 
 export interface ConnectorConfig{
     key : string,

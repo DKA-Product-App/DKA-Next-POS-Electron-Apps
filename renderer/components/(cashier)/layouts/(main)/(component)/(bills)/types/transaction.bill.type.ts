@@ -18,7 +18,7 @@ export interface ApiResponseTransactionBill {
 export interface TransactionBill {
     id?: UUID
     number?: string
-    paid?: { time : ISODate, is_paid: boolean}
+    paid?: { time : ISODate, status: boolean}
     time_created?: ISODate
     time_updated?: ISODate
     reference?: TransactionBillReferenceUser
