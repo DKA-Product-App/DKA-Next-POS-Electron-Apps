@@ -14,36 +14,61 @@ import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
 import CheckRounded from '@mui/icons-material/CheckRounded'
 
 import TransactionListItemPrintTransaction from './TransactionListItemPrintTransaction'
-import {useEffect} from "react";
 
-/* ========= Types (mirror dari parent, biar gak ubah struktur) ========= */
+/* ========= Types ========= */
 export type Name = { first_name: string; last_name?: string }
 export type Reference = { id: string; name?: Name; username?: string }
 export type OrderType = { id: string; code: string; name: string }
 export type Table = { id: string; code: string; name: string }
 export type Product = { id: string; name: string; description?: string; image?: string }
 export type Variant = { id: string; code?: string; name?: string; price?: string }
-export type Item = { id: number; price: string; qty: number; sub_total: string; note?: string | null; reference?: Reference | null; product: Product; variant?: Variant }
+export type Item = { id: string; price: string; qty: number; sub_total: string; note?: string | null; reference?: Reference | null; product: Product; variant?: Variant }
 export type Batch = { id: string; batch: number; note?: string | null; items: Item[] }
 export type Transaction = {
     id?: string; invoice?: string; total?: string; time_created?: string; time_updated?: string; time_closed?: string | null;
-    reference?: Reference; shift?: { id?: string; name?: string }; order_type?: OrderType; table?: Table; batches: Batch[]
+    reference?: Reference; shift?: { id?: string; name?: string }; order_type?: OrderType; table?: Table; batches: Batch[];
+    bills?: any[]; // <-- penting buat pending-paid checker
 }
 
-/* ========= Utils khusus Row (copy ringan agar parent gak berubah) ========= */
-const rupiah = (n: number | string) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(typeof n === 'string' ? parseFloat(n) : n)
-const fmtDT = (iso?: string) => iso ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short', hour12: false, timeZone: 'Asia/Makassar' }).format(new Date(iso)) : '-'
-const totalQty = (o: Transaction) => o.batches.reduce((acc, b) => acc + b.items.reduce((a, i) => a + i.qty, 0), 0)
+/* ========= Utils khusus Row ========= */
+const rupiah = (n: number | string) =>
+    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
+        .format(typeof n === 'string' ? parseFloat(n) : n)
+
+const fmtDT = (iso?: string) =>
+    iso ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short', hour12: false, timeZone: 'Asia/Makassar' }).format(new Date(iso)) : '-'
+
+const totalQty = (o: Transaction) => (o.batches ?? []).reduce((acc, b) => acc + (b.items ?? []).reduce((a, i) => a + i.qty, 0), 0)
 const totalItems = (o: Transaction) => (o.batches ?? []).reduce((acc, b) => acc + (b.items ?? []).length, 0)
-const totalBatches = (o: Transaction) => o.batches.length
-// ⬇️ helper: dianggap void kalau sudah disetujui
-const isVoided = (i: Item) => i?.['void']?.is_approved === true
-const totalPrices = (o: Transaction) =>
-    (o.batches ?? []).reduce((acc, b) =>
-            acc + (b.items ?? []).reduce((a, i) =>
-                    a + (isVoided(i) ? 0 : (+i.sub_total || 0))
-                , 0)
-        , 0)
+const totalBatches = (o: Transaction) => (o.batches ?? []).length
+
+// ====== Bills-aware helpers ======
+const isVoided = (i: Item) => (i as any)?.void?.is_approved === true
+
+// Ambil bills dari object apa pun yg mungkin (transaction langsung atau nested)
+const pickBills = (o: any) => o?.bills ?? o?.transaction?.bills ?? []
+
+// Item dianggap pending-paid kalau ada bill dgn paid == null yg memuat transactionItem.id === item.id
+const isPendingPaidItem = (item: any, bills: any[]) =>
+    bills?.some((bill: any) =>
+        bill?.paid == null &&
+        Array.isArray(bill?.items) &&
+        bill.items.some((bi: any) => bi?.transactionItem?.id === item?.id)
+    )
+
+// Total harga transaksi, skip void-approved & pending-paid
+const totalPrices = (o: Transaction) => {
+    const bills = pickBills(o)
+    return (o.batches ?? []).reduce(
+        (acc, b) =>
+            acc +
+            (b.items ?? []).reduce(
+                (a, i) => a + ((isVoided(i) || isPendingPaidItem(i, bills)) ? 0 : (+i.sub_total || 0)),
+                0
+            ),
+        0
+    )
+}
 
 /* ========= Timer ========= */
 const addMonths = (d: Date, months: number) => {
@@ -110,7 +135,7 @@ const TimerText: React.FC<{ startIso?: string; endIso?: string | null; active: b
     )
 }
 
-/* ========= Checkbox bulat + animasi zoom out 3x ========= */
+/* ========= Checkbox bulat ========= */
 const RoundCheckbox: React.FC<{
     checked: boolean
     onChange: (checked: boolean) => void
@@ -122,15 +147,8 @@ const RoundCheckbox: React.FC<{
     overshootScale?: number
     durationMs?: number
 }> = ({
-          checked,
-          onChange,
-          onClick,
-          'aria-label': ariaLabel,
-          sizePx = 22,
-          colorKey = 'success',
-          outScale = 0.33,          // 3× lebih kecil saat zoom out
-          overshootScale = 1.18,
-          durationMs = 360,
+          checked, onChange, onClick, 'aria-label': ariaLabel,
+          sizePx = 22, colorKey = 'success', outScale = 0.33, overshootScale = 1.18, durationMs = 360,
       }) => {
     const baseSx = { width: sizePx, height: sizePx, borderRadius: '50%', display: 'grid', placeItems: 'center', transition: 'all .22s ease' } as const
     const uncheckedIcon = <span className="round-unchecked" style={{ ...baseSx, border: '2px solid', borderColor: 'currentColor' }} />
@@ -185,7 +203,7 @@ export const TransactionListItemRow: React.FC<{
     const qtys = totalQty(o)
     const items = totalItems(o)
     const batches = totalBatches(o)
-    const prices = totalPrices(o)
+    const prices = totalPrices(o) // <-- sudah skip pending-paid & void
     const isClosed = Boolean(o.time_closed)
     const cardBorderColor = singleSelected ? 'primary.outlinedBorder' : (isClosed ? 'error.light' : 'divider')
 
@@ -223,7 +241,13 @@ export const TransactionListItemRow: React.FC<{
                             <Chip size="small" color="info" label={o.order_type?.name ?? '-'} variant="filled" />
                             <Chip size="small" color="info" label={o.table?.code ? `${o.table.code}` : 'No table'} variant="filled" />
                         </Stack>
-                        <Typography variant="subtitle1" fontWeight={900}>{rupiah(prices ?? 0)}</Typography>
+                        <Typography
+                            variant="subtitle1"
+                            fontWeight={900}
+                            title={rupiah(prices)}
+                        >
+                            {rupiah(prices ?? 0)}
+                        </Typography>
                     </Stack>
 
                     {/* Baris 2 */}

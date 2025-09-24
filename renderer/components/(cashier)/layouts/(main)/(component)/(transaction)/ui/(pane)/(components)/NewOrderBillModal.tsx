@@ -21,6 +21,7 @@ import { useTheme } from '@mui/material/styles'
 import { useThemeCharger } from '../../../../../../../context/ThemeCharger'
 import dynamic from 'next/dynamic'
 import { useTabNavigationHandlerContext } from '../../../context/TabNavigationHandlerContext'
+import {useTransactionEventTrigger} from "../context/TransactionEventTriggerContext";
 
 const BillListItemDetail = dynamic(
     () => import('./../../../../(bills)/ui/(pane)/BillsListItemDetail'),
@@ -65,6 +66,7 @@ type Props = {
 
 export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', onSuccess, variant='contained' }: Props) {
     const { header, txId, bumpReload, clearSelection } = useTx()
+    const { bump } = useTransactionEventTrigger()
     const isClosed = Boolean(header?.time_closed)
 
     const isPaidBool = (p:any) => p===true || p?.is_paid===true || p?.status===true
@@ -182,6 +184,8 @@ export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', o
                 setTimeout(() => {
                     try {
                         bumpReload();
+                        // 4) ping global kalau ada listener lain (boleh dipertahankan)
+                        bump('batch');
                         clearSelection();
                     } catch {}
                 }, 0)
