@@ -198,10 +198,13 @@ export const batchTotal = (b: Batch) => {
 const LeftContainerBatchList: React.FC = () => {
     const { txId, header, setHeader, setGrandTotal, selectedBatchId, setSelectedBatchId, reloadKey } = useTx()
     const [batches, setBatches] = React.useState<Batch[]>([])
+    const [isLoading, setIsLoading] = React.useState(false)
 
     // fetch semua batch utk transaksi ini
     React.useEffect(() => {
         if (!txId) { setBatches([]); return }
+
+        setIsLoading(true) // start loading
         // @ts-ignore
         window.api.invoke('api.transaction.batch:read.all', { transaction: txId })
             .then((res: any) => {
@@ -219,16 +222,104 @@ const LeftContainerBatchList: React.FC = () => {
                     time_created: b.time_created,
                     time_updated: b.time_updated,
                     items: Array.isArray(b.items) ? b.items : [],
-                    __bills: bills, // <<— penting
+                    __bills: bills,
                 })).sort((a, b) => b.batch - a.batch)
 
                 setBatches(mapped)
                 if (!selectedBatchId && mapped.length) setSelectedBatchId(mapped[0].id)
             })
             .catch(() => setBatches([]))
-    }, [txId, reloadKey, setHeader, setGrandTotal, setSelectedBatchId, selectedBatchId])
+            .finally(() => setIsLoading(false)) // end loading
+        // ⬇️ penting: JANGAN masukkan selectedBatchId di deps biar gak refetch saat klik
+    }, [txId, reloadKey, setHeader, setGrandTotal, setSelectedBatchId])
 
     const isClosed = Boolean(header?.time_closed)
+
+    // tampilkan skeleton hanya saat BELUM ada data
+    const showSkeleton = isLoading && batches.length === 0
+
+    // ===== Skeleton UI saat loading (no flicker) =====
+    const LoadingSkeleton = (
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {/* Header sama biar layout stabil */}
+            <Box sx={{
+                px: 1.25, py: 1,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 1
+            }}>
+                <Stack direction="row" spacing={1} alignItems="center" minWidth={0} />
+                {txId ? <LeftContainerBatchListNewOrder tx={txId} /> : <Box sx={{ width: 120, height: 32, borderRadius: 2, bgcolor: 'action.hover' }} />}
+            </Box>
+
+            <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false, swipeEasing: true }}>
+                    <List disablePadding sx={{ py: 1, pr: 1 }}>
+                        {[1, 2, 3].map(key => (
+                            <React.Fragment key={key}>
+                                <Box
+                                    sx={{
+                                        position: 'relative',
+                                        py: 1.1, px: 1.4, mb: 0,
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        bgcolor: 'background.paper',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                                        borderBottomLeftRadius: 0,
+                                        borderBottomRightRadius: 0,
+                                        borderTopLeftRadius: 8,
+                                        borderTopRightRadius: 8,
+                                        overflow: 'hidden',
+                                    }}
+                                >
+                                    <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, bgcolor: 'action.selected' }} />
+                                    <Stack spacing={1.1} width="100%">
+                                        <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
+                                            <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
+                                                <LayersRounded fontSize="small" />
+                                                <Box sx={{ width: 120, height: 24, borderRadius: 1, bgcolor: 'action.hover' }} />
+                                                <Box sx={{ width: 64, height: 22, borderRadius: 999, bgcolor: 'action.hover' }} />
+                                            </Stack>
+                                            <Box sx={{ width: 96, height: 20, borderRadius: 1, bgcolor: 'action.hover' }} />
+                                        </Stack>
+                                        <Stack direction="row" alignItems="center" gap={0.75}>
+                                            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
+                                                <Box sx={{ width: 90, height: 24, borderRadius: 999, bgcolor: 'action.hover' }} />
+                                                <Box sx={{ width: 90, height: 24, borderRadius: 999, bgcolor: 'action.hover' }} />
+                                            </Stack>
+                                            <Box sx={{ width: 140, height: 28, borderRadius: 1, bgcolor: 'action.hover' }} />
+                                        </Stack>
+                                        <Box sx={{ width: 180, height: 16, borderRadius: 1, bgcolor: 'action.hover' }} />
+                                    </Stack>
+                                </Box>
+
+                                <Box
+                                    sx={{
+                                        border: '1px solid',
+                                        borderTop: 'none',
+                                        borderColor: 'divider',
+                                        borderBottomLeftRadius: 8,
+                                        borderBottomRightRadius: 8,
+                                        bgcolor: 'action.selected',
+                                        px: 1.4, py: 0.75, mb: 1,
+                                    }}
+                                >
+                                    <Box sx={{ width: 220, height: 14, borderRadius: 1, bgcolor: 'action.hover' }} />
+                                </Box>
+                            </React.Fragment>
+                        ))}
+                        <Typography variant="caption" sx={{ color: 'text.secondary', px: 1.5, py: 0.5 }}>
+                            Memuat batch… sabar, server lagi ngocok data 🔄
+                        </Typography>
+                    </List>
+                </PerfectScrollbar>
+            </Box>
+        </Box>
+    )
 
     if (!txId) return (
         <Box sx={{ display: 'grid', placeItems: 'center', height: '100%', color: 'text.secondary' }}>
@@ -236,7 +327,11 @@ const LeftContainerBatchList: React.FC = () => {
         </Box>
     )
 
-    if (batches.length === 0) return (
+    // tampilkan skeleton hanya saat belum ada data
+    if (showSkeleton) return LoadingSkeleton
+
+    // pesan kosong hanya saat tidak loading
+    if (!isLoading && batches.length === 0) return (
         <Box sx={{ display: 'grid', placeItems: 'center', height: '100%', color: 'text.secondary' }}>
             <Typography variant="body2">Belum ada batch.</Typography>
         </Box>
@@ -266,7 +361,7 @@ const LeftContainerBatchList: React.FC = () => {
                         {batches.map(b => {
                             const selected = b.id === selectedBatchId
                             const cardBorderColor = selected ? 'primary.outlinedBorder' : 'divider'
-                            const price = batchTotal(b) // ⬅️ now respects pending-paid
+                            const price = batchTotal(b)
 
                             return (
                                 <React.Fragment key={b.id}>
@@ -293,7 +388,7 @@ const LeftContainerBatchList: React.FC = () => {
                                                 borderTopLeftRadius: 8,
                                                 background: selected
                                                     ? 'linear-gradient(180deg, #6366F1, #8B5CF6 35%, #EC4899)'
-                                                    : (isClosed ? 'linear-gradient(90deg, #ef4444, #dc2626 35%, #b91c1c)' : 'transparent'),
+                                                    : (Boolean(header?.time_closed) ? 'linear-gradient(90deg, #ef4444, #dc2626 35%, #b91c1c)' : 'transparent'),
                                             },
                                         }}
                                     >
@@ -303,7 +398,7 @@ const LeftContainerBatchList: React.FC = () => {
                                                 <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
                                                     <LayersRounded fontSize="small" />
                                                     <Typography variant="h6" fontWeight={800}># {String(b.batch)}</Typography>
-                                                    <Chip size="small" label={isClosed ? 'Selesai' : 'Aktif'} color={isClosed ? 'error' : 'success'} variant="filled" />
+                                                    <Chip size="small" label={header?.time_closed ? 'Selesai' : 'Aktif'} color={header?.time_closed ? 'error' : 'success'} variant="filled" />
                                                 </Stack>
                                                 <Typography variant="subtitle1" fontWeight={800} title={rupiah(price)}>
                                                     {rupiah(price)}
@@ -334,8 +429,8 @@ const LeftContainerBatchList: React.FC = () => {
                                             borderColor: cardBorderColor,
                                             borderBottomLeftRadius: 8,
                                             borderBottomRightRadius: 8,
-                                            bgcolor: isClosed ? 'error.main' : 'success.main',
-                                            color: isClosed ? 'error.contrastText' : 'success.contrastText',
+                                            bgcolor: header?.time_closed ? 'error.main' : 'success.main',
+                                            color: header?.time_closed ? 'error.contrastText' : 'success.contrastText',
                                             px: 1.4,
                                             py: 0.75,
                                             display: 'flex',
@@ -345,7 +440,7 @@ const LeftContainerBatchList: React.FC = () => {
                                             mb: 1,
                                         }}
                                     >
-                                        <TimerText startIso={b.time_created} endIso={header?.time_closed ?? null} active={!isClosed} />
+                                        <TimerText startIso={b.time_created} endIso={header?.time_closed ?? null} active={!header?.time_closed} />
                                     </Box>
                                 </React.Fragment>
                             )
