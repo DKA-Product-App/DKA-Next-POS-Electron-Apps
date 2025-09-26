@@ -19,7 +19,8 @@ import { useDiningMode } from '../../../../context/DiningModeContext'
 import { CartItem } from '../../../../../../../(select-product)/context/CartContext'
 import { useTheme } from '@mui/material/styles'
 import { useThemeCharger } from '../../../../../../../../context/ThemeCharger'
-import {useTransactionEventTrigger} from "../../context/TransactionEventTriggerContext"; // ⬅️ sesuaikan alias/path kamu
+import {useTransactionEventTrigger} from "../../context/TransactionEventTriggerContext";
+import {useSession} from "../../../../../../../../../../contexts/SessionProviderContext"; // ⬅️ sesuaikan alias/path kamu
 
 const Billing = dynamic(() => import('../../../../../../../(select-product)'), { ssr: true })
 
@@ -30,6 +31,7 @@ const rupiah = (n: number | string) =>
 const LeftContainerBatchListNewOrder: React.FC<{ tx: string }> = ({ tx }) => {
     const { txId, header, setHeader, grandTotal, setGrandTotal, selectedBatchId, setSelectedBatchId, reloadKey,setReloadKey } = useTx()
     const { setDefaultValue, setDisableOtherDefault } = useDiningMode();
+    const { Session } = useSession();
     const { bump } = useTransactionEventTrigger()
     const [batches, setBatches] = React.useState<Batch[]>([])
     const isClosed = Boolean(header?.time_closed)
@@ -75,8 +77,8 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: string }> = ({ tx }) => {
         // @ts-ignore
         window.api.invoke('api.transaction.batch:create', {
             transaction: { id: txId },
-            branch: { id: '00000000-0000-5000-a000-000000000000' },
-            reference: header?.reference,
+            branch: Session.branches,
+            reference: Session.id,
             items: itemRefactor,
         })
             .then((res: any) => {

@@ -17,6 +17,7 @@ import { useTheme } from '@mui/material/styles'
 import { useThemeCharger } from '../../../../../../../context/ThemeCharger'
 import { useAuth } from '../../../../../../../../../contexts/AuthProviderContext'
 import {useSession} from "../../../../../../../../../contexts/SessionProviderContext";
+import normalizeIpcError from "../../../../../../../../../helpers/electronMessageErrorEsctration";
 
 // === Dynamically loaded pages ===
 const Billing = dynamic(() => import('../../../../../../(select-product)'), { ssr: false })
@@ -56,8 +57,6 @@ const DiningIntro: React.FC = () => (
 
 const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
     const [open, setOpen] = useState(false)
-
-    const { Auth, setAuth } = useAuth();
     const { Session } = useSession();
     // wizard data
     const [orderType, setOrderType] = useState<Option | undefined>(undefined)
@@ -107,9 +106,10 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
 
                 return {
                     // JANGAN spread variant ke top-level untuk menghindari bentrok field
+                    reference: Session.id,
                     product: i?.variant?.product ?? null,
                     variant: i?.variant ?? null,
-                    note: i?.note ?? '',
+                    note: i?.note ?? null,
                     qty: safeQty,
                     price: safePrice,
                     sub_total: safePrice * safeQty,
@@ -123,19 +123,27 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
         const payload = {
             reference: { id: Session.id },
             branch: Session.branches,
-            shift: { id: '00000000-0000-5000-a000-000000000000' },
+            shift: Session.shift,
             order_type: { id: orderType.id },
             table: tableId ? { id: tableId } : undefined,
             invoice: Math.floor(10000 + Math.random() * 90000),
             batches: [
-                { branch: [{ id: Session.branches }], batch: 1, items: sanitized },
+                {
+                    reference: { id: Session.id },
+                    branch: Session.branches,
+                    batch: 1,
+                    items: sanitized
+                },
             ],
         }
 
         window.api?.invoke('api.transaction:create', payload)
             .then((result) => (console.table(result), onCreated?.(), closeDialog()))
-            .catch(console.error)
-    }, [orderType, tableId, onCreated, closeDialog])
+            .catch((error) => {
+                const e = normalizeIpcError(error);
+                console.log(e);
+            })
+    }, [orderType, tableId, onCreated, closeDialog, Session])
 
 
     /* ---------- step actions ---------- */

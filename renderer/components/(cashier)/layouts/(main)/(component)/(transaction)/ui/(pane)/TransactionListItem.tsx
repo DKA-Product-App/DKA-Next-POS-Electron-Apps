@@ -20,9 +20,7 @@ import type { Transaction } from './(components)/TransactionListItemRow'
 import ShimmerLoadingTransactionListItemRow from '../(loading)/ShimmerLoadingTransactionListItemRow'
 import ShimmerLoadingTransactionContainer from '../(loading)/ShimmerLoadingTransactionContainer'
 import { useTransactionEventTrigger } from './context/TransactionEventTriggerContext'
-import {useEffect} from "react";
-import {setLayout} from "recharts/types/state/layoutSlice";
-
+import {useSession} from "../../../../../../../../contexts/SessionProviderContext";
 // ===== Const =====
 const TZ_OFFSET = '+08:00' // Asia/Makassar
 const GRADIENT_PURPLE = 'linear-gradient(90deg, #6366F1, #8B5CF6 30%, #EC4899)'
@@ -75,7 +73,7 @@ const TransactionListItemNotFound = dynamic(() => import('./(components)/Transac
  * =======================*/
 const TransactionListItem: React.FC = () => {
     const { setLayout } = useLayoutManipulatorResizable()
-
+    const { Session } = useSession();
     const [transaction, setTransaction] = React.useState<Array<Transaction>>([])
 
     // ✅ Pisah state: single vs multi
@@ -108,7 +106,10 @@ const TransactionListItem: React.FC = () => {
     const softRefetch = React.useCallback(() => {
         const { startAt, endAt } = filters
         if (!startAt || !endAt) return
-        const payload = { startAt: `${startAt}:00${TZ_OFFSET}`, endAt: `${endAt}:59${TZ_OFFSET}` }
+        const payload = {
+            startAt: `${startAt}:00${TZ_OFFSET}`, endAt: `${endAt}:59${TZ_OFFSET}` ,
+            reference: Session.id
+        }
 
         setIsFetching(true)
         setFetchError(null)
@@ -131,7 +132,11 @@ const TransactionListItem: React.FC = () => {
     React.useEffect(() => {
         const { startAt, endAt } = filters
         if (!startAt || !endAt) return
-        const payload = { startAt: `${startAt}:00${TZ_OFFSET}`, endAt: `${endAt}:59${TZ_OFFSET}` }
+        const payload = {
+            startAt: `${startAt}:00${TZ_OFFSET}`,
+            endAt: `${endAt}:59${TZ_OFFSET}`,
+            reference: Session.id
+        }
 
         setIsFetching(true)
         setFetchError(null)

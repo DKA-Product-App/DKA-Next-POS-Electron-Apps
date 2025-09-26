@@ -12,11 +12,12 @@ export default function Layout({ children }) {
             <base href={'.'}/>
         </head>
         <body>
-        <AuthProvider>
-            <SessionProvider>
+        <SessionProvider>
+            <AuthProvider>
                 {children}
-            </SessionProvider>
-        </AuthProvider>
+            </AuthProvider>
+        </SessionProvider>
+
         </body>
         </html>
     )

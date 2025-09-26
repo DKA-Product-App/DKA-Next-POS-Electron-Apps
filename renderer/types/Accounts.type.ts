@@ -36,6 +36,7 @@ interface AccountDataItem {
     name: PersonName
     username: string
     password: string
+    shift: any;
     time_created: ISODate
     time_updated: ISODate
     reference: AccountReference

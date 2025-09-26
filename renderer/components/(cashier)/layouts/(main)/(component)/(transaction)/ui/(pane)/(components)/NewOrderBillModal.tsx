@@ -7,9 +7,9 @@ import {
 } from '@mui/material'
 import CallSplitRounded from '@mui/icons-material/CallSplitRounded'
 import ReceiptLongRounded from '@mui/icons-material/ReceiptLongRounded'
-import type { ButtonProps } from '@mui/material'
-import { useTx } from '../context/TransactionContext'
-import { useEffect, useRef, useState } from 'react'
+import type {ButtonProps} from '@mui/material'
+import {useTx} from '../context/TransactionContext'
+import {useEffect, useRef, useState} from 'react'
 import normalizeIpcError from '../../../../../../../../../helpers/electronMessageErrorEsctration'
 import InfoOutlined from '@mui/icons-material/InfoOutlined'
 import FullscreenExitRounded from '@mui/icons-material/FullscreenExitRounded'
@@ -17,36 +17,46 @@ import FullscreenRounded from '@mui/icons-material/FullscreenRounded'
 import DarkModeRounded from '@mui/icons-material/DarkModeRounded'
 import LightModeRounded from '@mui/icons-material/LightModeRounded'
 import CloseRounded from '@mui/icons-material/CloseRounded'
-import { useTheme } from '@mui/material/styles'
-import { useThemeCharger } from '../../../../../../../context/ThemeCharger'
+import {useTheme} from '@mui/material/styles'
+import {useThemeCharger} from '../../../../../../../context/ThemeCharger'
 import dynamic from 'next/dynamic'
-import { useTabNavigationHandlerContext } from '../../../context/TabNavigationHandlerContext'
+import {useTabNavigationHandlerContext} from '../../../context/TabNavigationHandlerContext'
 import {useTransactionEventTrigger} from "../context/TransactionEventTriggerContext";
 import {useAuth} from "../../../../../../../../../contexts/AuthProviderContext";
 import {useSession} from "../../../../../../../../../contexts/SessionProviderContext";
 
 const BillListItemDetail = dynamic(
     () => import('./../../../../(bills)/ui/(pane)/BillsListItemDetail'),
-    { ssr: true }
+    {ssr: true}
 )
 
-const ErrorDataLayout: React.FC<{ status: boolean, code: number | string, msg: string, raw?: any, extra?: any }> = ({ status, code, msg, raw, extra }) => {
-    const { setState } = useTabNavigationHandlerContext()
+const ErrorDataLayout: React.FC<{
+    status: boolean,
+    code: number | string,
+    msg: string,
+    raw?: any,
+    extra?: any
+}> = ({status, code, msg, raw, extra}) => {
+    const {setState} = useTabNavigationHandlerContext()
     return (
-        <Box sx={{ height: '100%', display: 'grid', placeItems: 'center', p: 2 }}>
-            <Paper elevation={0} sx={(t)=>({
-                maxWidth:640,width:'100%',p:3,border:'1px dashed',borderColor:'divider',
-                bgcolor: t.palette.mode==='dark' ? 'background.default' : 'background.paper', textAlign:'center'
+        <Box sx={{height: '100%', display: 'grid', placeItems: 'center', p: 2}}>
+            <Paper elevation={0} sx={(t) => ({
+                maxWidth: 640, width: '100%', p: 3, border: '1px dashed', borderColor: 'divider',
+                bgcolor: t.palette.mode === 'dark' ? 'background.default' : 'background.paper', textAlign: 'center'
             })}>
                 <Stack spacing={1.25} alignItems="center">
-                    <InfoOutlined color="info" sx={{ fontSize:36 }}/>
+                    <InfoOutlined color="info" sx={{fontSize: 36}}/>
                     <Typography variant="h6" fontWeight={900}>Harap Selesaikan Tagihan Terakhir</Typography>
                     <Typography variant="body2" color="text.secondary">{msg}</Typography>
-                    {code===402 && (
-                        <Box sx={{ display:'flex', justifyContent:'center' }}>
+                    {code === 402 && (
+                        <Box sx={{display: 'flex', justifyContent: 'center'}}>
                             <Button
-                                onClick={()=>setState(prev=>({ ...prev, active:'bills', id: extra?.data?.id ?? undefined }))}
-                                variant="outlined" sx={{ textTransform:'none', fontWeight:800, borderRadius:1.5 }}
+                                onClick={() => setState(prev => ({
+                                    ...prev,
+                                    active: 'bills',
+                                    id: extra?.data?.id ?? undefined
+                                }))}
+                                variant="outlined" sx={{textTransform: 'none', fontWeight: 800, borderRadius: 1.5}}
                             >
                                 Menuju Ke Tagihan ({extra?.data?.number ?? '-'})
                             </Button>
@@ -66,27 +76,32 @@ type Props = {
     variant?: ButtonProps['variant']
 }
 
-export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', onSuccess, variant='contained' }: Props) {
-    const { header, txId, bumpReload, clearSelection } = useTx()
-    const { bump } = useTransactionEventTrigger()
+export default function NewOrderBillModal({
+                                              items,
+                                              mode,
+                                              label = 'Buat Tagihan',
+                                              onSuccess,
+                                              variant = 'contained'
+                                          }: Props) {
+    const {header, txId, bumpReload, clearSelection} = useTx()
+    const {bump} = useTransactionEventTrigger()
     const isClosed = Boolean(header?.time_closed);
 
-    const { Auth, setAuth } = useAuth();
-    const { Session } = useSession();
+    const {Session} = useSession();
 
-    const isPaidBool = (p:any) => p===true || p?.is_paid===true || p?.status===true
-    const hasBills = Array.isArray((header as any)?.bills) && (header as any).bills.length>0
+    const isPaidBool = (p: any) => p === true || p?.is_paid === true || p?.status === true
+    const hasBills = Array.isArray((header as any)?.bills) && (header as any).bills.length > 0
     const hasPaidField = typeof (header as any)?.paid !== 'undefined' && (header as any)?.paid !== null
     const blockedByUnpaidBill = hasBills && hasPaidField && !isPaidBool((header as any)?.paid)
 
     const [open, setOpen] = useState(false)
     const [fullScreen, setFullScreen] = useState(false)
     const theme = useTheme()
-    const isDark = (theme.palette as any)?.mode==='dark' || (theme.palette as any)?.colorScheme==='dark'
-    const { toggleMode } = useThemeCharger()
+    const isDark = (theme.palette as any)?.mode === 'dark' || (theme.palette as any)?.colorScheme === 'dark'
+    const {toggleMode} = useThemeCharger()
 
-    const isSplitMode = mode==='split'
-    const baseIcon = isSplitMode ? <CallSplitRounded sx={{ fontSize:36 }}/> : <ReceiptLongRounded sx={{ fontSize:36 }}/>
+    const isSplitMode = mode === 'split'
+    const baseIcon = isSplitMode ? <CallSplitRounded sx={{fontSize: 36}}/> : <ReceiptLongRounded sx={{fontSize: 36}}/>
     const color: ButtonProps['color'] = blockedByUnpaidBill ? 'error' : (isSplitMode ? 'warning' : 'success')
 
     const [transactionBatchItems, setTransactionBatchItems] = useState<Array<any>>([])
@@ -99,10 +114,10 @@ export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', o
     const lockRef = useRef(false)
 
     const modalBlocked = open ? (lockedBlocked ?? blockedByUnpaidBill) : blockedByUnpaidBill
-    const disabled = isClosed || items.length===0 || blockedByUnpaidBill
+    const disabled = isClosed || items.length === 0 || blockedByUnpaidBill
     const tooltip = blockedByUnpaidBill
         ? 'Tidak bisa membuat tagihan: ada tagihan sebelumnya yang belum lunas.'
-        : `Buat Tagihan (${isSplitMode ? 'Split':'Keseluruhan'}) — ${items.length} item`
+        : `Buat Tagihan (${isSplitMode ? 'Split' : 'Keseluruhan'}) — ${items.length} item`
 
     const openWithUnpaidBillNotice = () => {
         const firstBill = (header as any)?.bills?.[0] ?? null
@@ -111,14 +126,14 @@ export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', o
                 status={false}
                 code={402}
                 msg={'Terdapat tagihan belum lunas untuk transaksi ini. Selesaikan dahulu sebelum membuat tagihan baru.'}
-                extra={{ data: firstBill }}
+                extra={{data: firstBill}}
             />
         )
         setOpen(true)
     }
 
     const handleOpen = () => {
-        if (isClosed || items.length===0) return
+        if (isClosed || items.length === 0) return
         // kunci snapshot saat ini
         setLockedBlocked(blockedByUnpaidBill)
         setLockedItemsKey(items.join('|'))      // gunakan string stabil agar efek tidak kepicu lagi
@@ -141,13 +156,13 @@ export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', o
         if (!open || modalBlocked) return
         if (!lockedItemsKey) return
 
-        window?.api?.invoke?.('api.transaction.batch.item:read.all', { ids: lockedItemsKey.split('|') })
-            .then((res:any) => {
+        window?.api?.invoke?.('api.transaction.batch.item:read.all', {ids: lockedItemsKey.split('|')})
+            .then((res: any) => {
                 // jangan hapus preview yang sudah ada (biar gak “kedip”)
                 if (!lockRef.current) return
                 setTransactionBatchItems(res?.data ?? [])
             })
-            .catch((error:any) => {
+            .catch((error: any) => {
                 if (!lockRef.current) return
                 setTransactionBatchItems([])
                 const e = normalizeIpcError(error)
@@ -159,18 +174,23 @@ export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', o
     // ====== Create bill + tampilkan preview, sekali saja untuk batch yang sudah terkunci ======
     useEffect(() => {
         if (!open || modalBlocked) return
-        if (transactionBatchItems.length===0) return
+        if (transactionBatchItems.length === 0) return
         if (!lockedTxId) return
 
-        const arrayRefactor = transactionBatchItems.map((it:any) => {
-            const { id, ...rest } = it
-            return { ...rest, transactionItem: { id } }
+        const arrayRefactor = transactionBatchItems.map((it: any) => {
+            const {id, ...rest} = it
+            return {
+                ...rest, transactionItem: {
+                    id,
+                    reference: {id: Session.id}
+                }
+            }
         })
 
         const payload = {
-            reference: { id: Session.id },
+            reference: {id: Session.id},
             branch: Session.branches,
-            transaction: { id: lockedTxId },
+            transaction: {id: lockedTxId},
             number: Date.now(),
             items: arrayRefactor,
         }
@@ -182,9 +202,9 @@ export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', o
         if (alreadyPreviewing) return
 
         window?.api?.invoke?.('api.transaction.bills:create', payload)
-            .then((result:any) => {
+            .then((result: any) => {
                 if (!lockRef.current) return
-                setLayoutPaper(<BillListItemDetail bill={result.data} />)
+                setLayoutPaper(<BillListItemDetail bill={result.data}/>)
                 // penting: reload context TANPA memicu efek modal (karena semua input di-lock + efek tidak tergantung header/items)
                 setTimeout(() => {
                     try {
@@ -192,10 +212,11 @@ export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', o
                         // 4) ping global kalau ada listener lain (boleh dipertahankan)
                         bump('batch');
                         clearSelection();
-                    } catch {}
+                    } catch {
+                    }
                 }, 0)
             })
-            .catch((error:any) => {
+            .catch((error: any) => {
                 if (!lockRef.current) return
                 const e = normalizeIpcError(error)
                 setLayoutPaper(<ErrorDataLayout {...e} />)
@@ -214,9 +235,9 @@ export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', o
             sx={(t) => {
                 const light = t.palette.mode === 'light'
                 return {
-                    textTransform:'none',
-                    py:1.1,
-                    px:2.2,
+                    textTransform: 'none',
+                    py: 1.1,
+                    px: 2.2,
                     fontWeight: 800,
                     letterSpacing: .2,
                     minHeight: 32,         // jumbo
@@ -224,7 +245,7 @@ export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', o
                     borderRadius: 3,       // sudut mantap
                     // --- Warna adaptif mode ---
                     bgcolor: light ? '#000' : '#fff',
-                    color:   light ? '#fff' : '#000',
+                    color: light ? '#fff' : '#000',
 
                     // --- Hover/active states ---
                     '&:hover': {
@@ -236,9 +257,9 @@ export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', o
                     },
 
                     // pastikan ikon ikut mewarisi warna
-                    '& .MuiButton-startIcon': { mr: 1.25 }
+                    '& .MuiButton-startIcon': {mr: 1.25}
                 }
-        }}
+            }}
         >
             {label}
         </Button>
@@ -252,10 +273,10 @@ export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', o
               <Badge
                   color={blockedByUnpaidBill ? 'error' : 'warning'}
                   badgeContent={items.length}
-                  invisible={items.length===0}
-                  anchorOrigin={{ vertical:'top', horizontal:'right' }}
+                  invisible={items.length === 0}
+                  anchorOrigin={{vertical: 'top', horizontal: 'right'}}
                   overlap="rectangular"
-                  sx={{ '& .MuiBadge-badge': { fontWeight:800 } }}
+                  sx={{'& .MuiBadge-badge': {fontWeight: 800}}}
               >
                   {ButtonEl}
               </Badge>
@@ -270,34 +291,37 @@ export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', o
                 maxWidth="xl"
                 fullScreen={fullScreen}
                 onClose={(e, reason) => {
-                    if (reason==='backdropClick' || reason==='escapeKeyDown') return
+                    if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
                     handleClose()
                 }}
                 disableEscapeKeyDown
                 slotProps={{
                     paper: {
                         sx: {
-                            display:'flex', flexDirection:'column',
+                            display: 'flex', flexDirection: 'column',
                             height: fullScreen ? '100vh' : '85vh',
-                            overflow:'hidden',
-                            transition: (t)=>t.transitions.create('height', { duration:t.transitions.duration.standard }),
+                            overflow: 'hidden',
+                            transition: (t) => t.transitions.create('height', {duration: t.transitions.duration.standard}),
                         }
                     }
                 }}
-                PaperProps={{ sx:{ height:{ xs:'90vh', md:'85vh' } } }}
+                PaperProps={{sx: {height: {xs: '90vh', md: '85vh'}}}}
             >
-                <DialogTitle sx={{ display:'flex', alignItems:'center', pr:1.5, gap:1 }}>
+                <DialogTitle sx={{display: 'flex', alignItems: 'center', pr: 1.5, gap: 1}}>
                     <Typography variant="h6" fontWeight={800}>
                         {modalBlocked
                             ? 'Tagihan Belum Lunas Ditemukan'
                             : (isSplitMode ? 'Preview Tagihan (Split)' : 'Preview Tagihan (Keseluruhan)')}
                     </Typography>
 
-                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ ml:'auto' }}>
-                        <IconButton size="small" onClick={()=>setFullScreen(v=>!v)} aria-label={fullScreen ? 'Keluar layar penuh':'Layar penuh'}>
-                            {fullScreen ? <FullscreenExitRounded fontSize="small"/> : <FullscreenRounded fontSize="small"/>}
+                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ml: 'auto'}}>
+                        <IconButton size="small" onClick={() => setFullScreen(v => !v)}
+                                    aria-label={fullScreen ? 'Keluar layar penuh' : 'Layar penuh'}>
+                            {fullScreen ? <FullscreenExitRounded fontSize="small"/> :
+                                <FullscreenRounded fontSize="small"/>}
                         </IconButton>
-                        <IconButton size="small" onClick={()=>toggleMode()} aria-label={isDark ? 'Ganti ke tema terang':'Ganti ke tema gelap'}>
+                        <IconButton size="small" onClick={() => toggleMode()}
+                                    aria-label={isDark ? 'Ganti ke tema terang' : 'Ganti ke tema gelap'}>
                             {isDark ? <DarkModeRounded fontSize="small"/> : <LightModeRounded fontSize="small"/>}
                         </IconButton>
                         <IconButton size="small" onClick={handleClose} aria-label="Tutup">
@@ -306,8 +330,8 @@ export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', o
                     </Stack>
                 </DialogTitle>
 
-                <DialogContent dividers sx={{ p:0, display:'flex', flexDirection:'column' }}>
-                    <Box sx={{ flex:1, minHeight:0 }}>
+                <DialogContent dividers sx={{p: 0, display: 'flex', flexDirection: 'column'}}>
+                    <Box sx={{flex: 1, minHeight: 0}}>
                         {layoutPaper}
                     </Box>
                 </DialogContent>

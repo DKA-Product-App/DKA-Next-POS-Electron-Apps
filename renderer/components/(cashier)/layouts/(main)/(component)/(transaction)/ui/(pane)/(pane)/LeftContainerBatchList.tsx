@@ -9,6 +9,7 @@ import LocalMallRounded from '@mui/icons-material/LocalMallRounded'
 import { useTx } from '../context/TransactionContext'
 import LeftContainerBatchListNewOrder from './(components)/LeftContainerBatchListNewOrder'
 import LeftContainerBatchPrintChecker from './(components)/LeftContainerBatchPrintChecker'
+import {useSession} from "../../../../../../../../../contexts/SessionProviderContext";
 
 export type Name = { first_name: string; last_name?: string }
 export type Reference = { id: string; name?: Name; username?: string }
@@ -203,6 +204,7 @@ export const batchTotal = (b: Batch) => {
 const LeftContainerBatchList: React.FC = () => {
     const { txId, header, setHeader, setGrandTotal, selectedBatchId, setSelectedBatchId, reloadKey } = useTx()
     const [batches, setBatches] = React.useState<Batch[]>([])
+    const { Session } = useSession();
     const [isLoading, setIsLoading] = React.useState(false)
 
     // fetch semua batch utk transaksi ini
@@ -211,7 +213,10 @@ const LeftContainerBatchList: React.FC = () => {
 
         setIsLoading(true) // start loading
         // @ts-ignore
-        window.api.invoke('api.transaction.batch:read.all', { transaction: txId })
+        window.api.invoke('api.transaction.batch:read.all', {
+            transaction: txId,
+            reference: Session.id ?? undefined
+        })
             .then((res: any) => {
                 const list = (res?.data ?? []) as any[]
                 const t = list[0]?.transaction

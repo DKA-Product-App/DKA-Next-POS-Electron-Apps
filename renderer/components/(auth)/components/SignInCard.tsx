@@ -189,7 +189,6 @@ export default function SignInCard() {
                             autoComplete="username"
                             required
                             fullWidth
-                            defaultValue={'demo'}
                             variant="outlined"
                             color="primary"
                             InputProps={{
@@ -235,7 +234,6 @@ export default function SignInCard() {
                             autoComplete="current-password"
                             required
                             fullWidth
-                            defaultValue={'demo'}
                             variant="outlined"
                             color="primary"
                             InputProps={{

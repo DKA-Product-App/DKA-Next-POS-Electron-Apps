@@ -68,8 +68,6 @@ export default function Header({branchName = 'Main Branch', registerName = 'REG-
     const router = useRouter()
     const pathname = usePathname()
     const { key, seq } = useFunctionKey()
-    const { Auth, setAuth } = useAuth();
-    const { Session, setSession } = useSession();
     const [isGodMode, setGodMode] = useState(false);
 
     useEffect(() => {
@@ -79,23 +77,6 @@ export default function Header({branchName = 'Main Branch', registerName = 'REG-
                 break;
         }
     }, [seq]);
-
-
-    useEffect(() => {
-        if (Auth !== null){
-            window?.api?.invoke?.("api.auth:verify", Auth)
-                .then(async (result) => {
-                    setSession(result.data);
-                })
-                .catch((error) => {
-                    const e = normalizeIpcError(error);
-                    console.error(e);
-                });
-        }else{
-            setAuth({ token : undefined, roles: undefined })
-            router.replace(`/auth`)
-        }
-    }, [Auth]);
 
 
     return (

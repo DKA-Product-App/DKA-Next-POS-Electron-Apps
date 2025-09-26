@@ -8,6 +8,7 @@ import {
 import type { ButtonProps, IconButtonProps } from '@mui/material'
 import { DoneAllRounded, DeleteRounded } from '@mui/icons-material'
 import { useTx } from '../context/TransactionContext'
+import { useSession } from '../../../../../../../../../contexts/SessionProviderContext'
 
 
 const rupiah = (n: number | string) =>
@@ -19,7 +20,7 @@ const toButtonColor = (c: IconButtonProps['color']): ButtonProps['color'] =>
 
 export default function OrderVoidModal() {
     const { header, txId, selectedItemIds, selectedTotal, clearSelection, bumpReload } = useTx()
-
+    const { Session } = useSession();
     const [open, setOpen] = React.useState(false)
     const [reason, setReason] = React.useState('')
 
@@ -37,6 +38,7 @@ export default function OrderVoidModal() {
     const handleConfirm = () =>
         // @ts-ignore – sesuaikan channel IPC kalau namanya beda
         window.api.invoke('api.transaction.item:void', {
+            reference : { id : Session.id },
             transaction_id: txId,
             item_ids: Array.from(selectedItemIds),
             reason: reason || undefined,

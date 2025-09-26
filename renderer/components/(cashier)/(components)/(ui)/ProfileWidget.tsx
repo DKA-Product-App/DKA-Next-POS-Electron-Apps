@@ -45,20 +45,8 @@ export default function ProfileWidget({
     const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null)
     const open = Boolean(anchorEl)
 
-    const pathname = usePathname();
-    const router = useRouter();
-    const { Auth, setAuth } = useAuth();
+    const { setLogout } = useAuth();
     const { Session } = useSession();
-
-
-    const onLogout = () => {
-        setAuth({ token : undefined, roles: undefined })
-        router.replace(`/auth`)
-    }
-
-    useEffect(() => {
-        console.log(Session);
-    }, [Session]);
 
     const handleOpen = (e: React.MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget)
     const handleClose = () => setAnchorEl(null)
@@ -147,7 +135,7 @@ export default function ProfileWidget({
                         <Item
                             icon={<LogoutRoundedIcon />}
                             primary="Keluar"
-                            onClick={onLogout}
+                            onClick={setLogout}
                         />
                     </List>
                 </PerfectScrollbar>
