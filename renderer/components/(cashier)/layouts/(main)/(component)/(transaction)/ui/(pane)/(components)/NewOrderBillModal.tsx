@@ -22,6 +22,8 @@ import { useThemeCharger } from '../../../../../../../context/ThemeCharger'
 import dynamic from 'next/dynamic'
 import { useTabNavigationHandlerContext } from '../../../context/TabNavigationHandlerContext'
 import {useTransactionEventTrigger} from "../context/TransactionEventTriggerContext";
+import {useAuth} from "../../../../../../../../../contexts/AuthProviderContext";
+import {useSession} from "../../../../../../../../../contexts/SessionProviderContext";
 
 const BillListItemDetail = dynamic(
     () => import('./../../../../(bills)/ui/(pane)/BillsListItemDetail'),
@@ -67,7 +69,10 @@ type Props = {
 export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', onSuccess, variant='contained' }: Props) {
     const { header, txId, bumpReload, clearSelection } = useTx()
     const { bump } = useTransactionEventTrigger()
-    const isClosed = Boolean(header?.time_closed)
+    const isClosed = Boolean(header?.time_closed);
+
+    const { Auth, setAuth } = useAuth();
+    const { Session } = useSession();
 
     const isPaidBool = (p:any) => p===true || p?.is_paid===true || p?.status===true
     const hasBills = Array.isArray((header as any)?.bills) && (header as any).bills.length>0
@@ -163,8 +168,8 @@ export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', o
         })
 
         const payload = {
-            reference: { id: '00000000-0000-5000-a000-000000000000' },
-            branch: [{ id: '00000000-0000-5000-a000-000000000000' }],
+            reference: { id: Session.id },
+            branch: Session.branches,
             transaction: { id: lockedTxId },
             number: Date.now(),
             items: arrayRefactor,
@@ -206,7 +211,34 @@ export default function NewOrderBillModal({ items, mode, label='Buat Tagihan', o
             onClick={handleOpen}
             size="large"
             startIcon={baseIcon}
-            sx={{ textTransform:'none', fontWeight:800, borderRadius:2, py:1.1, px:2.2 }}
+            sx={(t) => {
+                const light = t.palette.mode === 'light'
+                return {
+                    textTransform:'none',
+                    py:1.1,
+                    px:2.2,
+                    fontWeight: 800,
+                    letterSpacing: .2,
+                    minHeight: 32,         // jumbo
+                    fontSize: '1.3rem',   // ~20px
+                    borderRadius: 3,       // sudut mantap
+                    // --- Warna adaptif mode ---
+                    bgcolor: light ? '#000' : '#fff',
+                    color:   light ? '#fff' : '#000',
+
+                    // --- Hover/active states ---
+                    '&:hover': {
+                        bgcolor: light ? '#111' : '#f5f5f5',
+                    },
+                    '&:active': {
+                        transform: 'translateY(1px)',
+                        boxShadow: 'none',
+                    },
+
+                    // pastikan ikon ikut mewarisi warna
+                    '& .MuiButton-startIcon': { mr: 1.25 }
+                }
+        }}
         >
             {label}
         </Button>

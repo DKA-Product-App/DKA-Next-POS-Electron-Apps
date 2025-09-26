@@ -69,7 +69,15 @@ const TransactionButtonJoinBillWidget: React.FC<Props> = ({
                 disabled={!joinEnabled}
                 color={'warning'}
                 onClick={openDialog}
-                sx={{ fontWeight: 800, letterSpacing: .2, opacity: joinEnabled ? 1 : .6 }}
+                sx={{
+                    textTransform:'none',
+                    minHeight: 26,         // jumbo
+                    fontSize: '1rem',   // ~20px
+                    fontWeight: 800,
+                    letterSpacing: .2,
+                    opacity: joinEnabled ? 1 : .6,
+                    borderRadius: 3,       // sudut mantap
+            }}
             >
                 Join Bill
             </Button>

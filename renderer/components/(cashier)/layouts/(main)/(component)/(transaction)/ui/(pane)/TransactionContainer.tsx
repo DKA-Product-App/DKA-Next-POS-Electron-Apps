@@ -140,7 +140,7 @@ function Body() {
                         {isSplitMode ? 'Total Terpilih  (Sebelum PPN)' : 'Total Transaksi (Sebelum PPN)'}
                     </Typography>
 
-                    <Typography sx={{ lineHeight: 1, fontWeight: 900, fontSize: { xs: '1.6rem', sm: '1.9rem', md: '2.1rem' } }}>
+                    <Typography sx={{ lineHeight: 1, fontWeight: 900, fontSize: { xs: '2.1rem', sm: '2.2rem', md: '3.1rem' } }}>
                         {isSplitMode ? rupiah(selectedTotal) : (grandTotal > 0 ? rupiah(grandTotal) : 0)}
                     </Typography>
 
@@ -159,13 +159,7 @@ function Body() {
                 {/* Kanan: Aksi */}
                 <Stack direction="row" gap={1.25} alignItems="center" sx={{ pr: 4 }}>
                     {/* Void */}
-                    <OrderVoidModal
-                        iconOnly={false}
-                        color="error"
-                        buttonVariant="contained"
-                        label="Void"
-                        iconFontSizePx={36}
-                    />
+                    <OrderVoidModal />
 
                     {/* Buat Tagihan — kirim array **ID** item */}
                     <NewOrderBillModal

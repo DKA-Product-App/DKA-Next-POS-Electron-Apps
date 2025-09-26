@@ -20,6 +20,8 @@ import type { Transaction } from './(components)/TransactionListItemRow'
 import ShimmerLoadingTransactionListItemRow from '../(loading)/ShimmerLoadingTransactionListItemRow'
 import ShimmerLoadingTransactionContainer from '../(loading)/ShimmerLoadingTransactionContainer'
 import { useTransactionEventTrigger } from './context/TransactionEventTriggerContext'
+import {useEffect} from "react";
+import {setLayout} from "recharts/types/state/layoutSlice";
 
 // ===== Const =====
 const TZ_OFFSET = '+08:00' // Asia/Makassar

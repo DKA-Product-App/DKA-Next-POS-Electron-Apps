@@ -1,36 +1,47 @@
+// Alias biar rapi
+type UUID = string
+type ISODate = string
 
-export type UUID = string;
-
-export interface TimeStamp {
-    unix: number;
-    humanize: string;
+// Nama orang
+interface PersonName {
+    last_name: string
+    first_name: string
 }
 
-export interface AccountsInfo {
-    first_name: string;
-    last_name: string;
-    status: boolean;
-    time_created: TimeStamp;
+// Referensi user sederhana (tanpa nested "reference" lagi)
+interface AccountReference {
+    id: UUID
+    name: PersonName
+    username: string
+    password: string
+    time_created: ISODate
+    time_updated: ISODate
 }
 
-export interface AccountsPlace {
-    status: boolean;
-    address: string;
-    postal_code: string;
-    time_created: TimeStamp;
+// Role/Peran user
+interface Role {
+    id: UUID
+    code: string          // contoh: "DEV"
+    name: string          // contoh: "Developer"
+    description: string
+    status: boolean
+    time_created: ISODate
+    time_updated: ISODate
+    reference: AccountReference
 }
 
-
-export interface AccountsCredential {
-    email : string;
-    username: string;
+// Satu item pada field `data`
+interface AccountDataItem {
+    id: UUID
+    name: PersonName
+    username: string
+    password: string
+    time_created: ISODate
+    time_updated: ISODate
+    reference: AccountReference
+    branches: any[]       // kosong di sample; ganti dengan tipe pasti kalau sudah ada skemanya
+    roles: Role[]
 }
 
-export interface Accounts {
-    status: boolean;
-    id: UUID;
-    credential: AccountsCredential;
-    info: AccountsInfo;
-    place: AccountsPlace;
-    time_created: TimeStamp;
-}
+// Tipe untuk keseluruhan `data`
+type AccountData = AccountDataItem[]

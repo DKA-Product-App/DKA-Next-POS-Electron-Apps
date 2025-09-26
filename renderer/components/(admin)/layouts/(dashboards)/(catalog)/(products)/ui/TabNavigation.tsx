@@ -9,35 +9,25 @@ import { motion } from 'framer-motion';
 import ReceiptLongRounded from '@mui/icons-material/ReceiptLongRounded';
 import RequestQuoteRounded from '@mui/icons-material/RequestQuoteRounded';
 
-import { useLayoutManipulatorResizable } from '../../../../../contexts/LayoutManipulatorResizableContext';
-import ShimmerMenuSelectLoading from './../(component)/(transaction)/ui/(loading)/ShimmerMenuSelectLoading';
-import {useTabNavigationHandlerContext} from "../(component)/(transaction)/context/TabNavigationHandlerContext";
+import {useTabNavigationHandlerContext} from "../context/TabNavigationHandlerContext";
 
 /* ===== Types & Constants ===== */
 type TabDef = { key: string; label: string; icon: React.ReactNode; render: () => React.ReactNode };
 
-const Transaction = dynamic(() => import('./../(component)/(transaction)'), {
-    loading: () => <ShimmerMenuSelectLoading />,
-    ssr: false,
-});
-const Bills = dynamic(() => import('./../(component)/(bills)'), {
-    loading: () => <ShimmerMenuSelectLoading />,
-    ssr: false,
-});
+
 
 const ACCENT = '#7c3aed';
 const ACCENT_2 = '#a855f7';
 const TAB_MIN_WIDTH = 140;   // min lebar tab saat overflow
 
 const TABS: TabDef[] = [
-    { key: 'orders', label: 'Pesanan', icon: <ReceiptLongRounded sx={{ fontSize: 18 }} />, render: () => <Transaction /> },
-    { key: 'bills',  label: 'Tagihan', icon: <RequestQuoteRounded  sx={{ fontSize: 18 }} />, render: () => <Bills /> },
+    { key: 'orders', label: 'Pesanan', icon: <ReceiptLongRounded sx={{ fontSize: 18 }} />, render: () => <></> },
+    { key: 'bills',  label: 'Tagihan', icon: <RequestQuoteRounded  sx={{ fontSize: 18 }} />, render: () => <></> },
 ];
 
 /* ===== Component ===== */
 const TabNavigation: React.FC = React.memo(() => {
     const { state, setState } = useTabNavigationHandlerContext();
-    const { setLayout } = useLayoutManipulatorResizable();
 
     const value = Math.max(0, TABS.findIndex(t => t.key === state.active));
     const onChange = (_e: React.SyntheticEvent, v: number) => setState((prev) => {
@@ -46,7 +36,6 @@ const TabNavigation: React.FC = React.memo(() => {
 
     const Current = useMemo(() => TABS[value]?.render ?? (() => <></>), [value]);
 
-    useEffect(() => { setLayout(prev => ({ ...(prev ?? {}), right: <></> })); }, [state.active, setLayout]);
 
     // ===== Overflow detection =====
     const headerRef = useRef<HTMLDivElement>(null);

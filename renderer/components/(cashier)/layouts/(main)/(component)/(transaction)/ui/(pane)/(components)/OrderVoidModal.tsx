@@ -9,25 +9,6 @@ import type { ButtonProps, IconButtonProps } from '@mui/material'
 import { DoneAllRounded, DeleteRounded } from '@mui/icons-material'
 import { useTx } from '../context/TransactionContext'
 
-type Props = {
-    /** Render trigger sebagai icon-only (opsional, default false). Untuk sekarang kita pakai teks. */
-    iconOnly?: boolean
-    /** Mode icon-only: 'icon' | 'contained' */
-    iconMode?: 'icon' | 'contained'
-    tooltip?: React.ReactNode
-    icon?: React.ReactElement
-    /** Boleh 'default' (ikut IconButton). Nanti dinormalisasi ke Button saat contained. */
-    color?: IconButtonProps['color']
-    size?: 'small' | 'medium' | 'large'
-    /** Variant tombol jika bukan iconOnly. Default: 'contained' */
-    buttonVariant?: 'outlined' | 'contained' | 'text'
-    /** Label tombol jika bukan iconOnly. Default: 'Void' */
-    label?: string
-    /** Ukuran tombol (px) saat iconOnly + contained. Default: 56 (lebih kecil karena sekarang pakai teks by default) */
-    buttonSizePx?: number
-    /** Ukuran font ikon (px). Default: 36 (≈1.5x) */
-    iconFontSizePx?: number
-}
 
 const rupiah = (n: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
@@ -36,18 +17,7 @@ const rupiah = (n: number | string) =>
 const toButtonColor = (c: IconButtonProps['color']): ButtonProps['color'] =>
     c === 'default' ? 'primary' : (c as ButtonProps['color'])
 
-export default function OrderVoidModal({
-                                           iconOnly = false,
-                                           iconMode = 'icon',
-                                           tooltip = 'Ajukan Void Item Terpilih',
-                                           icon,
-                                           color = 'error',
-                                           size = 'large',
-                                           buttonVariant = 'contained',
-                                           label = 'Void',
-                                           buttonSizePx = 56,
-                                           iconFontSizePx = 36,
-                                       }: Props) {
+export default function OrderVoidModal() {
     const { header, txId, selectedItemIds, selectedTotal, clearSelection, bumpReload } = useTx()
 
     const [open, setOpen] = React.useState(false)
@@ -74,52 +44,34 @@ export default function OrderVoidModal({
             .then(() => { clearSelection(); bumpReload(); handleClose() })
             .catch(() => {})
 
-    const triggerIcon = icon ?? <DeleteRounded />
-
-    const Trigger = iconOnly ? (
-        <Tooltip title={tooltip} arrow>
-      <span>
-        {iconMode === 'contained' ? (
-            <Button
-                variant="contained"
-                color={toButtonColor(color)}
-                disabled={disabled}
-                onClick={handleOpen}
-                size={size}
-                sx={{ minWidth: 0, width: buttonSizePx, height: buttonSizePx, borderRadius: 2, p: 0 }}
-            >
-                {React.cloneElement(triggerIcon, { sx: { fontSize: iconFontSizePx } })}
-            </Button>
-        ) : (
-            <IconButton
-                color={color}
-                disabled={disabled}
-                onClick={handleOpen}
-                size={size}
-                sx={{ borderRadius: 2 }}
-            >
-                {React.cloneElement(triggerIcon, { sx: { fontSize: iconFontSizePx } })}
-            </IconButton>
-        )}
-      </span>
-        </Tooltip>
-    ) : (
-        <Button
-            variant={buttonVariant}
-            color={toButtonColor(color)}
-            disabled={disabled}
-            onClick={handleOpen}
-            size="large"
-            startIcon={React.cloneElement(triggerIcon, { sx: { fontSize: iconFontSizePx } })}
-            sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, py: 1.1, px: 2 }}
-        >
-            {label}
-        </Button>
-    )
-
     return (
         <>
-            {Trigger}
+            <Button
+                variant="contained"
+                size="large"
+                startIcon={<DeleteRounded />}
+                color={'error'}
+                disabled={disabled}
+                sx={(t) => {
+                    const light = t.palette.mode === 'light'
+                    return {
+                        // --- BIG BUTTON vibes ---
+                        textTransform:'none',
+                        minHeight: 32,         // jumbo
+                        fontSize: '1.2rem',   // ~20px
+                        fontWeight: 900,
+                        letterSpacing: .5,
+                        borderRadius: 3,       // sudut mantap
+                        py:1.1,
+                        px:2.2,
+                        // pastikan ikon ikut mewarisi warna
+                        '& .MuiButton-startIcon': { mr: 1.25 }
+                    }
+                }}
+                onClick={handleOpen}
+            >
+                Request Void
+            </Button>
 
             <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
                 <DialogTitle sx={{ fontWeight: 900 }}>Void Item Terpilih</DialogTitle>

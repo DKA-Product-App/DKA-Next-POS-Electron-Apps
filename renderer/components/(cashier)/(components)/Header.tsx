@@ -14,6 +14,9 @@ import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded'
 import {useEffect, useState} from "react";
 import dynamic from "next/dynamic";
 import { useFunctionKey } from '../../../contexts/FunctionKeyProviderContext'
+import {useAuth} from "../../../contexts/AuthProviderContext";
+import normalizeIpcError from "../../../helpers/electronMessageErrorEsctration";
+import {useSession} from "../../../contexts/SessionProviderContext";
 
 type HeaderProps = {
     appName?: string
@@ -61,23 +64,12 @@ const BackWidget = dynamic(() => import('./(ui)/BackWidget'), {
 
 
 
-export default function Header({
-                                   cashierName = 'Kasir',
-                                   cashierPhotoUrl,
-                                   branchName = 'Main Branch',
-                                   registerName = 'REG-01',
-                                   printerOnline = true,
-                                   syncing = false,
-                                   mode = 'light',
-                                   onChangeMode = noop,
-                                   onSwitchCashier = noop,
-                                   onOpenSettings = noop,
-                                   onLogout = noop,
-                               }: HeaderProps) {
+export default function Header({branchName = 'Main Branch', registerName = 'REG-01', printerOnline = true, syncing = false, mode = 'light', onChangeMode = noop, onSwitchCashier = noop, onOpenSettings = noop,}: HeaderProps) {
     const router = useRouter()
     const pathname = usePathname()
     const { key, seq } = useFunctionKey()
-
+    const { Auth, setAuth } = useAuth();
+    const { Session, setSession } = useSession();
     const [isGodMode, setGodMode] = useState(false);
 
     useEffect(() => {
@@ -87,6 +79,24 @@ export default function Header({
                 break;
         }
     }, [seq]);
+
+
+    useEffect(() => {
+        if (Auth !== null){
+            window?.api?.invoke?.("api.auth:verify", Auth)
+                .then(async (result) => {
+                    setSession(result.data);
+                })
+                .catch((error) => {
+                    const e = normalizeIpcError(error);
+                    console.error(e);
+                });
+        }else{
+            setAuth({ token : undefined, roles: undefined })
+            router.replace(`/auth`)
+        }
+    }, [Auth]);
+
 
     return (
         <>
@@ -199,12 +209,9 @@ export default function Header({
                     </Tooltip>
 
                     <ProfileWidget
-                        cashierName={cashierName}
-                        cashierPhotoUrl={cashierPhotoUrl}
                         subInfo={`${branchName} · ${registerName}`} // opsional
                         onOpenSettings={onOpenSettings}
                         onSwitchCashier={onSwitchCashier}
-                        onLogout={onLogout}
                     />
                 </Stack>
             </Box>

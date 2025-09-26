@@ -15,6 +15,8 @@ import FullscreenExitRounded from '@mui/icons-material/FullscreenExitRounded'
 import dynamic from 'next/dynamic'
 import { useTheme } from '@mui/material/styles'
 import { useThemeCharger } from '../../../../../../../context/ThemeCharger'
+import { useAuth } from '../../../../../../../../../contexts/AuthProviderContext'
+import {useSession} from "../../../../../../../../../contexts/SessionProviderContext";
 
 // === Dynamically loaded pages ===
 const Billing = dynamic(() => import('../../../../../../(select-product)'), { ssr: false })
@@ -55,7 +57,8 @@ const DiningIntro: React.FC = () => (
 const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
     const [open, setOpen] = useState(false)
 
-
+    const { Auth, setAuth } = useAuth();
+    const { Session } = useSession();
     // wizard data
     const [orderType, setOrderType] = useState<Option | undefined>(undefined)
     const needTable = !!orderType?.required_table_select
@@ -118,14 +121,14 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
         console.table({ pickedCount: items?.length ?? 0, sanitizedCount: sanitized.length })
 
         const payload = {
-            reference: { id: '00000000-0000-5000-a000-000000000000' },
-            branch: [{ id: '00000000-0000-5000-a000-000000000000' }],
+            reference: { id: Session.id },
+            branch: Session.branches,
             shift: { id: '00000000-0000-5000-a000-000000000000' },
             order_type: { id: orderType.id },
             table: tableId ? { id: tableId } : undefined,
             invoice: Math.floor(10000 + Math.random() * 90000),
             batches: [
-                { branch: [{ id: '00000000-0000-5000-a000-000000000000' }], batch: 1, items: sanitized },
+                { branch: [{ id: Session.branches }], batch: 1, items: sanitized },
             ],
         }
 
@@ -224,12 +227,38 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
             <Button
                 variant="contained"
                 size="large"
-                startIcon={<AddRounded />}
-                color="success"
-                sx={{ borderWidth: 2, fontWeight: 800, letterSpacing: .2, '&:hover': { borderWidth: 2 } }}
+                startIcon={<AddRounded />} // ikon biar default aja
+                sx={(t) => {
+                    const light = t.palette.mode === 'light'
+                    return {
+                        // --- BIG BUTTON vibes ---
+                        textTransform:'none',
+                        minHeight: 26,         // jumbo
+                        fontSize: '1rem',   // ~20px
+                        fontWeight: 900,
+                        letterSpacing: .5,
+                        borderRadius: 3,       // sudut mantap
+
+                        // --- Warna adaptif mode ---
+                        bgcolor: light ? '#000' : '#fff',
+                        color:   light ? '#fff' : '#000',
+
+                        // --- Hover/active states ---
+                        '&:hover': {
+                            bgcolor: light ? '#111' : '#f5f5f5',
+                        },
+                        '&:active': {
+                            transform: 'translateY(1px)',
+                            boxShadow: 'none',
+                        },
+
+                        // pastikan ikon ikut mewarisi warna
+                        '& .MuiButton-startIcon': { mr: 1.25 }
+                    }
+                }}
                 onClick={(e) => (e.stopPropagation(), openDialog())}
             >
-                ORDER
+                Order
             </Button>
 
             <Dialog

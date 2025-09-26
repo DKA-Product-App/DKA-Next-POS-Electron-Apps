@@ -8,6 +8,7 @@ import { FunctionKeyProvider } from "../../contexts/FunctionKeyProviderContext";
 import { LayoutManipulatorResizableProvider } from "../../contexts/LayoutManipulatorResizableContext";
 import { ThemeChargerProvider, useThemeCharger } from "./context/ThemeCharger";
 import {LayoutManipulatorSingleProvider} from "./layouts/(main)/(component)/(transaction)/context/LayoutManipulatorSingleContext";
+import {useAuth} from "../../contexts/AuthProviderContext";
 
 const Header = dynamic(() => import('./(components)/Header'), { loading: () => <ShimmerHeaderLoading />, ssr: false });
 const Footer = dynamic(() => import('./(components)/Footer'), { loading: () => <ShimmerFooterLoading />, ssr: false });
@@ -20,11 +21,8 @@ function LayoutBody({ children }: { children: React.ReactNode }) {
         <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ flexShrink: 0 }}>
                 <Header
-                    appName="DKA Cashier"
-                    cashierName="Yovangga Anandhika"
                     mode={mode}
                     onChangeMode={setMode}     // langsung panggil setMode
-                    cashierPhotoUrl="#"
                 />
             </div>
 

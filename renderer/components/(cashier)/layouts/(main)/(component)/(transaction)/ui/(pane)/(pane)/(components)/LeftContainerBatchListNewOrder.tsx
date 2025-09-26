@@ -134,13 +134,42 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: string }> = ({ tx }) => {
         <>
             {/* Trigger */}
             <Button
-                size="small"
-                variant="outlined"
+                size="large"
+                variant="contained"
+                color={'success'}
                 startIcon={<AddRounded />}
                 disabled={Boolean(isClosed)}
+                sx={(t) => {
+                    const light = t.palette.mode === 'light'
+                    return {
+                        // --- BIG BUTTON vibes ---
+                        textTransform:'none',
+                        minHeight: 26,         // jumbo
+                        fontSize: '1rem',   // ~20px
+                        fontWeight: 900,
+                        letterSpacing: .5,
+                        borderRadius: 3,       // sudut mantap
+
+                        // --- Warna adaptif mode ---
+                        bgcolor: light ? '#000' : '#fff',
+                        color:   light ? '#fff' : '#000',
+
+                        // --- Hover/active states ---
+                        '&:hover': {
+                            bgcolor: light ? '#111' : '#f5f5f5',
+                        },
+                        '&:active': {
+                            transform: 'translateY(1px)',
+                            boxShadow: 'none',
+                        },
+
+                        // pastikan ikon ikut mewarisi warna
+                        '& .MuiButton-startIcon': { mr: 1.25 }
+                    }
+                }}
                 onClick={(e) => { e.stopPropagation(); openDialog() }}
             >
-                {`Pesanan Meja ${header?.table?.code ?? '—'}`}
+                {`Order Lanjutan  `}
             </Button>
 
             {/* Dialog */}

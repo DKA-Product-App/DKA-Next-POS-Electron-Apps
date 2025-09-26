@@ -69,11 +69,6 @@ const BillsListItem: React.FC = () => {
             }
 
         }
-        return () => {
-            setState((prev) => {
-                return { ...prev, id : undefined }
-            })
-        }
     }, [state, bills]);
 
     // === INVOKE IPC (tanpa fetch) ===

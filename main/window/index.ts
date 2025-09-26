@@ -7,12 +7,12 @@ import Event from "../events";
 const isProd = process.env.NODE_ENV === 'production'
 
 const pickZoom = (wLogical: number) =>
-    wLogical > 1920 ? 1.00 :          // hanya kalau lebih besar dari 1920
-        wLogical >= 1600 ? 0.95 :
-            wLogical >= 1440 ? 0.90 :
-                wLogical >= 1366 ? 0.85 :
-                    wLogical >= 1280 ? 0.80 :
-                        wLogical >= 1152 ? 0.75 :
+    wLogical > 1920 ? 0.95 :          // hanya kalau lebih besar dari 1920
+        wLogical >= 1600 ? 0.90 :
+            wLogical >= 1440 ? 0.85 :
+                wLogical >= 1366 ? 0.80 :
+                    wLogical >= 1280 ? 0.75 :
+                        wLogical >= 1152 ? 0.70 :
                             wLogical >= 1024 ? 0.70 : 0.65
 
 export default async function MainWindow(){

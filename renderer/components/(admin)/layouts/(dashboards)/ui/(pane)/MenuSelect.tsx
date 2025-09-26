@@ -18,15 +18,35 @@ import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
 import { usePathname, useRouter } from 'next/navigation';
 
-// ==== Icons ====
+// ==== Icons (rapih & konsisten) ====
 import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded';
 import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
+import LocalMallRoundedIcon from '@mui/icons-material/LocalMallRounded';
+import AutoAwesomeMotionRoundedIcon from '@mui/icons-material/AutoAwesomeMotionRounded';
 import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded';
+
+import TableRestaurantRoundedIcon from '@mui/icons-material/TableRestaurantRounded';
+import LayersRoundedIcon from '@mui/icons-material/LayersRounded';
+
+import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
+import ListAltRoundedIcon from '@mui/icons-material/ListAltRounded';
+import RequestQuoteRoundedIcon from '@mui/icons-material/RequestQuoteRounded';
 import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded';
+import LocalOfferRoundedIcon from '@mui/icons-material/LocalOfferRounded';
+
+import HowToRegRoundedIcon from '@mui/icons-material/HowToRegRounded';
+import RemoveShoppingCartRoundedIcon from '@mui/icons-material/RemoveShoppingCartRounded';
+
+import BarChartRoundedIcon from '@mui/icons-material/BarChartRounded';
+
+import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 import GroupRoundedIcon from '@mui/icons-material/GroupRounded';
 import ManageAccountsRoundedIcon from '@mui/icons-material/ManageAccountsRounded';
 import SecurityRoundedIcon from '@mui/icons-material/SecurityRounded';
-import BarChartRoundedIcon from '@mui/icons-material/BarChartRounded';
+import DevicesOtherRoundedIcon from '@mui/icons-material/DevicesOtherRounded';
+import PrintRoundedIcon from '@mui/icons-material/PrintRounded';
+import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded';
+
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import KeyboardArrowRightRoundedIcon from '@mui/icons-material/KeyboardArrowRightRounded';
 import CircleRoundedIcon from '@mui/icons-material/CircleRounded';
@@ -36,7 +56,7 @@ import CircleRoundedIcon from '@mui/icons-material/CircleRounded';
 // =====================
 type MenuItemNode = {
     label: string;
-    description: string;     // 👈 tambah deskripsi
+    description: string;
     icon?: React.ReactNode;
     forward?: string;
     children?: readonly MenuItemNode[];
@@ -173,6 +193,13 @@ export const MenuSelect: FC = memo(function MenuSelect() {
     const router = useRouter();
     const pathname = usePathname();
 
+    // Base slug helper biar DRY & konsisten
+    const DASH = `${ROOT}/dashboards`;
+    const OPS = `${DASH}/operations`;
+    const SLA = `${DASH}/sla`;
+    const SETTINGS = `${DASH}/settings`;
+    const CONFIGS = `${SETTINGS}/configurations`;
+
     const groups: readonly MenuGroup[] = useMemo(
         () => [
             {
@@ -182,24 +209,31 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                         label: 'Overview',
                         description: 'Ringkasan KPI & statistik utama',
                         icon: <DashboardRoundedIcon />,
-                        forward: `${ROOT}/dashboards/overview`,
+                        forward: `${DASH}/overview`,
                     },
                 ],
             },
             {
-                title: 'Catalog',
+                title: 'Data',
                 items: [
                     {
-                        label: 'Product',
-                        description: 'Kelola daftar produk',
+                        label: 'Catalog',
+                        description: 'Kelola daftar Catalog',
                         icon: <Inventory2RoundedIcon />,
-                        forward: `${ROOT}/dashboards/products`,
+                        children: [
+                            { label: 'Product', description: 'Daftar Product', icon: <LocalMallRoundedIcon />, forward: `${DASH}/products` },
+                            { label: 'Variant', description: 'Daftar Variant', icon: <AutoAwesomeMotionRoundedIcon />, forward: `${DASH}/products/variants` },
+                            { label: 'Category', description: 'Daftar Category', icon: <CategoryRoundedIcon />, forward: `${DASH}/products/categories` },
+                        ],
                     },
                     {
-                        label: 'Category',
-                        description: 'Kelola kategori produk',
-                        icon: <CategoryRoundedIcon />,
-                        forward: `${ROOT}/dashboards/categories`,
+                        label: 'Meja / Floor',
+                        description: 'Manage daftar Meja',
+                        icon: <TableRestaurantRoundedIcon />,
+                        children: [
+                            { label: 'Meja', description: 'Daftar Meja', icon: <TableRestaurantRoundedIcon />, forward: `${DASH}/floors/tables` },
+                            { label: 'Lantai', description: 'Daftar Lantai', icon: <LayersRoundedIcon />, forward: `${DASH}/floors` },
+                        ],
                     },
                 ],
             },
@@ -207,25 +241,37 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                 title: 'Operations',
                 items: [
                     {
+                        label: 'Transactions',
+                        description: 'Manajemen Orders & Bills',
+                        icon: <ReceiptLongRoundedIcon />,
+                        children: [
+                            { label: 'Orders', description: 'Daftar Orders', icon: <ListAltRoundedIcon />, forward: `${OPS}/transactions/orders` },
+                            { label: 'Bills', description: 'Daftar Tagihan (Bills)', icon: <RequestQuoteRoundedIcon />, forward: `${OPS}/transactions/bills` },
+                        ],
+                    },
+                    {
                         label: 'Shift',
                         description: 'Pengaturan jadwal shift',
                         icon: <AccessTimeRoundedIcon />,
-                        forward: `${ROOT}/dashboards/shifts`,
+                        forward: `${OPS}/shifts`,
+                    },
+                    {
+                        label: 'Promo',
+                        description: 'Pengaturan Kode Promo',
+                        icon: <LocalOfferRoundedIcon />,
+                        forward: `${OPS}/promo`,
                     },
                 ],
             },
             {
-                title: 'Users & Access',
+                title: 'SLA',
                 items: [
                     {
-                        label: 'User Management',
-                        description: 'Kelola pengguna, role & permission',
-                        icon: <GroupRoundedIcon />,
-                        forward: `${ROOT}/dashboards/users`,
+                        label: 'Approvals',
+                        description: 'Persetujuan SLA',
+                        icon: <HowToRegRoundedIcon />,
                         children: [
-                            { label: 'Users', description: 'Daftar semua pengguna', forward: `${ROOT}/dashboards/users` },
-                            { label: 'Roles', description: 'Atur role pengguna', icon: <ManageAccountsRoundedIcon />, forward: `${ROOT}/dashboards/users/roles` },
-                            { label: 'Permissions', description: 'Hak akses & policy', icon: <SecurityRoundedIcon />, forward: `${ROOT}/dashboards/users/permissions` },
+                            { label: 'Order Void', description: 'Persetujuan Void', icon: <RemoveShoppingCartRoundedIcon />, forward: `${SLA}/approvals/void` },
                         ],
                     },
                 ],
@@ -237,7 +283,52 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                         label: 'Reports',
                         description: 'Laporan transaksi & aktivitas',
                         icon: <BarChartRoundedIcon />,
-                        forward: `${ROOT}/dashboards/reports`,
+                        forward: `${DASH}/reports`,
+                    },
+                ],
+            },
+            {
+                title: 'Settings',
+                items: [
+                    {
+                        label: 'Configurations',
+                        description: 'Semua konfigurasi sistem',
+                        icon: <TuneRoundedIcon />,
+                        forward: `${CONFIGS}`,
+                        children: [
+                            {
+                                label: 'Pengguna',
+                                description: 'Kelola pengguna, role & permission',
+                                icon: <GroupRoundedIcon />,
+                                forward: `${CONFIGS}/users`,
+                                children: [
+                                    { label: 'Users', description: 'Daftar semua pengguna', icon: <GroupRoundedIcon />, forward: `${CONFIGS}/users/list` },
+                                    { label: 'Roles', description: 'Atur role pengguna', icon: <ManageAccountsRoundedIcon />, forward: `${CONFIGS}/users/roles` },
+                                    { label: 'Permissions', description: 'Hak akses & policy', icon: <SecurityRoundedIcon />, forward: `${CONFIGS}/users/permissions` },
+                                ],
+                            },
+                            {
+                                label: 'Perangkat',
+                                description: 'Semua Perangkat',
+                                icon: <DevicesOtherRoundedIcon />,
+                                forward: `${CONFIGS}/devices`,
+                                children: [
+                                    { label: 'Printers', description: 'Daftar Printer', icon: <PrintRoundedIcon />, forward: `${CONFIGS}/devices/printers` },
+                                ],
+                            },
+                            {
+                                label: 'Tipe Order',
+                                description: 'Daftar Tipe Order',
+                                icon: <ListAltRoundedIcon />,
+                                forward: `${CONFIGS}/orders/types`,
+                            },
+                            {
+                                label: 'Metode Pembayaran',
+                                description: 'Daftar Metode Pembayaran',
+                                icon: <CreditCardRoundedIcon />,
+                                forward: `${CONFIGS}/payments/methods`,
+                            },
+                        ],
                     },
                 ],
             },

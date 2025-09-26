@@ -23,6 +23,9 @@ import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import {redirect, usePathname, useRouter} from "next/navigation";
+import {useAuth} from "../../../contexts/AuthProviderContext";
+import {useEffect} from "react";
+import normalizeIpcError from "../../../helpers/electronMessageErrorEsctration";
 
 // ============================
 // Styled Card
@@ -99,7 +102,27 @@ export default function SignInCard() {
     const [showPassword, setShowPassword] = React.useState(false);
     const [Alerter, setAlerter] = React.useState<React.JSX.Element>(<></>);
     const pathname = usePathname();
+    const { Auth, setAuth } = useAuth();
     const router = useRouter();
+
+    const [ buttonHandler, setButtonHandler ] = React.useState({ text : "Masuk", disabled : false })
+
+
+    useEffect(() => {
+        if (Auth?.token !== undefined){
+            switch (Auth?.roles?.[0].code) {
+                case "CSR":
+                    return router.replace(`/cashier/`);
+                case "ADM":
+                    return router.replace(`/admin/`);
+                case "DEV":
+                    return router.replace(`/cashier/`);
+                default:
+                    setAuth({ token : undefined, roles: undefined })
+                    return router.refresh();
+            }
+        }
+    }, [Auth]);
 
     // Tipenya ikut Box (div). Kita cast ke HTMLFormElement buat FormData.
     const handleSubmit: React.FormEventHandler<HTMLFormElement> = (event) => {
@@ -107,12 +130,21 @@ export default function SignInCard() {
         const formEl = event.currentTarget; // sudah HTMLFormElement, nggak perlu cast
         const data = new FormData(formEl);
         const jsonData = Object.fromEntries(data.entries());
-        console.log('[login]', jsonData);
-        if (jsonData.username === 'demo' && jsonData.password === 'demo'){
-            router.replace(`/cashier/`);
-        }else if (jsonData.username === 'admin' && jsonData.password === 'admin'){
-            router.replace(`/admin/`);
-        }
+        setButtonHandler({ text : "Sedang Menvalidasi", disabled: true }) ;
+        window?.api?.invoke?.("api.auth:login", jsonData)
+            .then(async (result : { data : { access_token : string; roles: Array<{ code : "CSR" | "ADM" | "DEV" | "CEO"; name : string }> }}) => {
+                setButtonHandler((prevState) => {
+                    return { ...prevState, text: "Berhasil Login. Harap Tunggu"}
+                });
+                setAuth((prevState) => {
+                    return { ...prevState, token: result.data.access_token, roles: result.data.roles }
+                });
+            })
+            .catch((error) => {
+                setButtonHandler({ text : "Masuk", disabled: false }) ;
+                const e = normalizeIpcError(error);
+                console.error(e);
+            });
     };
 
     return (
@@ -261,6 +293,7 @@ export default function SignInCard() {
                         fullWidth
                         variant="contained"
                         size="large"
+                        disabled={buttonHandler.disabled}
                         component={motion.button as any}
                         whileHover={buttonHover}
                         whileTap={buttonTap}
@@ -282,7 +315,7 @@ export default function SignInCard() {
                             },
                         })}
                     >
-                        Masuk
+                        { buttonHandler.text }
                     </Button>
                 </MotionBox>
             </Box>

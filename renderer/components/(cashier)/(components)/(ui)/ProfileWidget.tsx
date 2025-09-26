@@ -12,6 +12,9 @@ import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 import {usePathname, useRouter} from "next/navigation";
+import {useAuth} from "../../../../contexts/AuthProviderContext";
+import {useEffect, useState} from "react";
+import {useSession} from "../../../../contexts/SessionProviderContext";
 
 type ProfileWidgetProps = {
     cashierName?: string
@@ -32,14 +35,11 @@ type ProfileWidgetProps = {
 const noop = () => {}
 
 export default function ProfileWidget({
-                                          cashierName = 'Kasir',
                                           cashierPhotoUrl,
                                           subInfo,
                                           width = 320,
                                           maxHeight = 260,
                                           onOpenSettings = noop,
-                                          onSwitchCashier = noop,
-                                          onLogout = noop,
                                           avatarSize = 36,
                                       }: ProfileWidgetProps) {
     const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null)
@@ -47,6 +47,18 @@ export default function ProfileWidget({
 
     const pathname = usePathname();
     const router = useRouter();
+    const { Auth, setAuth } = useAuth();
+    const { Session } = useSession();
+
+
+    const onLogout = () => {
+        setAuth({ token : undefined, roles: undefined })
+        router.replace(`/auth`)
+    }
+
+    useEffect(() => {
+        console.log(Session);
+    }, [Session]);
 
     const handleOpen = (e: React.MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget)
     const handleClose = () => setAnchorEl(null)
@@ -74,10 +86,10 @@ export default function ProfileWidget({
     return (
         <>
             {/* Anchor: Avatar kasir */}
-            <Tooltip title={cashierName}>
+            <Tooltip title={`${Session?.name?.first_name} ${Session?.name?.last_name}`}>
                 <Avatar
                     src={cashierPhotoUrl}
-                    alt={cashierName}
+                    alt={`${Session?.name?.first_name} ${Session?.name?.last_name}`}
                     onClick={handleOpen}
                     sx={{
                         width: avatarSize,
@@ -107,12 +119,12 @@ export default function ProfileWidget({
                 {/* Header profil */}
                 <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                     <Stack direction="row" spacing={1.25} alignItems="center">
-                        <Avatar src={cashierPhotoUrl} alt={cashierName} sx={{ width: 40, height: 40 }}>
+                        <Avatar src={cashierPhotoUrl} alt={`${Session?.name?.first_name} ${Session?.name?.last_name}`} sx={{ width: 40, height: 40 }}>
                             <PersonRoundedIcon />
                         </Avatar>
                         <Box sx={{ minWidth: 0 }}>
-                            <Typography variant="subtitle1" fontWeight={800} noWrap title={cashierName}>
-                                {cashierName}
+                            <Typography variant="subtitle1" fontWeight={800} noWrap title={`${Session?.name?.first_name} ${Session?.name.last_name}`}>
+                                {Session?.name?.first_name} {Session?.name?.last_name}
                             </Typography>
                             {subInfo && (
                                 <Typography variant="caption" color="text.secondary" noWrap title={subInfo}>
@@ -133,17 +145,9 @@ export default function ProfileWidget({
                         />
                         <Divider component="li" />
                         <Item
-                            icon={<SwapHorizRoundedIcon />}
-                            primary="Ganti Kasir"
-                            onClick={onSwitchCashier}
-                        />
-                        <Divider component="li" />
-                        <Item
                             icon={<LogoutRoundedIcon />}
                             primary="Keluar"
-                            onClick={() => {
-                                router.replace(`/auth`)
-                            }}
+                            onClick={onLogout}
                         />
                     </List>
                 </PerfectScrollbar>
