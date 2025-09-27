@@ -12,11 +12,19 @@ directories:
   output: dist
   buildResources: resources
 
+# ⬇️ Client cert/key DI LUAR asar (di process.resourcesPath/cert/client)
+extraResources:
+  - from: resources/cert/client
+    to: cert/client            # -> .../resources/cert/client/*
+    filter:
+      - "**/*"
+
 files:
   - from: .
     filter:
       - package.json
       - app
+      - resources/cert/ca/**   # -> app.asar/resources/cert/ca/*
 
 publish: null
 

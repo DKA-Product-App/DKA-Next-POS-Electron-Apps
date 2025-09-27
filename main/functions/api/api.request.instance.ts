@@ -7,23 +7,24 @@ import * as fs from "fs";
 import http2 from "http2-wrapper";
 import {app} from "electron";
 
-const resolveResource = (...segments: string[]) =>
-    app.isPackaged
-        ? path.join(process.resourcesPath, 'resources', ...segments) // production
-        : path.join(app.getAppPath(), 'resources', ...segments);     // dev
+// CA di DALAM asar (prod) / root project (dev)
+const CA_FILE = path.join(app.getAppPath(), 'resources', 'cert', 'ca', 'certificate.crt');
 
-const SSLPath = resolveResource("./cert")
+// Client cert/key di LUAR asar (prod) / di repo (dev)
+const CLIENT_DIR = app.isPackaged
+    ? path.join(process.resourcesPath, 'cert', 'client')             // prod → .../resources/cert/client
+    : path.join(process.cwd(), 'resources', 'cert', 'client');       // dev  → ./resources/cert/client
 
-export const ApiRequestInstance = axios.create({
-    baseURL : "https://127.0.0.1:8083",
-    adapter: createHTTP2Adapter({
-        agent: new http2.Agent(),
-    }),
+const ApiRequestInstance = axios.create({
+    baseURL: 'https://127.0.0.1:8083',
+    adapter: createHTTP2Adapter({ agent: new http2.Agent() }),
     httpsAgent: new https.Agent({
-        ca : [ fs.readFileSync(path.join(SSLPath,"./ca/certificate.crt"),'utf-8')],
-        cert: fs.readFileSync(path.join(SSLPath,"./client/certificate.crt"),'utf-8'),
-        key: fs.readFileSync(path.join(SSLPath,"./client/private.key"),'utf-8'),
+        ca:   [fs.readFileSync(CA_FILE, 'utf-8')],                     // ← dari ASAR
+        cert:  fs.readFileSync(path.join(CLIENT_DIR, 'certificate.crt'), 'utf-8'),
+        key:   fs.readFileSync(path.join(CLIENT_DIR, 'private.key'), 'utf-8'),
         rejectUnauthorized: true,
-        requestCert: true,
-    }),
-})
+        requestCert: true
+    })
+});
+
+export { ApiRequestInstance };
