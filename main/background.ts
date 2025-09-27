@@ -11,7 +11,6 @@ if (isProd) {
 } else {
     app.setPath('userData', `${app.getPath('userData')} (development)`)
 }
-
 // 1) Matikan console transport jika tidak ada TTY (production Linux GUI)
 if (!process.stdout || !process.stdout.isTTY) {
     log.transports.console.level = false

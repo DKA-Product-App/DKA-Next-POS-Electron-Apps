@@ -231,8 +231,8 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                         description: 'Manage daftar Meja',
                         icon: <TableRestaurantRoundedIcon />,
                         children: [
-                            { label: 'Meja', description: 'Daftar Meja', icon: <TableRestaurantRoundedIcon />, forward: `${DASH}/floors/tables` },
-                            { label: 'Lantai', description: 'Daftar Lantai', icon: <LayersRoundedIcon />, forward: `${DASH}/floors` },
+                            { label: 'Meja', description: 'Daftar Meja', icon: <TableRestaurantRoundedIcon />, forward: `${DASH}/data/floors/tables` },
+                            { label: 'Lantai', description: 'Daftar Lantai', icon: <LayersRoundedIcon />, forward: `${DASH}/data/floors` },
                         ],
                     },
                 ],
