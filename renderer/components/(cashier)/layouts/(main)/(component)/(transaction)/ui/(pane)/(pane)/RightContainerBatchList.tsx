@@ -8,10 +8,10 @@ import Grid from '@mui/material/Grid'
 import Image, { ImageLoader } from 'next/image'
 import Skeleton from '@mui/material/Skeleton'
 import { motion } from 'framer-motion'
-import LocalOfferRoundedIcon from '@mui/icons-material/LocalOfferRounded'
-import CheckRounded from '@mui/icons-material/CheckRounded'
 import { useTx } from '../context/TransactionContext'
-import { NoteAltRounded } from '@mui/icons-material'
+import {Transaction} from "../(components)/TransactionListItemRow";
+import RightContainerBatchDetailRowSkeleton from '../../(loading)/RightContainerBatchDetailRowSkeleton'
+import dynamic from "next/dynamic";
 
 /* ===== Types sync ===== */
 export type Name = { first_name: string; last_name?: string }
@@ -40,6 +40,10 @@ export type Item = {
     /** opsional dari backend, biar akses bills aman */
     batch?: Batch
 }
+
+const RightContainerBatchDetailRow = dynamic(() => import('./(components)/RightContainerBatchDetailRow'), {
+    ssr: false,
+})
 
 const MotionPaper = motion(Paper)
 const GRADIENT = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
@@ -70,8 +74,8 @@ const ImgWithSkeleton: React.FC<{ src: string; alt: string; loader?: ImageLoader
     )
 }
 
-const RightContainerBatchDetail: React.FC = () => {
-    const { selectedBatchId, header, selectedItemIds, toggleItem, registerItems, reloadKey } = useTx()
+const RightContainerBatchDetail: React.FC<{ transaction : Transaction}> = ({ transaction }) => {
+    const { selectedBatchId, selectedItemIds, toggleItem, registerItems, reloadKey } = useTx()
     const [items, setItems] = React.useState<Item[]>([])
     const fetchSeqRef = React.useRef(0)
 
@@ -95,7 +99,7 @@ const RightContainerBatchDetail: React.FC = () => {
             })
     }, [selectedBatchId, reloadKey])
 
-    const isClosed = Boolean(header?.time_closed)
+    const isClosed = Boolean(transaction?.time_closed)
 
     const hasNote = (it: Item) => Boolean(it.note?.trim()?.length)
     const isPendingVoid = (it: Item) => Boolean(it?.void) && it.void!.is_approved !== true
@@ -125,196 +129,45 @@ const RightContainerBatchDetail: React.FC = () => {
         <Box sx={{ flex:1, minHeight:0, px:1.5, height: '100%' }}>
             <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false }}>
                 <Grid container spacing={2} sx={{ py: 1, pr: 2 }}>
-                    {items.map(it => {
-                        const selected = selectedItemIds.has(it.id)
-                        const disabled = isClosed || isPendingVoid(it) || isApprovedVoid(it) || isPendingPaid(it) || isPaid(it)
-                        return (
-                            <Grid key={it.id} size={{ xs: 12, sm: 12, md: 4, lg: 3 }}>
-                                <MotionPaper
-                                    variant="outlined"
-                                    whileTap={disabled ? undefined : { scale: 0.99 }}
-                                    onClick={disabled ? undefined : ()=>toggleItem(it)}
-                                    aria-disabled={disabled || undefined}
-                                    sx={{
-                                        borderRadius:2, overflow:'hidden', display:'flex', flexDirection:'column', position:'relative',
-                                        border:'2px solid',
-                                        borderColor: disabled ? 'divider' : (selected ? 'primary.main' : 'divider'),
-                                        boxShadow: disabled ? 'none' : (selected ? '0 0 0 3px rgba(99,102,241,.25)' : '0 2px 8px rgba(0,0,0,0.04)'),
-                                        transition:(t)=>t.transitions.create(['box-shadow','border-color','opacity'],{duration:t.transitions.duration.shorter}),
-                                        cursor: disabled ? 'not-allowed' : 'pointer',
-                                        opacity: disabled ? 0.85 : 1,
-                                        '&::before': (!disabled && selected) ? { content:'""', position:'absolute', inset:-1, borderRadius:8, background:GRADIENT, filter:'blur(12px)', opacity:.7, zIndex:-1 } : {},
-                                    }}
-                                >
-                                    <Box sx={{ position:'relative' }}>
-                                        <Box sx={{ filter: disabled ? 'grayscale(1) saturate(0) brightness(0.9)' : 'none' }}>
-                                            <ImgWithSkeleton src={ph(it.product?.name, it.product?.image)} alt={it.product?.name || 'Item'} loader={uploadsLoader} />
-                                        </Box>
-
-                                        {/* ===== Status chips pojok kanan atas ===== */}
-                                        {isPendingVoid(it) && (
-                                            <Chip
-                                                size="small"
-                                                label="Pending Void"
-                                                sx={{
-                                                    position: 'absolute', top: 8, right: 8,
-                                                    fontWeight: 800, bgcolor: 'warning.main', color: 'warning.contrastText',
-                                                    boxShadow: 1, textTransform: 'uppercase', letterSpacing: .2,
-                                                }}
-                                                title={it.void?.void_time ? `Diajukan: ${new Date(it.void.void_time).toLocaleString('id-ID')}` : undefined}
-                                            />
-                                        )}
-                                        {isApprovedVoid(it) && (
-                                            <Chip
-                                                size="small"
-                                                label="Voided"
-                                                sx={{
-                                                    position: 'absolute', top: 8, right: 8,
-                                                    fontWeight: 800, bgcolor: 'error.main', color: 'error.contrastText',
-                                                    boxShadow: 1, textTransform: 'uppercase', letterSpacing: .2,
-                                                }}
-                                                title={it.void?.void_time ? `Disetujui: ${new Date(it.void.void_time).toLocaleString('id-ID')}` : undefined}
-                                            />
-                                        )}
-
-                                        {/* ===== “Pending Paid” chip pojok kiri atas ===== */}
-                                        {isPendingPaid(it) && (
-                                            <Chip
-                                                size="small"
-                                                label="Pending Paid"
-                                                sx={{
-                                                    position: 'absolute', top: 8, left: 8,
-                                                    fontWeight: 800, bgcolor: 'info.main', color: 'info.contrastText',
-                                                    boxShadow: 1, textTransform: 'uppercase', letterSpacing: .2,
-                                                }}
-                                                title="Item ini tercakup bill yang sudah ditandai terbayar."
-                                            />
-                                        )}
-
-                                        {isPaid(it) && (
-                                            <Chip
-                                                size="small"
-                                                label="Success Paid"
-                                                sx={{
-                                                    position: 'absolute', top: 8, left: 8,
-                                                    fontWeight: 800, bgcolor: 'success.main', color: 'info.contrastText',
-                                                    boxShadow: 1, textTransform: 'uppercase', letterSpacing: .2,
-                                                }}
-                                                title="Item ini tercakup bill yang sudah ditandai terbayar."
-                                            />
-                                        )}
-
-                                        {/* Price chip kiri bawah */}
-                                        <Chip
-                                            size="small"
-                                            icon={<LocalOfferRoundedIcon sx={{ fontSize:16, color:'inherit' }} />}
-                                            label={rupiah(Number(it.sub_total || it.price || 0))}
-                                            sx={{ position:'absolute', bottom:8, left:8, color:'#fff', background:GRADIENT, boxShadow:1, '& .MuiChip-icon':{ color:'inherit' } }}
-                                        />
-                                        {/* Check bulat kanan bawah */}
-                                        <Box
-                                            aria-label={selected ? 'dipilih' : 'tidak dipilih'}
-                                            sx={{
-                                                position:'absolute', bottom:8, right:8,
-                                                width: 20, height: 20, borderRadius: '50%',
-                                                border: '2px solid',
-                                                borderColor: selected ? 'success.main' : 'divider',
-                                                bgcolor: selected ? 'success.main' : 'background.paper',
-                                                color: '#fff', display:'grid', placeItems:'center', flexShrink:0,
-                                                boxShadow: selected ? 1 : 0, opacity: disabled ? 0.7 : 1,
-                                            }}
-                                        >
-                                            {selected && <CheckRounded sx={{ fontSize: 14 }} />}
-                                        </Box>
-                                    </Box>
-
-                                    <Box sx={{ p: 1.25, display: 'grid', gap: .5, flexGrow: 1 }}>
-                                        <Typography variant="h6" fontWeight={800} title={it.product?.name}>
-                                            {it.product?.name}
-                                        </Typography>
-
-                                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap mt={0.5} sx={{ justifyContent: 'flex-start' }}>
-                                            {it.variant?.name ? (
-                                                <Chip
-                                                    size="small"
-                                                    label={it.variant.name}
-                                                    sx={(t) => ({
-                                                        px: 1,
-                                                        bgcolor: t.palette.mode === 'light' ? t.palette.common.black : t.palette.common.white,
-                                                        color: t.palette.mode === 'light' ? t.palette.common.white : t.palette.common.black,
-                                                    })}
-                                                />
-                                            ) : null}
-                                        </Stack>
-
-                                        {/* Note / Catatan */}
-                                        <Box
-                                            sx={{
-                                                mt: 0.5,
-                                                minHeight: 22,
-                                                display: 'flex',
-                                                alignItems: 'flex-start',
-                                                columnGap: 0.5,
-                                            }}
-                                        >
-                                            {hasNote(it) ? (
-                                                <>
-                                                    <NoteAltRounded
-                                                        sx={(t) => ({
-                                                            fontSize: 18,
-                                                            color: t.palette.error.main,
-                                                            mt: '2px',
-                                                            flexShrink: 0,
-                                                        })}
-                                                    />
-                                                    <Tooltip title={it.note} arrow placement="top-start">
-                                                        <Typography
-                                                            variant="body2"
-                                                            sx={(t) => ({
-                                                                color: t.palette.error.main,
-                                                                fontWeight: 700,
-                                                                lineHeight: 1.3,
-                                                                overflow: 'hidden',
-                                                                textOverflow: 'ellipsis',
-                                                                display: '-webkit-box',
-                                                                WebkitLineClamp: 2,
-                                                                WebkitBoxOrient: 'vertical',
-                                                                whiteSpace: 'normal',
-                                                                flex: 1,
-                                                                minWidth: 0,
-                                                                cursor: 'help',
-                                                            })}
-                                                        >
-                                                            {it.note}
-                                                        </Typography>
-                                                    </Tooltip>
-                                                </>
-                                            ) : (
-                                                <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.2 }}>
-                                                    Tidak ada Catatan
-                                                </Typography>
-                                            )}
-                                        </Box>
-
-                                        {/* Qty x Price — Total */}
-                                        <Stack direction="row" alignItems="center" justifyContent="space-between" mt={1} sx={{ justifySelf: 'stretch', width: '100%' }}>
-                                            <Typography variant="body2" color="text.secondary">
-                                                {`${it.qty} x ${rupiah(it.price)}`}
-                                            </Typography>
-                                            <Typography variant="subtitle2" fontWeight={900}>
-                                                {rupiah(it.sub_total)}
-                                            </Typography>
-                                        </Stack>
-                                    </Box>
-                                    <Box sx={{ height:3, background:GRADIENT }}/>
-                                </MotionPaper>
+                    {/* Saat BELUM ada data setelah fetch dimulai: tampilkan skeleton */}
+                    {items.length === 0 ? (
+                        Array.from({ length: 8 }).map((_, i) => (
+                            <Grid key={`skel-${i}`} size={{ xs: 12, sm: 12, md: 4, lg: 3 }}>
+                                <RightContainerBatchDetailRowSkeleton />
                             </Grid>
-                        )
-                    })}
+                        ))
+                    ) : (
+                        items.map(it => {
+                            const selected = selectedItemIds.has(it.id)
+                            const closed = Boolean(transaction?.time_closed)
+                            const disabled = closed || isPendingVoid(it) || isApprovedVoid(it) || isPendingPaid(it) || isPaid(it)
+                            const qtyPriceLabel = `${it.qty} x ${rupiah(it.price)}`
+                            const totalLabel = rupiah(it.sub_total || it.price || 0)
+
+                            return (
+                                <Grid key={it.id} size={{ xs: 12, sm: 12, md: 4, lg: 3 }}>
+                                    <RightContainerBatchDetailRow
+                                        item={it}
+                                        totalLabel={totalLabel}
+                                        qtyPriceLabel={qtyPriceLabel}
+                                        selected={selected}
+                                        disabled={disabled}
+                                        isClosed={closed}
+                                        isPendingVoid={isPendingVoid(it)}
+                                        isApprovedVoid={isApprovedVoid(it)}
+                                        isPendingPaid={isPendingPaid(it)}
+                                        isPaid={isPaid(it)}
+                                        onToggle={toggleItem}
+                                        // uploadsLoader (opsional): default sudah sesuai
+                                    />
+                                </Grid>
+                            )
+                        })
+                    )}
                 </Grid>
             </PerfectScrollbar>
         </Box>
     )
 }
 
-export default RightContainerBatchDetail
+export default React.memo(RightContainerBatchDetail);

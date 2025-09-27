@@ -277,12 +277,13 @@ const TransactionListItem: React.FC = () => {
 
     // Handler single select via row click (TOGGLE on second click)
     const onRowClick = (id: string) => {
+        setReloadKey(k => k + 1)
         setSingleSelectedId(prev => {
             if (prev === id) {
                 setLayout(p => ({ ...p, right: <TransactionListItemNotFound /> }))
                 return undefined
             }
-            setLayout(p => ({ ...p, right: <TransactionContainer id={id} /> }))
+            setLayout(p => ({ ...p, right: <TransactionContainer id={id} transaction={transactions.find((data) => data.id === id)}  /> }))
             return id
         })
     }

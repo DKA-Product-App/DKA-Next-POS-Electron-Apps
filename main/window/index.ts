@@ -63,7 +63,7 @@ export default async function MainWindow(){
     } else {
         const port = process.argv[2];
         mainWindow.setFullScreen(false)
-        mainWindow.webContents.openDevTools();
+        mainWindow.webContents.openDevTools()
         await mainWindow.loadURL(`http://localhost:${port}/auth`); // <- slash
 
     }

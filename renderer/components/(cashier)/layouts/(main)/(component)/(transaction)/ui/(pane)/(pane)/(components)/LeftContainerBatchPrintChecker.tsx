@@ -17,6 +17,7 @@ import 'react-perfect-scrollbar/dist/css/styles.css'
 import Image, { ImageLoader } from 'next/image'
 import Skeleton from '@mui/material/Skeleton'
 import { NoteAltRounded } from '@mui/icons-material'
+import {Transaction} from "../../(components)/TransactionListItemRow";
 
 /* ===== Types (samakan dengan project kamu) ===== */
 export type Name = { first_name: string; last_name?: string }
@@ -140,10 +141,10 @@ function mergeItemsByVariant(items: Item[]): MergedItem[] {
 }
 
 /* ===== Komponen ===== */
-type Props = { header: TransactionHeader; batch: Batch }
+type Props = { transaction: Transaction; batch: Batch }
 const MotionItem = motion(Paper)
 
-const LeftContainerBatchPrintChecker: React.FC<Props> = ({ header, batch }) => {
+const LeftContainerBatchPrintChecker: React.FC<Props> = ({ transaction, batch }) => {
     const [open, setOpen] = React.useState(false)
 
     // ⬇️ hide items yang approved void, tampilkan normal + pending
@@ -174,7 +175,7 @@ const LeftContainerBatchPrintChecker: React.FC<Props> = ({ header, batch }) => {
         const bucket = buckets[tab]
         if (!bucket) return
         const itemIds = bucket.items.map(it => String((it as any).id))
-        const payload = { printer: bucket.id, batch: batch.id, invoice: header.invoice, itemIds, merge_variant: true }
+        const payload = { printer: bucket.id, batch: batch.id, invoice: transaction.invoice, itemIds, merge_variant: true }
 
         setLoading(true)
         // @ts-ignore
@@ -191,7 +192,7 @@ const LeftContainerBatchPrintChecker: React.FC<Props> = ({ header, batch }) => {
         setLoadingAll(true)
         const tasks = bucketsToPrint.map(b => {
             const itemIds = b.items.map(it => String((it as any).id))
-            const payload = { printer: b.id, batch: batch.id, invoice: header.invoice, itemIds, merge_variant: true }
+            const payload = { printer: b.id, batch: batch.id, invoice: transaction.invoice, itemIds, merge_variant: true }
             // @ts-ignore
             return window.api.invoke('api.transaction.batch:print', payload)
                 .then((res: any) => { showStatus(b.id, 'success', `${res.msg}`); return { ok: true, id: b.id } })
@@ -232,7 +233,7 @@ const LeftContainerBatchPrintChecker: React.FC<Props> = ({ header, batch }) => {
                     {/* Header + Tabs */}
                     <Box sx={{ px: 1.25, pt: 1, pb: 0.5 }}>
                         <Typography variant="subtitle2" fontWeight={800}>
-                            Cetak Checker • #{header.invoice} • Batch {batch.batch}
+                            Cetak Checker • #{transaction.invoice} • Batch {batch.batch}
                         </Typography>
                     </Box>
                     <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto" sx={{ px: 1 }}>

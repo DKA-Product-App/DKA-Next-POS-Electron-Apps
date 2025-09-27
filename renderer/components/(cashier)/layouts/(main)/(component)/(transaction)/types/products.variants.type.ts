@@ -1,4 +1,4 @@
-import {Accounts} from "../../../../../../../types/Accounts.type";
+import {AccountDataItem} from "../../../../../../../types/Accounts.type";
 import {Organization, Project} from "../../../../../../../types/Enterprises.type";
 import {Products} from "./products.type";
 
@@ -11,7 +11,7 @@ export interface TimeStamp {
 
 export interface ProductsVariants {
     id: UUID;
-    reference?: Accounts;
+    reference?: AccountDataItem;
     organization?: Organization;
     project?: Project;
     product?: Products;

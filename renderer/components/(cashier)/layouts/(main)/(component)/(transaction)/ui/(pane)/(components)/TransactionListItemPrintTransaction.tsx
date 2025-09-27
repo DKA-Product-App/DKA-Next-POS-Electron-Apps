@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { NoteAltRounded } from '@mui/icons-material'
 import PendingActionsRounded from '@mui/icons-material/PendingActionsRounded'
+import {Transaction} from "./TransactionListItemRow";
 
 /* ===== Types (selaraskan dengan project kamu) ===== */
 export type Name = { first_name: string; last_name?: string }
@@ -32,10 +33,6 @@ export type Item = {
     void?: { void_time: string; is_approved: boolean } | null;   // ⬅️ tambahkan void
 }
 export type Batch = { id: string; batch: number; items: Item[] }
-export type Transaction = {
-    id?: string; invoice?: string; total?: string; time_created?: string; time_updated?: string; time_closed?: string | null;
-    reference?: Reference; shift?: { id?: string; name?: string }; order_type?: OrderType; table?: Table; batches: Batch[]
-}
 
 /* ====== IMG helpers ====== */
 const uploadsLoader: ImageLoader = ({ src }) => {

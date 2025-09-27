@@ -1,15 +1,15 @@
 // Alias biar rapi
-type UUID = string
-type ISODate = string
+export type UUID = string
+export type ISODate = string
 
 // Nama orang
-interface PersonName {
+export interface PersonName {
     last_name: string
     first_name: string
 }
 
 // Referensi user sederhana (tanpa nested "reference" lagi)
-interface AccountReference {
+export interface AccountReference {
     id: UUID
     name: PersonName
     username: string
@@ -19,7 +19,7 @@ interface AccountReference {
 }
 
 // Role/Peran user
-interface Role {
+export interface Role {
     id: UUID
     code: string          // contoh: "DEV"
     name: string          // contoh: "Developer"
@@ -31,7 +31,7 @@ interface Role {
 }
 
 // Satu item pada field `data`
-interface AccountDataItem {
+export interface AccountDataItem {
     id: UUID
     name: PersonName
     username: string
@@ -45,4 +45,4 @@ interface AccountDataItem {
 }
 
 // Tipe untuk keseluruhan `data`
-type AccountData = AccountDataItem[]
+export type AccountData = AccountDataItem[]

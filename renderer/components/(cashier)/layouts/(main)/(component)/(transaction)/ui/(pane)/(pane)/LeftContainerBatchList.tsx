@@ -4,12 +4,12 @@ import * as React from 'react'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 import { Box, Chip, List, ListItemButton, Stack, Typography } from '@mui/material'
-import LayersRounded from '@mui/icons-material/LayersRounded'
-import LocalMallRounded from '@mui/icons-material/LocalMallRounded'
 import { useTx } from '../context/TransactionContext'
 import LeftContainerBatchListNewOrder from './(components)/LeftContainerBatchListNewOrder'
-import LeftContainerBatchPrintChecker from './(components)/LeftContainerBatchPrintChecker'
 import {useSession} from "../../../../../../../../../contexts/SessionProviderContext";
+import {Transaction} from "../(components)/TransactionListItemRow";
+import LeftContainerBatchListRowSkeleton from '../../(loading)/LeftContainerBatchListRowSkeleton'
+import dynamic from "next/dynamic";
 
 export type Name = { first_name: string; last_name?: string }
 export type Reference = { id: string; name?: Name; username?: string }
@@ -34,6 +34,10 @@ export type TransactionHeader = {
     id: string; invoice: string; total: string; time_closed?: string | null;
     reference?: Reference; shift?: { id: string; name: string }; order_type: OrderType; table?: Table; bills?: any[];
 }
+
+const LeftContainerBatchListRow = dynamic(() => import('./(components)/LeftContainerBatchListRow'), {
+    ssr: false,
+})
 
 const rupiah = (n: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
@@ -158,11 +162,11 @@ const groupItemsByPrinter = (items: Item[]) => {
 const pickBills = (o: any) => o?.transaction?.bills ?? o?.bills ?? []
 
 // pending paid checker yang langsung pakai bills terpilih
-const isPendingPaidItem = (item: any, bills: any[]) =>
+/*const isPendingPaidItem = (item: any, bills: any[]) =>
     bills?.some((bill: any) =>
         (bill?.paid == null || bill?.paid?.status === false) &&
         (bill?.items ?? []).some((bi: any) => bi?.transactionItem?.id === item?.id)
-    )
+    )*/
 
 const isSuccessPaidItem = (item: any, bills: any[]) =>
     bills?.some((bill: any) =>
@@ -176,7 +180,7 @@ const totalPrices = (o: any) => {
         (acc, b) =>
             acc +
             (b?.items ?? []).reduce(
-                (a, i) => a + ((i?.void?.is_approved === true || isPendingPaidItem(i, bills) || isSuccessPaidItem(i, bills)) ? 0 : (+i?.sub_total || 0)),
+                (a, i) => a + ((i?.void?.is_approved === true || isSuccessPaidItem(i, bills)) ? 0 : (+i?.sub_total || 0)),
                 0
             ),
         0
@@ -196,22 +200,50 @@ export const batchTotal = (b: Batch) => {
     const bills = pickBillsFromBatch(b)
     return (b?.items ?? []).reduce(
         (acc: number, i: any) =>
-            acc + ((i?.void?.is_approved === true || isPendingPaidItem(i, bills) || isSuccessPaidItem(i, bills)) ? 0 : (+i?.sub_total || 0)),
+            acc + ((i?.void?.is_approved === true || isSuccessPaidItem(i, bills)) ? 0 : (+i?.sub_total || 0)),
         0
     )
 }
 
-const LeftContainerBatchList: React.FC = () => {
-    const { txId, header, setHeader, setGrandTotal, selectedBatchId, setSelectedBatchId, reloadKey } = useTx()
+export const getPendingActiveForBatch = (batch: any) => {
+    const bills = pickBillsFromBatch(batch)
+
+    const ids =
+        (batch?.items ?? [])
+            .map((it: any) => it?.id)
+            .filter(Boolean);
+
+    const allBillIdSet = new Set(
+        bills
+            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
+            .map((bi: any) => bi?.transactionItem?.id)
+            .filter(Boolean)
+    );
+
+    const pendingBillIdSet = new Set(
+        bills
+            .filter((b: any) => (b?.paid == null) || (b?.paid?.status === false))
+            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
+            .map((bi: any) => bi?.transactionItem?.id)
+            .filter(Boolean)
+    );
+
+    const pending = ids.filter((id: any) => pendingBillIdSet.has(id)).length;
+    const active  = ids.filter((id: any) => !allBillIdSet.has(id)).length;
+
+    return { pending, active };
+};
+
+
+const LeftContainerBatchList: React.FC<{ transaction: Transaction }> = ({ transaction }) => {
+    const { txId, setGrandTotal, selectedBatchId, setSelectedBatchId, reloadKey, setReloadKey } = useTx()
     const [batches, setBatches] = React.useState<Batch[]>([])
-    const { Session } = useSession();
+    const { Session } = useSession()
     const [isLoading, setIsLoading] = React.useState(false)
 
-    // fetch semua batch utk transaksi ini
     React.useEffect(() => {
         if (!txId) { setBatches([]); return }
-
-        setIsLoading(true) // start loading
+        setIsLoading(true)
         // @ts-ignore
         window.api.invoke('api.transaction.batch:read.all', {
             transaction: txId,
@@ -220,10 +252,7 @@ const LeftContainerBatchList: React.FC = () => {
             .then((res: any) => {
                 const list = (res?.data ?? []) as any[]
                 const t = list[0]?.transaction
-                setHeader({ ...t })
                 setGrandTotal(totalPrices(t))
-
-                // ⬇️ PRE-BIND bills ke tiap batch agar batchTotal bisa skip pending-paid
                 const bills = t?.bills ?? []
                 const mapped: Batch[] = list.map(b => ({
                     id: String(b.id),
@@ -234,122 +263,76 @@ const LeftContainerBatchList: React.FC = () => {
                     items: Array.isArray(b.items) ? b.items : [],
                     __bills: bills,
                 })).sort((a, b) => b.batch - a.batch)
-
                 setBatches(mapped)
-                if (!selectedBatchId && mapped.length) setSelectedBatchId(mapped[0].id)
+                //if (!selectedBatchId && mapped.length) setSelectedBatchId(mapped[0].id)
             })
             .catch(() => setBatches([]))
-            .finally(() => setIsLoading(false)) // end loading
-        // ⬇️ penting: JANGAN masukkan selectedBatchId di deps biar gak refetch saat klik
-    }, [txId, reloadKey, setHeader, setGrandTotal, setSelectedBatchId])
+            .finally(() => setIsLoading(false))
+    }, [txId, reloadKey, setGrandTotal, setSelectedBatchId])
 
-    const isClosed = Boolean(header?.time_closed)
+    const onClickItem = (b: Batch) => {
+        setSelectedBatchId(selectedBatchId === b.id ? '' as any : b.id) // gunakan '' sebagai NONE
+        setReloadKey(k => k + 1)
+    }
 
-    // tampilkan skeleton hanya saat BELUM ada data
     const showSkeleton = isLoading && batches.length === 0
 
-    // ===== Skeleton UI saat loading (no flicker) =====
-    const LoadingSkeleton = (
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {/* Header sama biar layout stabil */}
-            <Box sx={{
-                px: 1.25, py: 1,
-                borderBottom: '1px solid',
-                borderColor: 'divider',
-                bgcolor: 'background.paper',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 1
-            }}>
-                <Stack direction="row" spacing={1} alignItems="center" minWidth={0} />
-                {txId ? <LeftContainerBatchListNewOrder tx={txId} /> : <Box sx={{ width: 120, height: 32, borderRadius: 2, bgcolor: 'action.hover' }} />}
+    if (!txId) {
+        return (
+            <Box sx={{ display: 'grid', placeItems: 'center', height: '100%', color: 'text.secondary' }}>
+                <Typography variant="body2">Pilih transaksi dulu.</Typography>
             </Box>
+        )
+    }
 
-            <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-                <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false, swipeEasing: true }}>
-                    <List disablePadding sx={{ py: 1, pr: 1 }}>
-                        {[1, 2, 3].map(key => (
-                            <React.Fragment key={key}>
-                                <Box
-                                    sx={{
-                                        position: 'relative',
-                                        py: 1.1, px: 1.4, mb: 0,
-                                        border: '1px solid',
-                                        borderColor: 'divider',
-                                        bgcolor: 'background.paper',
-                                        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                                        borderBottomLeftRadius: 0,
-                                        borderBottomRightRadius: 0,
-                                        borderTopLeftRadius: 8,
-                                        borderTopRightRadius: 8,
-                                        overflow: 'hidden',
-                                    }}
-                                >
-                                    <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, bgcolor: 'action.selected' }} />
-                                    <Stack spacing={1.1} width="100%">
-                                        <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
-                                            <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
-                                                <LayersRounded fontSize="small" />
-                                                <Box sx={{ width: 120, height: 24, borderRadius: 1, bgcolor: 'action.hover' }} />
-                                                <Box sx={{ width: 64, height: 22, borderRadius: 999, bgcolor: 'action.hover' }} />
-                                            </Stack>
-                                            <Box sx={{ width: 96, height: 20, borderRadius: 1, bgcolor: 'action.hover' }} />
-                                        </Stack>
-                                        <Stack direction="row" alignItems="center" gap={0.75}>
-                                            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
-                                                <Box sx={{ width: 90, height: 24, borderRadius: 999, bgcolor: 'action.hover' }} />
-                                                <Box sx={{ width: 90, height: 24, borderRadius: 999, bgcolor: 'action.hover' }} />
-                                            </Stack>
-                                            <Box sx={{ width: 140, height: 28, borderRadius: 1, bgcolor: 'action.hover' }} />
-                                        </Stack>
-                                        <Box sx={{ width: 180, height: 16, borderRadius: 1, bgcolor: 'action.hover' }} />
-                                    </Stack>
-                                </Box>
+    // ======= ⬇️ GANTI skeleton section dengan RowSkeleton =======
+    if (showSkeleton) {
+        return (
+            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                {/* Header dibikin sama biar layout stabil */}
+                <Box sx={{
+                    px: 1.25, py: 1,
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 1
+                }}>
+                    <Stack direction="row" spacing={1} alignItems="center" minWidth={0} />
+                    {/* tombol New Order tetap tampil agar user bisa langsung klik */}
+                    <LeftContainerBatchListNewOrder tx={transaction} />
+                </Box>
 
-                                <Box
-                                    sx={{
-                                        border: '1px solid',
-                                        borderTop: 'none',
-                                        borderColor: 'divider',
-                                        borderBottomLeftRadius: 8,
-                                        borderBottomRightRadius: 8,
-                                        bgcolor: 'action.selected',
-                                        px: 1.4, py: 0.75, mb: 1,
-                                    }}
-                                >
-                                    <Box sx={{ width: 220, height: 14, borderRadius: 1, bgcolor: 'action.hover' }} />
-                                </Box>
-                            </React.Fragment>
-                        ))}
-                        <Typography variant="caption" sx={{ color: 'text.secondary', px: 1.5, py: 0.5 }}>
-                            Memuat batch… sabar, server lagi ngocok data 🔄
-                        </Typography>
-                    </List>
-                </PerfectScrollbar>
+                <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                    <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false, swipeEasing: true }}>
+                        <List disablePadding sx={{ py: 1, pr: 1 }}>
+                            <LeftContainerBatchListRowSkeleton />
+                            <LeftContainerBatchListRowSkeleton />
+                            <LeftContainerBatchListRowSkeleton selected />
+                            <Typography variant="caption" sx={{ color: 'text.secondary', px: 1.5, py: 0.5 }}>
+                                Memuat batch… Server Sedang Mengelola Data 🔄
+                            </Typography>
+                        </List>
+                    </PerfectScrollbar>
+                </Box>
             </Box>
-        </Box>
-    )
+        )
+    }
+    // ======= ⬆️ END skeleton =======
 
-    if (!txId) return (
-        <Box sx={{ display: 'grid', placeItems: 'center', height: '100%', color: 'text.secondary' }}>
-            <Typography variant="body2">Pilih transaksi dulu.</Typography>
-        </Box>
-    )
-
-    // tampilkan skeleton hanya saat belum ada data
-    if (showSkeleton) return LoadingSkeleton
-
-    // pesan kosong hanya saat tidak loading
-    if (!isLoading && batches.length === 0) return (
-        <Box sx={{ display: 'grid', placeItems: 'center', height: '100%', color: 'text.secondary' }}>
-            <Typography variant="body2">Belum ada batch.</Typography>
-        </Box>
-    )
+    if (!isLoading && batches.length === 0) {
+        return (
+            <Box sx={{ display: 'grid', placeItems: 'center', height: '100%', color: 'text.secondary' }}>
+                <Typography variant="body2">Belum ada batch.</Typography>
+            </Box>
+        )
+    }
 
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {/* ===== Header di atas PerfectScrollbar ===== */}
+            {/* Header */}
             <Box sx={{
                 px: 1.25, py: 1,
                 borderBottom: '1px solid',
@@ -361,98 +344,36 @@ const LeftContainerBatchList: React.FC = () => {
                 gap: 1
             }}>
                 <Stack direction="row" spacing={1} alignItems="center" minWidth={0} />
-                <LeftContainerBatchListNewOrder tx={txId} />
+                <LeftContainerBatchListNewOrder tx={transaction} />
             </Box>
 
-            {/* ===== Area scroll ===== */}
+            {/* Scroll area */}
             <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
                 <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false, swipeEasing: true }}>
                     <List disablePadding sx={{ py: 1, pr: 1 }}>
                         {batches.map(b => {
-                            const selected = b.id === selectedBatchId
-                            const cardBorderColor = selected ? 'primary.outlinedBorder' : 'divider'
-                            const price = batchTotal(b)
+                            const selected = selectedBatchId === b.id
+                            const priceNum = batchTotal(b)
+                            const priceLbl = rupiah(priceNum)
+                            const { active, pending } = getPendingActiveForBatch(b)
 
                             return (
-                                <React.Fragment key={b.id}>
-                                    <ListItemButton
-                                        selected={selected}
-                                        onClick={() => setSelectedBatchId(b.id)}
-                                        sx={{
-                                            position: 'relative',
-                                            alignItems: 'flex-start',
-                                            py: 1.1, px: 1.4,
-                                            mb: 0,
-                                            border: '1px solid',
-                                            borderColor: cardBorderColor,
-                                            bgcolor: selected ? 'action.selected' : 'background.paper',
-                                            boxShadow: selected ? '0 10px 24px rgba(0,0,0,0.12)' : '0 2px 8px rgba(0,0,0,0.04)',
-                                            transition: 'transform .15s ease, box-shadow .2s ease, border-color .2s ease, background-color .2s ease',
-                                            '&:hover': { transform: 'translateY(-1px)', boxShadow: '0 12px 28px rgba(0,0,0,0.12)', bgcolor: selected ? 'action.selected' : 'action.hover' },
-                                            borderBottomLeftRadius: 0,
-                                            borderBottomRightRadius: 0,
-                                            borderTopLeftRadius: 8,
-                                            borderTopRightRadius: 8,
-                                            '&::before': {
-                                                content: '""', position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
-                                                borderTopLeftRadius: 8,
-                                                background: selected
-                                                    ? 'linear-gradient(180deg, #6366F1, #8B5CF6 35%, #EC4899)'
-                                                    : (Boolean(header?.time_closed) ? 'linear-gradient(90deg, #ef4444, #dc2626 35%, #b91c1c)' : 'transparent'),
-                                            },
-                                        }}
-                                    >
-                                        <Stack spacing={1.1} width="100%">
-                                            {/* Baris 1: Judul + Harga */}
-                                            <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
-                                                <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
-                                                    <LayersRounded fontSize="small" />
-                                                    <Typography variant="h6" fontWeight={800}># {String(b.batch)}</Typography>
-                                                    <Chip size="small" label={header?.time_closed ? 'Selesai' : 'Aktif'} color={header?.time_closed ? 'error' : 'success'} variant="filled" />
-                                                </Stack>
-                                                <Typography variant="subtitle1" fontWeight={800} title={rupiah(price)}>
-                                                    {rupiah(price)}
-                                                </Typography>
-                                            </Stack>
-
-                                            {/* Baris 2: item/qty kiri, PRINT kanan */}
-                                            <Stack direction="row" alignItems="center" gap={0.75}>
-                                                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
-                                                    <Chip size="small" icon={<LocalMallRounded />} label={`${totalItem(b)} item`} />
-                                                    <Chip size="small" icon={<LocalMallRounded />} label={`${totalQty(b)} Qty`} />
-                                                </Stack>
-                                                <LeftContainerBatchPrintChecker header={header as TransactionHeader} batch={b} />
-                                            </Stack>
-
-                                            {/* Baris 3: hanya time_created */}
-                                            <Typography variant="caption" color="text.secondary">
-                                                {fmtDT(b.time_created)}
-                                            </Typography>
-                                        </Stack>
-                                    </ListItemButton>
-
-                                    {/* ===== Footer di LUAR card (nempel di bawah) ===== */}
-                                    <Box
-                                        sx={{
-                                            border: '1px solid',
-                                            borderTop: 'none',
-                                            borderColor: cardBorderColor,
-                                            borderBottomLeftRadius: 8,
-                                            borderBottomRightRadius: 8,
-                                            bgcolor: header?.time_closed ? 'error.main' : 'success.main',
-                                            color: header?.time_closed ? 'error.contrastText' : 'success.contrastText',
-                                            px: 1.4,
-                                            py: 0.75,
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between',
-                                            gap: 1,
-                                            mb: 1,
-                                        }}
-                                    >
-                                        <TimerText startIso={b.time_created} endIso={header?.time_closed ?? null} active={!header?.time_closed} />
-                                    </Box>
-                                </React.Fragment>
+                                <LeftContainerBatchListRow
+                                    key={b.id}
+                                    batch={b}
+                                    transaction={transaction}
+                                    selected={selected}
+                                    priceLabel={priceLbl}
+                                    totalItem={b.items.length}
+                                    totalQty={b.items.reduce((a, i) => a + i.qty, 0)}
+                                    activeCount={active}
+                                    pendingCount={pending}
+                                    startIso={b.time_created}
+                                    endIso={transaction?.time_closed ?? null}
+                                    isActiveTimer={!transaction?.time_closed}
+                                    onClick={onClickItem}
+                                    TimerText={TimerText}
+                                />
                             )
                         })}
                     </List>
@@ -462,4 +383,5 @@ const LeftContainerBatchList: React.FC = () => {
     )
 }
 
-export default LeftContainerBatchList
+
+export default React.memo(LeftContainerBatchList);

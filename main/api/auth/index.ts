@@ -19,6 +19,7 @@ export function Auth(mainWindow ?: BrowserWindow) {
                     return resolve({ ...response.data });
                 })
                 .catch((err) => {
+                    console.log(err);
                     const pack = (payload: any) => {
                         const e = new Error(JSON.stringify(payload)); // <-- kirim JSON di message
                         (e as any).data = payload;                    // <-- bonus: taruh raw data kalau Electron gak nyopot

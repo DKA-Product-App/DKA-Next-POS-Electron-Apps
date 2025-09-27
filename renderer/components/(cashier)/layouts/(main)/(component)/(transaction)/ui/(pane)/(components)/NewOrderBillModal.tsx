@@ -24,6 +24,7 @@ import {useTabNavigationHandlerContext} from '../../../context/TabNavigationHand
 import {useTransactionEventTrigger} from "../context/TransactionEventTriggerContext";
 import {useAuth} from "../../../../../../../../../contexts/AuthProviderContext";
 import {useSession} from "../../../../../../../../../contexts/SessionProviderContext";
+import {Transaction} from "./TransactionListItemRow";
 
 const BillListItemDetail = dynamic(
     () => import('./../../../../(bills)/ui/(pane)/BillsListItemDetail'),
@@ -73,26 +74,75 @@ type Props = {
     mode: 'split' | 'full'
     label?: string
     onSuccess?: () => void
-    variant?: ButtonProps['variant']
+    variant?: ButtonProps['variant'],
+    transaction: Transaction
 }
+
+const totalItems = (o: Transaction) => (o.batches ?? []).reduce((acc, b) => acc + (b.items ?? []).length, 0)
+const pickBills = (o: any) => o?.bills ?? o?.transaction?.bills ?? []
+const getPendingActive = (o: Transaction) => {
+    const bills = pickBills(o);
+
+    // Kumpulin semua id item transaksi (o.batches[].items[].id)
+    const ids =
+        (o?.batches ?? [])
+            .flatMap((bt: any) => Array.isArray(bt?.items) ? bt.items : [])
+            .map((it: any) => it?.id)
+            .filter(Boolean);
+
+    // Set semua id item yang SUDAH masuk bill (paid apapun)
+    const allBillIdSet = new Set(
+        bills
+            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
+            .map((bi: any) => bi?.transactionItem?.id)
+            .filter(Boolean)
+    );
+
+    // Set id item yang masuk bill PENDING (paid null/false)
+    const pendingBillIdSet = new Set(
+        bills
+            .filter((b: any) => (b?.paid == null) || (b?.paid?.status === false))
+            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
+            .map((bi: any) => bi?.transactionItem?.id)
+            .filter(Boolean)
+    );
+
+    const paidBillIdSet = new Set(
+        bills
+            .filter((b: any) => (b?.paid == null) || (b?.paid?.status === true))
+            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
+            .map((bi: any) => bi?.transactionItem?.id)
+            .filter(Boolean)
+    );
+
+    const pending = ids.filter((id: any) => pendingBillIdSet.has(id)).length;
+    const paid  = ids.filter((id: any) => paidBillIdSet.has(id)).length;
+    const active  = ids.filter((id: any) => !allBillIdSet.has(id)).length;
+
+
+    return { pending, active, paid };
+};
 
 export default function NewOrderBillModal({
                                               items,
                                               mode,
                                               label = 'Buat Tagihan',
-                                              onSuccess,
-                                              variant = 'contained'
+                                              variant = 'contained',
+                                              transaction,
                                           }: Props) {
-    const {header, txId, bumpReload, clearSelection} = useTx()
+    const { txId, bumpReload, clearSelection} = useTx()
     const {bump} = useTransactionEventTrigger()
-    const isClosed = Boolean(header?.time_closed);
+    const isClosed = Boolean(transaction?.time_closed);
 
     const {Session} = useSession();
 
     const isPaidBool = (p: any) => p === true || p?.is_paid === true || p?.status === true
-    const hasBills = Array.isArray((header as any)?.bills) && (header as any).bills.length > 0
-    const hasPaidField = typeof (header as any)?.paid !== 'undefined' && (header as any)?.paid !== null
-    const blockedByUnpaidBill = hasBills && hasPaidField && !isPaidBool((header as any)?.paid)
+    const hasBills = Array.isArray((transaction as any)?.bills) && (transaction as any).bills.length > 0
+    const hasPaidField = typeof (transaction as any)?.paid !== 'undefined' && (transaction as any)?.paid !== null
+    const blockedByUnpaidBill = hasBills && hasPaidField && !isPaidBool((transaction as any)?.paid)
+
+    const itemQty = totalItems(transaction);
+    const { active, pending, paid } = getPendingActive(transaction);
 
     const [open, setOpen] = useState(false)
     const [fullScreen, setFullScreen] = useState(false)
@@ -120,7 +170,7 @@ export default function NewOrderBillModal({
         : `Buat Tagihan (${isSplitMode ? 'Split' : 'Keseluruhan'}) — ${items.length} item`
 
     const openWithUnpaidBillNotice = () => {
-        const firstBill = (header as any)?.bills?.[0] ?? null
+        const firstBill = transaction?.bills?.[0] ?? null
         setLayoutPaper(
             <ErrorDataLayout
                 status={false}
@@ -151,7 +201,7 @@ export default function NewOrderBillModal({
         lockRef.current = false
     }
 
-    // ====== Fetch items sekali dengan key terkunci (tidak terganggu prop items/header) ======
+    // ====== Fetch items sekali dengan key terkunci (tidak terganggu prop items/transaction) ======
     useEffect(() => {
         if (!open || modalBlocked) return
         if (!lockedItemsKey) return
@@ -168,7 +218,7 @@ export default function NewOrderBillModal({
                 const e = normalizeIpcError(error)
                 setLayoutPaper(<ErrorDataLayout {...e} />)
             })
-        // HANYA tergantung lock, bukan props items/header
+        // HANYA tergantung lock, bukan props items/transaction
     }, [open, modalBlocked, lockedItemsKey])
 
     // ====== Create bill + tampilkan preview, sekali saja untuk batch yang sudah terkunci ======
@@ -205,7 +255,7 @@ export default function NewOrderBillModal({
             .then((result: any) => {
                 if (!lockRef.current) return
                 setLayoutPaper(<BillListItemDetail bill={result.data}/>)
-                // penting: reload context TANPA memicu efek modal (karena semua input di-lock + efek tidak tergantung header/items)
+                // penting: reload context TANPA memicu efek modal (karena semua input di-lock + efek tidak tergantung transaction/items)
                 setTimeout(() => {
                     try {
                         bumpReload();
@@ -228,7 +278,7 @@ export default function NewOrderBillModal({
         <Button
             variant={variant}
             color={color}
-            disabled={disabled}
+            disabled={disabled || itemQty === paid}
             onClick={handleOpen}
             size="large"
             startIcon={baseIcon}

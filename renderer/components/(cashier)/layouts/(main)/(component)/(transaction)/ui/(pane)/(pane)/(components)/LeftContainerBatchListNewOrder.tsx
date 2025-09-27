@@ -20,7 +20,8 @@ import { CartItem } from '../../../../../../../(select-product)/context/CartCont
 import { useTheme } from '@mui/material/styles'
 import { useThemeCharger } from '../../../../../../../../context/ThemeCharger'
 import {useTransactionEventTrigger} from "../../context/TransactionEventTriggerContext";
-import {useSession} from "../../../../../../../../../../contexts/SessionProviderContext"; // ⬅️ sesuaikan alias/path kamu
+import {useSession} from "../../../../../../../../../../contexts/SessionProviderContext";
+import {Transaction} from "../../(components)/TransactionListItemRow"; // ⬅️ sesuaikan alias/path kamu
 
 const Billing = dynamic(() => import('../../../../../../../(select-product)'), { ssr: true })
 
@@ -28,13 +29,13 @@ const rupiah = (n: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
         .format(typeof n === 'string' ? parseFloat(n) : n)
 
-const LeftContainerBatchListNewOrder: React.FC<{ tx: string }> = ({ tx }) => {
-    const { txId, header, setHeader, grandTotal, setGrandTotal, selectedBatchId, setSelectedBatchId, reloadKey,setReloadKey } = useTx()
+const LeftContainerBatchListNewOrder: React.FC<{ tx: Transaction }> = ({ tx }) => {
+    const { txId, grandTotal, setGrandTotal, selectedBatchId, setSelectedBatchId, reloadKey,setReloadKey } = useTx()
     const { setDefaultValue, setDisableOtherDefault } = useDiningMode();
     const { Session } = useSession();
     const { bump } = useTransactionEventTrigger()
     const [batches, setBatches] = React.useState<Batch[]>([])
-    const isClosed = Boolean(header?.time_closed)
+    const isClosed = Boolean(tx?.time_closed)
     const [open, setOpen] = React.useState(false)
     const [fullScreen, setFullScreen] = React.useState(false)
 
@@ -44,7 +45,7 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: string }> = ({ tx }) => {
     const { toggleMode } = useThemeCharger()
 
     React.useEffect(() => {
-        const id = header?.order_type?.id ?? null
+        const id = tx?.order_type?.id ?? null
         if (open && id) {
             setDefaultValue(id)
             setDisableOtherDefault(true)
@@ -52,7 +53,7 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: string }> = ({ tx }) => {
             setDefaultValue(null)
             setDisableOtherDefault(false)
         }
-    }, [open, header?.order_type?.id])
+    }, [open, tx?.order_type?.id])
 
 // (opsional) extra safety saat unmount komponen
     React.useEffect(() => () => {
@@ -60,7 +61,7 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: string }> = ({ tx }) => {
         setDisableOtherDefault(false)
     }, [])
 
-    const openDialog = () => { console.log(header); setOpen(true) }
+    const openDialog = () => { console.log(tx); setOpen(true) }
     const closeDialog = () => setOpen(false)
 
     const submitNewBatchTransaction = (item: CartItem[]) => {
@@ -117,7 +118,6 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: string }> = ({ tx }) => {
             .then((res: any) => {
                 const list = (res?.data ?? []) as any[]
                 const t = list[0]?.transaction
-                setHeader({ ...t })
                 const mapped: Batch[] = list.map(b => ({
                     id: String(b.id),
                     batch: Number(b.batch),
@@ -194,7 +194,7 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: string }> = ({ tx }) => {
             >
                 <DialogTitle sx={{ display: 'flex', alignItems: 'center', pr: 1.5, gap: 1 }}>
                     <Typography variant="h6" fontWeight={800}>
-                        Tambah Pesanan Untuk Transaksi {header?.invoice} — Batch Ke #{batches.length + 1}
+                        Tambah Pesanan Untuk Transaksi {tx?.invoice} — Batch Ke #{batches.length + 1}
                     </Typography>
 
                     {/* Header actions: Fullscreen, Theme, Close */}

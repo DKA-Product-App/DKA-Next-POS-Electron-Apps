@@ -25,8 +25,6 @@ export type TxHeader = {
 
 type Ctx = {
     txId: string
-    header: TxHeader
-    setHeader: (p: Partial<TxHeader>) => void
     grandTotal: number
     setGrandTotal: (t: number) => void
     selectedBatchId?: string
@@ -59,14 +57,12 @@ export function useTx() {
 }
 
 export function TxProvider({ txId, children }: { txId: string; children: React.ReactNode }) {
-    const [header, setHeaderState] = React.useState<TxHeader>({})
     const [grandTotal, setGrandTotalState] = React.useState(0)
     const [selectedBatchId, setSelectedBatchId] = React.useState<string | undefined>(undefined)
     const [selectedItemIds, setSelectedItemIds] = React.useState<Set<string>>(new Set())
     const [itemsByBatch, setItemsByBatch] = React.useState<Record<string, Item[]>>({})
     const [reloadKey, setReloadKey] = React.useState(0)
 
-    const setHeader = (p: Partial<TxHeader>) => setHeaderState(h => ({ ...h, ...p }))
     const setGrandTotal = (num: number) => setGrandTotalState(num)
     const bumpReload = () => setReloadKey(k => k + 1)
 
@@ -97,7 +93,6 @@ export function TxProvider({ txId, children }: { txId: string; children: React.R
 
     const value = React.useMemo<Ctx>(() => ({
         txId,
-        header, setHeader,
         grandTotal, setGrandTotal,
         selectedBatchId, setSelectedBatchId,
         selectedItemIds, toggleItem, clearSelection,
@@ -107,7 +102,7 @@ export function TxProvider({ txId, children }: { txId: string; children: React.R
         setReloadkey: setReloadKey,
         setReloadKey: setReloadKey,
     }), [
-        txId, header, grandTotal, selectedBatchId, selectedItemIds, itemsByBatch, selectedTotal, reloadKey
+        txId, grandTotal, selectedBatchId, selectedItemIds, itemsByBatch, selectedTotal, reloadKey
     ])
 
     return <TxContext.Provider value={value}>{children}</TxContext.Provider>

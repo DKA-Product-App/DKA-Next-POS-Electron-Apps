@@ -26,6 +26,7 @@ export type Item = { id: string; price: string; qty: number; sub_total: string; 
 export type Batch = { id: string; batch: number; note?: string | null; items: Item[] }
 export type Transaction = {
     id?: string; invoice?: string; total?: string; time_created?: string; time_updated?: string; time_closed?: string | null;
+    items: Array<any>;
     reference?: Reference; shift?: { id?: string; name?: string }; order_type?: OrderType; table?: Table; batches: Batch[];
     bills?: any[]; // <-- penting buat pending-paid checker
 }
@@ -44,33 +45,62 @@ const totalBatches = (o: Transaction) => (o.batches ?? []).length
 
 // ====== Bills-aware helpers ======
 const isVoided = (i: Item) => (i as any)?.void?.is_approved === true
-
-// Ambil bills dari object apa pun yg mungkin (transaction langsung atau nested)
 const pickBills = (o: any) => o?.bills ?? o?.transaction?.bills ?? []
-
-// Item dianggap pending-paid kalau ada bill dgn paid == null yg memuat transactionItem.id === item.id
-const isPendingPaidItem = (item: any, bills: any[]) =>
-    bills?.some((bill: any) =>
-        (bill?.paid == null || bill?.paid?.status === false) &&
-        Array.isArray(bill?.items) &&
-        bill.items.some((bi: any) => bi?.transactionItem?.id === item?.id)
-    )
 
 const isSuccessPaidItem = (item: any, bills: any[]) =>
     bills?.some((bill: any) =>
-        (bill?.paid == null || bill?.paid?.status === true) &&
+        (bill?.paid != null && bill?.paid?.status === true) &&
         Array.isArray(bill?.items) &&
         bill.items.some((bi: any) => bi?.transactionItem?.id === item?.id)
     )
 
-// Total harga transaksi, skip void-approved & pending-paid
+const getPendingActive = (o: Transaction) => {
+    const bills = pickBills(o);
+
+    const ids =
+        (o?.batches ?? [])
+            .flatMap((bt: any) => Array.isArray(bt?.items) ? bt.items : [])
+            .map((it: any) => it?.id)
+            .filter(Boolean);
+
+    const allBillIdSet = new Set(
+        bills
+            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
+            .map((bi: any) => bi?.transactionItem?.id)
+            .filter(Boolean)
+    );
+
+    const pendingBillIdSet = new Set(
+        bills
+            .filter((b: any) => (b?.paid == null) || (b?.paid?.status === false))
+            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
+            .map((bi: any) => bi?.transactionItem?.id)
+            .filter(Boolean)
+    );
+
+    const paidBillIdSet = new Set(
+        bills
+            .filter((b: any) => (b?.paid == null) || (b?.paid?.status === true))
+            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
+            .map((bi: any) => bi?.transactionItem?.id)
+            .filter(Boolean)
+    );
+
+    const pending = ids.filter((id: any) => pendingBillIdSet.has(id)).length;
+    const paid  = ids.filter((id: any) => paidBillIdSet.has(id)).length;
+    const active  = ids.filter((id: any) => !allBillIdSet.has(id)).length;
+
+    return { pending, active, paid };
+};
+
+// Total harga transaksi, skip void-approved & success-paid
 const totalPrices = (o: Transaction) => {
     const bills = pickBills(o)
     return (o.batches ?? []).reduce(
         (acc, b) =>
             acc +
             (b.items ?? []).reduce(
-                (a, i) => a + ((isVoided(i) || isPendingPaidItem(i, bills) || isSuccessPaidItem(i, bills)) ? 0 : (+i.sub_total || 0)),
+                (a, i) => a + ((isVoided(i) || isSuccessPaidItem(i, bills)) ? 0 : (+i.sub_total || 0)),
                 0
             ),
         0
@@ -210,9 +240,45 @@ export const TransactionListItemRow: React.FC<{
     const qtys = totalQty(o)
     const items = totalItems(o)
     const batches = totalBatches(o)
+    const { pending, active, paid } = getPendingActive(o);
     const prices = totalPrices(o) // <-- sudah skip pending-paid & void
     const isClosed = Boolean(o.time_closed)
+
+    // ★ flags/gradients
+    const hasPending = pending > 0
+    const allSuccessPaid = pending === 0 && active === 0
+    const GRAD_WARN_TO_SUCCESS = 'linear-gradient(90deg, #F59E0B, #10B981)'
+    const GRAD_ERROR_TO_WARN   = 'linear-gradient(90deg, #EF4444, #F59E0B)'
+    const GRAD_GRAY            = 'linear-gradient(90deg, #9CA3AF, #6B7280)'
+    const GRAD_PURPLE_PINK     = 'linear-gradient(180deg, #6366F1, #8B5CF6 35%, #EC4899)'
+
     const cardBorderColor = singleSelected ? 'primary.outlinedBorder' : (isClosed ? 'error.light' : 'divider')
+
+    // ★ left stripe logic (mirror aturan komponen list batch)
+    const leftStripe = singleSelected
+        ? GRAD_PURPLE_PINK
+        : isClosed
+            ? (hasPending ? GRAD_ERROR_TO_WARN : 'linear-gradient(180deg, #ef4444, #dc2626 60%, #b91c1c)')
+            : (hasPending ? GRAD_WARN_TO_SUCCESS : 'transparent')
+
+    // ★ footer background:
+    // - all success paid -> abu-abu
+    // - closed + pending -> merah→kuning
+    // - closed -> merah solid
+    // - aktif + pending -> kuning→hijau
+    // - else -> success solid
+    const footerBg = allSuccessPaid
+        ? GRAD_GRAY
+        : isClosed
+            ? (hasPending ? GRAD_ERROR_TO_WARN : 'linear-gradient(90deg, #DC2626, #EF4444)')
+            : (hasPending ? GRAD_WARN_TO_SUCCESS : 'success.main')
+
+    // ★ footer text color (gradient = putih; solid = contrast)
+    const footerColor =
+        footerBg.includes('linear-gradient') ? '#fff'
+            : isClosed ? 'error.contrastText'
+                : hasPending ? 'warning.contrastText'
+                    : 'success.contrastText'
 
     return (
         <>
@@ -231,9 +297,7 @@ export const TransactionListItemRow: React.FC<{
                     '&::before': {
                         content: '""', position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
                         borderTopLeftRadius: 8, borderBottomLeftRadius: 0,
-                        background: singleSelected
-                            ? 'linear-gradient(180deg, #6366F1, #8B5CF6 35%, #EC4899)'
-                            : (isClosed ? 'linear-gradient(180deg, #ef4444, #dc2626 60%, #b91c1c)' : 'transparent'),
+                        background: leftStripe, // ★ pakai aturan baru
                     },
                 }}
             >
@@ -260,7 +324,7 @@ export const TransactionListItemRow: React.FC<{
                     {/* Baris 2 */}
                     <Stack direction="row" alignItems="center" gap={0.75}>
                         <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
-                            <Chip size="small" label={isClosed ? 'Selesai' : 'Aktif'} color={isClosed ? 'error' : 'success'} variant="filled" />
+                            <Chip size="small" label={isClosed ? 'Selesai' : (hasPending) ? 'Pending' : 'Aktif'} color={isClosed ? 'error' : (hasPending) ? 'warning' : 'success'} variant="filled" />
                             <Chip size="small" icon={<LocalMallRounded />} label={`${qtys} item`} />
                             <Chip size="small" icon={<LayersRounded />} label={`${batches} batch`} />
                         </Stack>
@@ -279,6 +343,20 @@ export const TransactionListItemRow: React.FC<{
                             />
                             <Chip size="small" icon={<AccessTimeRounded />} label={o.shift?.name ?? '-'} />
                             <Chip size="small" icon={<StorageIcon />} label={`${items} item`} />
+                        </Stack>
+                    </Stack>
+
+                    <Stack direction="row" alignItems="center" gap={0.75}>
+                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
+                            <Chip
+                                size="small"
+                                icon={<PersonOutlineRounded />}
+                                label={o.reference?.name?.first_name ?? o.reference?.username ?? (o.reference?.id ? `${o.reference.id.slice(0,8)}…` : '-')}
+                                title={o.reference?.id ?? ''}
+                            />
+                            <Chip size="small" label={`unpaid : ${active}`} />
+                            <Chip size="small" label={`pending : ${pending}`} />
+                            <Chip size="small" label={`paid : ${paid}`} />
                         </Stack>
                     </Stack>
 
@@ -307,8 +385,9 @@ export const TransactionListItemRow: React.FC<{
                 sx={{
                     border: '1px solid', borderTop: 'none', borderColor: cardBorderColor,
                     borderBottomLeftRadius: 8, borderBottomRightRadius: 8,
-                    bgcolor: isClosed ? 'error.main' : 'success.main',
-                    color: isClosed ? 'error.contrastText' : 'success.contrastText',
+                    bgcolor: footerBg.includes('linear-gradient') ? undefined : footerBg,   // ★ solid via theme key
+                    background: footerBg.includes('linear-gradient') ? footerBg : undefined, // ★ gradient manual
+                    color: footerColor,                                                      // ★ teks adaptif
                     px: 1.5, py: 0.8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1,
                 }}
             >

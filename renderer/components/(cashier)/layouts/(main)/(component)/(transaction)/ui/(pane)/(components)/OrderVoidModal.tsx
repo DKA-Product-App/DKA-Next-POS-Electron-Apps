@@ -9,6 +9,7 @@ import type { ButtonProps, IconButtonProps } from '@mui/material'
 import { DoneAllRounded, DeleteRounded } from '@mui/icons-material'
 import { useTx } from '../context/TransactionContext'
 import { useSession } from '../../../../../../../../../contexts/SessionProviderContext'
+import {Transaction} from "./TransactionListItemRow";
 
 
 const rupiah = (n: number | string) =>
@@ -18,19 +19,19 @@ const rupiah = (n: number | string) =>
 const toButtonColor = (c: IconButtonProps['color']): ButtonProps['color'] =>
     c === 'default' ? 'primary' : (c as ButtonProps['color'])
 
-export default function OrderVoidModal() {
-    const { header, txId, selectedItemIds, selectedTotal, clearSelection, bumpReload } = useTx()
+export default function OrderVoidModal({ transaction } : { transaction: Transaction }) {
+    const { txId, selectedItemIds, selectedTotal, clearSelection, bumpReload } = useTx()
     const { Session } = useSession();
     const [open, setOpen] = React.useState(false)
     const [reason, setReason] = React.useState('')
 
-    const isClosed = Boolean(header.time_closed)
+    const isClosed = Boolean(transaction.time_closed)
     const disabled = selectedItemIds.size === 0 || isClosed
 
     const kasirName = React.useMemo(() => {
-        const n = header.reference?.name
+        const n = transaction.reference?.name
         return [n?.first_name, n?.last_name].filter(Boolean).join(' ') || '-'
-    }, [header.reference])
+    }, [transaction.reference])
 
     const handleOpen  = () => setOpen(true)
     const handleClose = () => { setOpen(false); setReason('') }
@@ -85,7 +86,7 @@ export default function OrderVoidModal() {
 
                     <Alert severity="warning" variant="outlined">
                         <Typography variant="body2">
-                            Saya <b>{kasirName}</b> yang bertugas pada <b>{header.shift?.name ?? '-'}</b> ingin mengajukan void
+                            Saya <b>{kasirName}</b> yang bertugas pada <b>{transaction.shift?.name ?? '-'}</b> ingin mengajukan void
                             dengan alasan di bawah ini. Segala macam risiko yang timbul akan menjadi tanggung jawab saya selama bertugas.
                             Yakin ingin mengajukan void?
                         </Typography>
