@@ -170,7 +170,7 @@ const pickBills = (o: any) => o?.transaction?.bills ?? o?.bills ?? []
 
 const isSuccessPaidItem = (item: any, bills: any[]) =>
     bills?.some((bill: any) =>
-        (bill?.paid == null || bill?.paid?.status === true) &&
+        (bill?.paid !== null || bill?.paid?.status === true) &&
         (bill?.items ?? []).some((bi: any) => bi?.transactionItem?.id === item?.id)
     )
 // total price: skip kalau void approved atau pending paid

@@ -24,21 +24,7 @@ type Props = {
     TimerText: React.FC<{ startIso?: string; endIso?: string | null; active: boolean }>
 }
 
-const LeftContainerBatchListRow: React.FC<Props> = ({
-                                                        batch,
-                                                        transaction,
-                                                        selected,
-                                                        priceLabel,
-                                                        totalItem,
-                                                        totalQty,
-                                                        activeCount,
-                                                        pendingCount,
-                                                        startIso,
-                                                        endIso,
-                                                        isActiveTimer,
-                                                        onClick,
-                                                        TimerText,
-                                                    }) => {
+const LeftContainerBatchListRow: React.FC<Props> = ({batch, transaction, selected, priceLabel, totalItem, totalQty, activeCount, pendingCount, startIso, endIso, isActiveTimer, onClick, TimerText,}) => {
     const cardBorderColor = selected ? 'primary.outlinedBorder' : 'divider'
     const isClosed = Boolean(transaction?.time_closed)
 
