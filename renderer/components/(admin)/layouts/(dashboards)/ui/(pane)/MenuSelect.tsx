@@ -303,7 +303,6 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                                 children: [
                                     { label: 'Users', description: 'Daftar semua pengguna', icon: <GroupRoundedIcon />, forward: `${CONFIGS}/users/list` },
                                     { label: 'Roles', description: 'Atur role pengguna', icon: <ManageAccountsRoundedIcon />, forward: `${CONFIGS}/users/roles` },
-                                    { label: 'Permissions', description: 'Hak akses & policy', icon: <SecurityRoundedIcon />, forward: `${CONFIGS}/users/permissions` },
                                 ],
                             },
                             {
