@@ -1,0 +1,348 @@
+'use client';
+
+import * as React from 'react';
+import {
+    Avatar,
+    Box,
+    Button,
+    Chip,
+    Divider,
+    Icon,
+    List,
+    ListItem,
+    ListItemAvatar,
+    ListItemText,
+    Popover,
+    Stack,
+    Typography,
+} from '@mui/material';
+import AddRounded from '@mui/icons-material/AddRounded';
+import StorefrontRounded from '@mui/icons-material/StorefrontRounded';
+
+import {
+    DataTable,
+    Column,
+    useNonPassiveWheel,
+} from './(components)/TablesLayoutConstructor';
+
+/* ========= Types dari response ========= */
+type ApiBranch = {
+    id: string;
+    name: string;
+    address?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    website?: string | null;
+    time_created?: string;
+    time_updated?: string;
+};
+
+type ApiPaymentMethod = {
+    id: string;
+    icon?: string | null;       // e.g. "takeout_dining" (Material Symbols)
+    name: string;               // e.g. "QRIS"
+    description?: string | null;
+    need_tender?: boolean;
+    time_created?: string;
+    time_updated?: string;
+    status?: boolean;
+    branches?: ApiBranch[];
+};
+
+/* ========= Row type untuk DataTable ========= */
+type RowPaymentMethod = {
+    id: string;
+    icon?: string | null;
+    name: string;
+    description?: string | null;
+    needTender: boolean;
+    status: boolean;
+    branchesCount: number;
+    branches: ApiBranch[];
+    methodCell: React.ReactNode;
+};
+
+/* kecil-kecil lucu */
+const initial = (s?: string | null) => (s?.trim()?.[0] ?? 'P').toUpperCase();
+
+export default function PaymentMethods() {
+    const [rows, setRows] = React.useState<RowPaymentMethod[]>([]);
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState<string | null>(null);
+
+    // Popover Branches
+    const [branchAnchor, setBranchAnchor] = React.useState<HTMLElement | null>(null);
+    const [branchTitle, setBranchTitle] = React.useState<string>('');
+    const [branchList, setBranchList] = React.useState<ApiBranch[]>([]);
+    const listRef = React.useRef<HTMLDivElement>(null);
+    useNonPassiveWheel(listRef);
+
+    const openBranches = (e: React.MouseEvent<HTMLElement>, methodName: string, branches: ApiBranch[]) => {
+        setBranchAnchor(e.currentTarget);
+        setBranchTitle(methodName);
+        setBranchList(branches ?? []);
+    };
+    const closeBranches = () => {
+        setBranchAnchor(null);
+        setBranchTitle('');
+        setBranchList([]);
+    };
+
+    const fetchPaymentMethods = React.useCallback(() => {
+        if (!window.api) {
+            console.error('Failed Get Window Api Bridge');
+            setError('Bridge tidak tersedia');
+            return;
+        }
+        setLoading(true);
+        window.api
+            .invoke('api.config.data.payment.method:read.all', {})
+            .then((result: any) => {
+                const data = (result?.data ?? []) as ApiPaymentMethod[];
+                const mapped: RowPaymentMethod[] = data.map((m) => ({
+                    id: m.id,
+                    icon: m.icon ?? null,
+                    name: m.name,
+                    description: m.description ?? null,
+                    needTender: !!m.need_tender,
+                    status: !!m.status,
+                    branchesCount: m.branches?.length ?? 0,
+                    branches: m.branches ?? [],
+                    methodCell: (
+                        <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
+                            {/* Prioritas pakai Icon font kalau ada; fallback ke Avatar huruf */}
+                            {m.icon ? (
+                                <Avatar variant="rounded" sx={{ width: 32, height: 32, borderRadius: 1 }}>
+                                    <Icon fontSize="small">{m.icon}</Icon>
+                                </Avatar>
+                            ) : (
+                                <Avatar variant="rounded" sx={{ width: 32, height: 32, borderRadius: 1 }}>
+                                    {initial(m.name)}
+                                </Avatar>
+                            )}
+                            <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="body2" fontWeight={600} noWrap title={m.name}>
+                                    {m.name}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" noWrap title={m.description ?? ''}>
+                                    {m.description ?? '—'}
+                                </Typography>
+                            </Box>
+                        </Stack>
+                    ),
+                }));
+                setRows(mapped);
+                setError(null);
+            })
+            .catch((err: any) => {
+                console.error(err);
+                setRows([]);
+                setError(err?.msg ?? 'Gagal memuat payment methods. Periksa Koneksi Jaringan / Server');
+            })
+            .finally(() => setLoading(false));
+    }, []);
+
+    React.useEffect(() => { fetchPaymentMethods(); }, [fetchPaymentMethods]);
+
+    const columns: Column<RowPaymentMethod>[] = [
+        {
+            key: 'methodCell',
+            label: 'METHOD',
+            sortable: true,
+            width: 320,
+            minWidth: 240,
+            headerFilter: { type: 'text' },
+        },
+        {
+            key: 'description',
+            label: 'DESCRIPTION',
+            sortable: false,
+            width: 420,
+            minWidth: 260,
+            headerFilter: { type: 'text' },
+            render: (r) => (
+                <Typography variant="body2" color="text.secondary" noWrap title={r.description ?? ''}>
+                    {r.description ?? '—'}
+                </Typography>
+            ),
+        },
+        {
+            key: 'needTender',
+            label: 'NEED TENDER',
+            sortable: true,
+            align: 'center',
+            width: 140,
+            minWidth: 120,
+            render: (r) => (
+                <Chip
+                    size="small"
+                    label={r.needTender ? 'Yes' : 'No'}
+                    color={r.needTender ? 'warning' : 'default'}
+                    variant="outlined"
+                    sx={{ borderRadius: 2 }}
+                />
+            ),
+        },
+        {
+            key: 'branchesCount',
+            label: 'BRANCHES',
+            sortable: true,
+            align: 'center',
+            width: 140,
+            minWidth: 120,
+            render: (r) => (
+                <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={(e) => openBranches(e, r.name, r.branches)}
+                    sx={{ borderRadius: 2, minWidth: 0, px: 1.25 }}
+                    startIcon={<StorefrontRounded />}
+                >
+                    {r.branchesCount}
+                </Button>
+            ),
+        },
+        {
+            key: 'status',
+            label: 'STATUS',
+            sortable: true,
+            align: 'center',
+            width: 120,
+            minWidth: 110,
+            render: (r) => (
+                <Chip
+                    size="small"
+                    label={r.status ? 'Active' : 'Inactive'}
+                    color={r.status ? 'success' : 'default'}
+                    variant="outlined"
+                    sx={{ borderRadius: 2 }}
+                />
+            ),
+        },
+    ];
+
+    return (
+        <Box
+            sx={{
+                p: 2,
+                display: 'grid',
+                gap: 2,
+                height: '100%',
+                minHeight: 0,
+                gridTemplateRows: 'auto 1fr',
+            }}
+        >
+            {/* Header & CTA */}
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <Box>
+                    <Typography variant="overline" color="text.secondary">Config / Payment Methods</Typography>
+                    {loading ? (
+                        <Typography variant="body2" color="text.secondary">Loading…</Typography>
+                    ) : error ? (
+                        <Typography variant="body2" color="error.main">{error}</Typography>
+                    ) : null}
+                </Box>
+                <Stack direction="row" spacing={1}>
+                    <Button variant="outlined" onClick={fetchPaymentMethods}>Refresh</Button>
+                    <Button variant="contained" startIcon={<AddRounded />} onClick={() => console.log('open create payment method')}>
+                        Tambah Method
+                    </Button>
+                </Stack>
+            </Stack>
+
+            {/* DataTable */}
+            <DataTable<RowPaymentMethod>
+                columns={columns}
+                rows={rows}
+                initialRowsPerPage={15}
+                enableSelection={false}
+            />
+
+            {/* Popover Branches */}
+            <Popover
+                open={Boolean(branchAnchor)}
+                anchorEl={branchAnchor}
+                onClose={closeBranches}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'center' }}
+                PaperProps={{ sx: { width: 420, maxWidth: 'calc(100vw - 32px)', borderRadius: 2, overflow: 'hidden' } }}
+            >
+                {/* Header */}
+                <Box
+                    sx={{
+                        px: 2, py: 1,
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        backgroundColor: (t) => t.palette.background.paper,
+                        borderBottom: (t) => `1px solid ${t.palette.divider}`,
+                    }}
+                >
+                    <Typography variant="subtitle2">Branches — {branchTitle}</Typography>
+                    <Chip size="small" variant="outlined" label={`${branchList.length} item`} sx={{ borderRadius: 2 }} />
+                </Box>
+
+                {/* List */}
+                <Box ref={listRef} sx={{ maxHeight: 360, overflow: 'auto', p: 1, pt: 0.5, minWidth: 320, touchAction: 'pan-y', overscrollBehavior: 'contain' }}>
+                    {branchList.length === 0 ? (
+                        <Box sx={{ px: 2, py: 3 }}>
+                            <Typography variant="body2" color="text.secondary">Tidak ada branch.</Typography>
+                        </Box>
+                    ) : (
+                        <List dense disablePadding>
+                            <ListItem
+                                disableGutters
+                                sx={{
+                                    px: 1.5, py: 0.75, position: 'sticky', top: 0, zIndex: 1,
+                                    backgroundColor: (t) => t.palette.background.paper,
+                                    borderBottom: (t) => `1px solid ${t.palette.divider}`,
+                                }}
+                            >
+                                <Typography variant="caption" sx={{ flex: 1, fontWeight: 700, color: 'text.secondary' }}>
+                                    Branch Name
+                                </Typography>
+                                <Typography variant="caption" sx={{ width: 220, textAlign: 'right', fontWeight: 700, color: 'text.secondary' }}>
+                                    Contact
+                                </Typography>
+                            </ListItem>
+
+                            {branchList.map((b) => (
+                                <React.Fragment key={b.id}>
+                                    <ListItem
+                                        disableGutters
+                                        sx={{ px: 1.5, py: 0.75, gap: 1.25, '&:hover': { backgroundColor: (t) => t.palette.action.hover } }}
+                                    >
+                                        <ListItemAvatar>
+                                            <Avatar variant="rounded" sx={{ width: 28, height: 28, borderRadius: 1 }}>
+                                                <StorefrontRounded fontSize="small" />
+                                            </Avatar>
+                                        </ListItemAvatar>
+                                        <ListItemText
+                                            primary={
+                                                <Typography variant="body2" fontWeight={600} noWrap title={b.name}>
+                                                    {b.name}
+                                                </Typography>
+                                            }
+                                            secondary={
+                                                <Typography variant="caption" color="text.secondary" noWrap title={b.address ?? ''}>
+                                                    {b.address ?? '—'}
+                                                </Typography>
+                                            }
+                                            sx={{ m: 0, flex: 1, minWidth: 0 }}
+                                        />
+                                        <Typography variant="body2" sx={{ width: 220, textAlign: 'right' }}>
+                                            {[b.phone, b.email].filter(Boolean).join(' • ') || '—'}
+                                        </Typography>
+                                    </ListItem>
+                                    <Divider sx={{ mx: 1.5 }} />
+                                </React.Fragment>
+                            ))}
+                        </List>
+                    )}
+                </Box>
+
+                <Box sx={{ px: 1.5, py: 1, textAlign: 'right' }}>
+                    <Button size="small" onClick={closeBranches}>Tutup</Button>
+                </Box>
+            </Popover>
+        </Box>
+    );
+}

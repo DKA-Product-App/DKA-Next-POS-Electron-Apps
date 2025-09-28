@@ -38,7 +38,6 @@ type ApiBranch = {
     time_updated?: string;
     reference?: ApiAccountRef;
 };
-
 type TableCoordinate = { x: number; y: number };
 type TableDimension = { width: number; height: number; rotate: number };
 

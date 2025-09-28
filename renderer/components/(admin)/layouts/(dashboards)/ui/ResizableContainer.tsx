@@ -33,8 +33,8 @@ const PaneContent = styled(Paper)(({ theme }) => ({
 export default function ResizableGrid({
                                           left,
                                           right,
-                                          defaultSize = '15%',
-                                          minSize = 350,
+                                          defaultSize = '20%',
+                                          minSize = 400,
                                       }: ResizableGridProps) {
     const [maxSize, setMaxSize] = React.useState<number>()
 
