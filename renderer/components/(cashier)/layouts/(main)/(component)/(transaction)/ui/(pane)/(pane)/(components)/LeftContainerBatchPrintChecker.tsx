@@ -192,7 +192,7 @@ const LeftContainerBatchPrintChecker: React.FC<Props> = ({ transaction, batch })
             <Chip
                 size="small"
                 icon={<PrintRounded />}
-                label="Checker"
+                label={`Cetak Checker (${batch.batch})`}
                 color="primary"
                 variant="outlined"
                 clickable

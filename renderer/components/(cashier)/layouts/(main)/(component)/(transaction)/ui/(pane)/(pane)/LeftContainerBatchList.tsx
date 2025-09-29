@@ -8,6 +8,10 @@ import { useTx } from '../context/TransactionContext'
 import {useSession} from "../../../../../../../../../contexts/SessionProviderContext";
 import dynamic from "next/dynamic";
 import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../types/api.transaction.type";
+import {useLayoutManipulatorBatch} from "../../../context/LayoutManipulatorBatchContext";
+import ShimmerMenuSelectLoading from "../../(loading)/ShimmerMenuSelectLoading";
+import {useEffect} from "react";
+import {AxiosRequestConfig, AxiosResponse} from "axios";
 
 
 const LeftContainerBatchListRowSkeleton = dynamic(() => import('../../(loading)/LeftContainerBatchListRowSkeleton'), {
@@ -19,6 +23,11 @@ const LeftContainerBatchListNewOrder = dynamic(() => import('./(components)/Left
 })
 
 const LeftContainerBatchListRow = dynamic(() => import('./(components)/LeftContainerBatchListRow'), {
+    ssr: false,
+})
+
+const RightContainerBatchDetail = dynamic(() => import('./../(pane)/RightContainerBatchList'), {
+    loading: () => <ShimmerMenuSelectLoading />,
     ssr: false,
 })
 
@@ -218,49 +227,57 @@ export const getPendingActiveForBatch = (batch: any) => {
 };
 
 
-const LeftContainerBatchList: React.FC<{ transaction: Transaction }> = ({ transaction }) => {
-    const { txId, setGrandTotal, selectedBatchId, setSelectedBatchId, reloadKey, setReloadKey } = useTx()
+const LeftContainerBatchList: React.FC<{ transactionId: string }> = ({ transactionId }) => {
+    const { setGrandTotal, reloadKey, setReloadKey } = useTx()
+    const { layout, setLayout } = useLayoutManipulatorBatch();
+    const [ selectedBatchId, setSelectedBatchId ] = React.useState<string | undefined>(undefined);
     const [batches, setBatches] = React.useState<TransactionBatches[]>([])
     const { Session } = useSession()
     const [isLoading, setIsLoading] = React.useState(false)
 
+
     React.useEffect(() => {
-        if (!txId) { setBatches([]); return }
+        if (!transactionId) { setBatches([]); return }
         setIsLoading(true)
         // @ts-ignore
-        window.api.invoke('api.transaction.batch:read.all', {
-            transaction: txId,
+        window.api.invoke<{ transaction: string, reference?: string}, AxiosResponse<TransactionBatches[]>>('api.transaction.batch:read.all', {
+            transaction: transactionId,
             reference: Session.id ?? undefined
         })
-            .then((res: any) => {
-                const list = (res?.data ?? []) as any[]
-                const t = list[0]?.transaction
-                setGrandTotal(totalPrices(t))
-                const bills = t?.bills ?? []
-                const mapped: TransactionBatches[] = list.map(b => ({
-                    id: String(b.id),
-                    batch: Number(b.batch),
-                    note: b.note ?? null,
-                    time_created: b.time_created,
-                    time_updated: b.time_updated,
-                    items: Array.isArray(b.items) ? b.items : [],
-                    __bills: bills,
-                })).sort((a, b) => b.batch - a.batch)
-                setBatches(mapped)
-                //if (!selectedBatchId && mapped.length) setSelectedBatchId(mapped[0].id)
+            .then((res) => {
+                const list = res.data;
+                setBatches(list)
             })
             .catch(() => setBatches([]))
             .finally(() => setIsLoading(false))
-    }, [txId, reloadKey, setGrandTotal, setSelectedBatchId])
+    }, [transactionId, reloadKey])
 
+    // ⬇️ tambahkan efek reset (default unselect)
+    useEffect(() => {
+        setSelectedBatchId(undefined);     // NONE
+        setLayout(<></>);                  // kosongkan right pane
+    }, [transactionId, setLayout]);
+
+    // ⬇️ ubah handler jadi toggle
     const onClickItem = (b: TransactionBatches) => {
-        setSelectedBatchId(selectedBatchId === b.id ? '' as any : b.id) // gunakan '' sebagai NONE
-        setReloadKey(k => k + 1)
-    }
+        setSelectedBatchId(prev => (prev === b.id ? undefined : b.id));
+    };
+
+    // ⬇️ sinkronkan right pane dengan state terpilih (kalau unselect → pane kosong)
+    useEffect(() => {
+        selectedBatchId
+            ? setLayout(<RightContainerBatchDetail batchId={selectedBatchId} />)
+            : setLayout(
+                <Box sx={{ display: 'grid', placeItems: 'center', height: '100%', color: 'text.secondary' }}>
+                    <Typography variant="body2">Pilih Batch dulu.</Typography>
+                </Box>
+            );
+    }, [selectedBatchId, transactionId, setLayout]);
+
 
     const showSkeleton = isLoading && batches.length === 0
 
-    if (!txId) {
+    if (!transactionId) {
         return (
             <Box sx={{ display: 'grid', placeItems: 'center', height: '100%', color: 'text.secondary' }}>
                 <Typography variant="body2">Pilih transaksi dulu.</Typography>
@@ -285,7 +302,7 @@ const LeftContainerBatchList: React.FC<{ transaction: Transaction }> = ({ transa
                 }}>
                     <Stack direction="row" spacing={1} alignItems="center" minWidth={0} />
                     {/* tombol New Order tetap tampil agar user bisa langsung klik */}
-                    <LeftContainerBatchListNewOrder tx={transaction} />
+                    <LeftContainerBatchListNewOrder transactionId={transactionId} />
                 </Box>
 
                 <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
@@ -326,7 +343,7 @@ const LeftContainerBatchList: React.FC<{ transaction: Transaction }> = ({ transa
                 gap: 1
             }}>
                 <Stack direction="row" spacing={1} alignItems="center" minWidth={0} />
-                <LeftContainerBatchListNewOrder tx={transaction} />
+                <LeftContainerBatchListNewOrder transactionId={transactionId} />
             </Box>
 
             {/* Scroll area */}
@@ -334,28 +351,15 @@ const LeftContainerBatchList: React.FC<{ transaction: Transaction }> = ({ transa
                 <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false, swipeEasing: true }}>
                     <List disablePadding sx={{ py: 1, pr: 1 }}>
                         {batches.map(b => {
-                            const selected = selectedBatchId === b.id
-                            const priceNum = batchTotal(b)
-                            const priceLbl = rupiah(priceNum)
-                            const { active, pending } = getPendingActiveForBatch(b)
-
                             return (
-                                <LeftContainerBatchListRow
-                                    key={b.id}
-                                    batch={b}
-                                    transaction={transaction}
-                                    selected={selected}
-                                    priceLabel={priceLbl}
-                                    totalItem={b.items.length}
-                                    totalQty={b.items.reduce((a, i) => a + i.qty, 0)}
-                                    activeCount={active}
-                                    pendingCount={pending}
-                                    startIso={b.time_created}
-                                    endIso={transaction?.time_closed ?? null}
-                                    isActiveTimer={!transaction?.time_closed}
-                                    onClick={onClickItem}
-                                    TimerText={TimerText}
-                                />
+                                <>
+                                    <LeftContainerBatchListRow
+                                        key={b.id}
+                                        batch={b}
+                                        selected={selectedBatchId === b.id}
+                                        onClick={onClickItem}
+                                    />
+                                </>
                             )
                         })}
                     </List>

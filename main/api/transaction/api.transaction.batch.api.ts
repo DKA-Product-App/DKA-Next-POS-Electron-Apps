@@ -1,7 +1,12 @@
 import {BrowserWindow} from "electron";
-import { compile } from "path-to-regexp";
-import { ApiConfig } from "../../config/api.config";
-import { ApiRequestInstance } from "../../functions/api/api.request.instance";
+import {compile} from "path-to-regexp";
+import {ApiConfig} from "../../config/api.config";
+import {ApiRequestInstance} from "../../functions/api/api.request.instance";
+import {
+    TransactionBatches
+} from "../../../renderer/components/(cashier)/layouts/(main)/(component)/(transaction)/ui/types/api.transaction.type";
+
+let lastCtrl: AbortController | null = null;
 
 export function TransactionBatch(mainWindow ?: BrowserWindow) {
     // CREATE
@@ -45,17 +50,24 @@ export function TransactionBatch(mainWindow ?: BrowserWindow) {
     // READ ALL
     mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch:read.all", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch`);
+        lastCtrl?.abort(); // batalin yang lama
+        lastCtrl = new AbortController();
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
                 url: toPath(),
                 method: "GET",
                 params: args,
+                signal: lastCtrl.signal,
             })
                 .then((response) => {
                     const data = response?.data;
                     return resolve({ ...data });
                 })
                 .catch((err) => {
+
+                    if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') {
+                        return { status: false, code: 499, msg: "Canceled", canceled: true };
+                    }
                     const pack = (payload: any) => {
                         const e = new Error(JSON.stringify(payload)); // <-- kirim JSON di message
                         (e as any).data = payload;                    // <-- bonus: taruh raw data kalau Electron gak nyopot

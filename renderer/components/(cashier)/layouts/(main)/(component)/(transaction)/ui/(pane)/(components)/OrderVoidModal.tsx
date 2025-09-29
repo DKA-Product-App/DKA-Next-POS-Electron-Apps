@@ -60,8 +60,8 @@ export default function OrderVoidModal({ transaction } : { transaction: Transact
                     return {
                         // --- BIG BUTTON vibes ---
                         textTransform:'none',
-                        minHeight: 32,         // jumbo
-                        fontSize: '1.2rem',   // ~20px
+                        minHeight: 23,         // jumbo
+                        fontSize: '1rem',   // ~20px
                         fontWeight: 900,
                         letterSpacing: .5,
                         borderRadius: 3,       // sudut mantap

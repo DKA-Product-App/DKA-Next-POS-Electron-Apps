@@ -3,84 +3,91 @@
 import * as React from 'react'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
-import {Box, Chip, Stack, Typography, Paper, Tooltip} from '@mui/material'
+import { Box } from '@mui/material'
 import Grid from '@mui/material/Grid'
+import dynamic from "next/dynamic"
 import { useTx } from '../context/TransactionContext'
-import dynamic from "next/dynamic";
-import {TransactionBatchesItems} from "../../types/api.transaction.type";
+import { TransactionBatchesItems } from "../../types/api.transaction.type"
 
-const RightContainerBatchDetailRowSkeleton = dynamic(() => import('../../(loading)/RightContainerBatchDetailRowSkeleton'), {
-    ssr: false,
-})
+/** 🔽 NEW: filter context */
+import { useFilterOrderHeader } from '../context/FilterOrderHeaderContext'
 
-const RightContainerBatchDetailRow = dynamic(() => import('./(components)/RightContainerBatchDetailRow'), {
-    ssr: false,
-})
+const RightContainerBatchDetailRowSkeleton = dynamic(() => import('../../(loading)/RightContainerBatchDetailRowSkeleton'), { ssr: false })
+const RightContainerBatchDetailRow = dynamic(() => import('./(components)/RightContainerBatchDetailRow'), { ssr: false })
 
-const rupiah = (n: number | string) => new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(typeof n==='string'?parseFloat(n):n)
+const rupiah = (n: number | string) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(typeof n === 'string' ? parseFloat(n) : n)
 
-const RightContainerBatchDetail: React.FC<{ batchId : string }> = ({  batchId }) => {
-    const { selectedItemIds, toggleItem, registerItems, reloadKey } = useTx()
+const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ transactionId }) => {
+    const { selectedItemIds, toggleItem, registerItems, reloadKey, selectedBatchId } = useTx()
     const [items, setItems] = React.useState<TransactionBatchesItems[]>([])
     const fetchSeqRef = React.useRef(0)
 
-    React.useEffect(() => {
-        if (!batchId) { setItems([]); return }
-        setItems([]) // kosongkan dulu agar tidak tercampur
+    // 🔽 NEW: dari context
+    const { matchItem } = useFilterOrderHeader()
 
-        const seq = ++fetchSeqRef.current
 
-        // @ts-ignore
-        window.api.invoke('api.transaction.batch.item:read.all', { batch: batchId })
+    const fetchItems = (seq) => {
+        window.api.invoke('api.transaction.batch.item:read.all', { transaction: transactionId })
             .then((res: any) => {
                 if (seq !== fetchSeqRef.current) return
                 const arr: TransactionBatchesItems[] = res?.data ?? []
                 setItems(arr)
-                registerItems(batchId, arr)
+                registerItems(transactionId, arr)
             })
             .catch(() => {
                 if (seq !== fetchSeqRef.current) return
                 setItems([])
             })
-    }, [batchId, reloadKey])
+    }
+    React.useEffect(() => {
+        if (!transactionId) { setItems([]); return }
+        setItems([])
+
+        const seq = ++fetchSeqRef.current
+        fetchItems(seq);
+    }, [transactionId, reloadKey])
 
     const hasNote = (it: TransactionBatchesItems) => Boolean(it.note?.trim()?.length)
     const isPendingVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved !== true
     const isApprovedVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved === true
 
-    /** ✅ Item dianggap “Pending Paid” jika ada bill dan paid.is_paid === true */
-    /** ✅ Pending jika: bill.paid == null DAN bill.items[*].transactionItem.id === it.id */
     const isPendingPaid = (it: TransactionBatchesItems) => {
-        const bills = it?.batch?.transaction?.bills ?? [];
+        const bills = it?.batch?.transaction?.bills ?? []
         return bills.some((b: any) =>
             (b?.paid === null || b?.paid?.status === false) &&
             (b?.items ?? []).some((bi: any) => bi?.transactionItem?.id === it.id)
-        );
-    };
+        )
+    }
 
     const isPaid = (it: TransactionBatchesItems) => {
-        const bills = it?.batch?.transaction?.bills ?? [];
+        const bills = it?.batch?.transaction?.bills ?? []
         return bills.some((b: any) =>
             (b?.paid?.status === true) &&
             (b?.items ?? []).some((bi: any) => bi?.transactionItem?.id === it.id)
-        );
-    };
+        )
+    }
 
-    if (!batchId) return <Box sx={{ p:2, color:'text.secondary' }}>Pilih batch untuk melihat detail item…</Box>
+    if (!transactionId) return <Box sx={{ p: 2, color: 'text.secondary' }}>Pilih Transaction untuk melihat detail item…</Box>
+
+    // 🔽 NEW: apply filter sebelum render
+    const filteredItems = items.filter(matchItem)
+
+    React.useEffect(() => {
+
+    },[ selectedBatchId ])
 
     return (
-        <Box sx={{ flex:1, minHeight:0, px:1.5, height: '100%' }}>
+        <Box sx={{ flex: 1, minHeight: 0, px: 1.5, height: '100%' }}>
             <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false }}>
                 <Grid container spacing={2} sx={{ py: 1, pr: 2 }}>
-                    {/* Saat BELUM ada data setelah fetch dimulai: tampilkan skeleton */}
-                    {items.length === 0 ? (
+                    {filteredItems.length === 0 ? (
                         Array.from({ length: 4 }).map((_, i) => (
-                            <Grid key={`skel-${i}`} size={{ xs: 12, sm: 12, md: 4, lg: 3 }}>
+                            <Grid key={`skel-${i}`} size={{ xs: 12, sm: 6, md: 3, lg: 2 }}>
                                 <RightContainerBatchDetailRowSkeleton />
                             </Grid>
                         ))
                     ) : (
-                        items.map(it => {
+                        filteredItems.map(it => {
                             const selected = selectedItemIds.has(it.id)
                             const closed = Boolean(it.batch.transaction?.time_closed)
                             const disabled = closed || isPendingVoid(it) || isApprovedVoid(it) || isPendingPaid(it) || isPaid(it)
@@ -88,7 +95,7 @@ const RightContainerBatchDetail: React.FC<{ batchId : string }> = ({  batchId })
                             const totalLabel = rupiah(it.sub_total || it.price || 0)
 
                             return (
-                                <Grid key={it.id} size={{ xs: 12, sm: 12, md: 4, lg: 3 }}>
+                                <Grid key={it.id} size={{ xs: 12, sm: 8, md: 4, lg: 3 }}>
                                     <RightContainerBatchDetailRow
                                         item={it}
                                         totalLabel={totalLabel}
@@ -101,7 +108,6 @@ const RightContainerBatchDetail: React.FC<{ batchId : string }> = ({  batchId })
                                         isPendingPaid={isPendingPaid(it)}
                                         isPaid={isPaid(it)}
                                         onToggle={toggleItem}
-                                        // uploadsLoader (opsional): default sudah sesuai
                                     />
                                 </Grid>
                             )
@@ -113,4 +119,4 @@ const RightContainerBatchDetail: React.FC<{ batchId : string }> = ({  batchId })
     )
 }
 
-export default React.memo(RightContainerBatchDetail);
+export default React.memo(RightContainerTransactionList)

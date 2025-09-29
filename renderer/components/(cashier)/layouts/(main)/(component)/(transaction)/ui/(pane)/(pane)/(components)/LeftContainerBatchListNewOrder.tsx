@@ -21,6 +21,7 @@ import { useThemeCharger } from '../../../../../../../../context/ThemeCharger'
 import {useTransactionEventTrigger} from "../../context/TransactionEventTriggerContext";
 import {useSession} from "../../../../../../../../../../contexts/SessionProviderContext";
 import {Transaction, TransactionBatches } from "../../../types/api.transaction.type";
+import {AxiosResponse} from "axios";
 
 const Billing = dynamic(() => import('../../../../../../../(select-product)'), { ssr: true })
 
@@ -28,14 +29,13 @@ const rupiah = (n: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
         .format(typeof n === 'string' ? parseFloat(n) : n)
 
-const LeftContainerBatchListNewOrder: React.FC<{ tx: Transaction }> = ({ tx }) => {
-    const { txId, grandTotal, setGrandTotal, selectedBatchId, setSelectedBatchId, reloadKey,setReloadKey } = useTx()
+const LeftContainerBatchListNewOrder: React.FC<{ transactionId: string, onSuccess?: () => void }> = ({ transactionId, onSuccess }) => {
+    const { txId, grandTotal, setGrandTotal, selectedBatchId, setSelectedBatchId, reloadKey } = useTx()
     const { setDefaultValue, setDisableOtherDefault } = useDiningMode();
     const { Session } = useSession();
-    const { bump } = useTransactionEventTrigger()
-    const [batches, setBatches] = React.useState<TransactionBatches[]>([])
-    const isClosed = Boolean(tx?.time_closed)
+    const [ transaction, setTransaction] = React.useState<undefined | Transaction>(undefined)
     const [open, setOpen] = React.useState(false)
+    const [isLoading, setIsLoading] = React.useState(false)
     const [fullScreen, setFullScreen] = React.useState(false)
 
     // theme stuff
@@ -44,7 +44,23 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: Transaction }> = ({ tx }) =
     const { toggleMode } = useThemeCharger()
 
     React.useEffect(() => {
-        const id = tx?.order_type?.id ?? null
+        if (!transactionId) {
+            return setTransaction(undefined);
+        }
+        setIsLoading(true)
+        // @ts-ignore
+        window.api.invoke<{ id: string }, AxiosResponse<Transaction>>('api.transaction:read.one', {
+            id: transactionId,
+        })
+            .then(({ data }) => {
+                setTransaction(data);
+            })
+            .catch(() => setTransaction(undefined))
+            .finally(() => setIsLoading(false))
+    }, [transactionId, reloadKey])
+
+    React.useEffect(() => {
+        const id = transaction?.order_type?.id ?? null
         if (open && id) {
             setDefaultValue(id)
             setDisableOtherDefault(true)
@@ -52,7 +68,7 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: Transaction }> = ({ tx }) =
             setDefaultValue(null)
             setDisableOtherDefault(false)
         }
-    }, [open, tx?.order_type?.id])
+    }, [open, transaction])
 
 // (opsional) extra safety saat unmount komponen
     React.useEffect(() => () => {
@@ -60,7 +76,7 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: Transaction }> = ({ tx }) =
         setDisableOtherDefault(false)
     }, [])
 
-    const openDialog = () => { console.log(tx); setOpen(true) }
+    const openDialog = () => { setOpen(true) }
     const closeDialog = () => setOpen(false)
 
     const submitNewBatchTransaction = (item: CartItem[]) => {
@@ -75,31 +91,16 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: Transaction }> = ({ tx }) =
         }))
 
         // @ts-ignore
-        window.api.invoke('api.transaction.batch:create', {
+        window.api.invoke<any, AxiosResponse<TransactionBatches>>('api.transaction.batch:create', {
             transaction: { id: txId },
             branch: Session.branches,
             reference: Session.id,
             items: itemRefactor,
         })
-            .then((res: any) => {
-                // 1) map response ke tipe Batch lokal kita (tanpa refetch total)
-                const b = res?.data
-                const mapped: TransactionBatches = {
-                    id: String(b.id),
-                    batch: Number(b.batch),
-                    note: b.note ?? null,
-                    items: Array.isArray(b.items) ? b.items : [],
-                }
-
-                // 2) langsung inject ke state —> layout tetep, gak lost
-                setBatches(prev => [...prev, mapped])
-
+            .then(({ data }) => {
                 // 3) set selection ke batch yang baru dibuat (opsional)
-                setSelectedBatchId(mapped.id)
-
-                // 4) ping global kalau ada listener lain (boleh dipertahankan)
-                bump('batch')
-
+                onSuccess?.();
+                setSelectedBatchId(data.id)
                 // 5) tutup dialog — layout di belakang tetap stay
                 closeDialog()
             })
@@ -108,45 +109,22 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: Transaction }> = ({ tx }) =
             })
     }
 
-
-    // fetch semua batch utk transaksi ini
-    React.useEffect(() => {
-        if (!txId) { setBatches([]); return }
-        // @ts-ignore
-        window.api.invoke('api.transaction.batch:read.all', { transaction: txId })
-            .then((res: any) => {
-                const list = (res?.data ?? []) as any[]
-                const t = list[0]?.transaction
-                const mapped: TransactionBatches[] = list.map(b => ({
-                    id: String(b.id),
-                    batch: Number(b.batch),
-                    note: b.note ?? null,
-                    time_created: b.time_created,
-                    time_updated: b.time_updated,
-                    items: Array.isArray(b.items) ? b.items : [],
-                }))
-                setBatches(mapped)
-                if (!selectedBatchId && mapped.length) setSelectedBatchId(mapped[0].id)
-            })
-            .catch(() => setBatches([]))
-    }, [txId, reloadKey])
-
     return (
         <>
             {/* Trigger */}
             <Button
-                size="large"
+                size="medium"
                 variant="contained"
                 color={'success'}
                 startIcon={<AddRounded />}
-                disabled={Boolean(isClosed)}
+                disabled={Boolean(transaction?.time_closed !== null)}
                 sx={(t) => {
                     const light = t.palette.mode === 'light'
                     return {
                         // --- BIG BUTTON vibes ---
                         textTransform:'none',
-                        minHeight: 26,         // jumbo
-                        fontSize: '1rem',   // ~20px
+                        minHeight: 22,         // jumbo
+                        fontSize: '0.8rem',   // ~20px
                         fontWeight: 900,
                         letterSpacing: .5,
                         borderRadius: 3,       // sudut mantap
@@ -170,7 +148,7 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: Transaction }> = ({ tx }) =
                 }}
                 onClick={(e) => { e.stopPropagation(); openDialog() }}
             >
-                {`Order Lanjutan  `}
+                {`Order Lagi`}
             </Button>
 
             {/* Dialog */}
@@ -193,7 +171,7 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: Transaction }> = ({ tx }) =
             >
                 <DialogTitle sx={{ display: 'flex', alignItems: 'center', pr: 1.5, gap: 1 }}>
                     <Typography variant="h6" fontWeight={800}>
-                        Tambah Pesanan Untuk Transaksi {tx?.invoice} — Batch Ke #{batches.length + 1}
+                        Tambah Pesanan Untuk Transaksi {transaction?.invoice} — Batch Ke #{transaction?.batches?.length + 1}
                     </Typography>
 
                     {/* Header actions: Fullscreen, Theme, Close */}

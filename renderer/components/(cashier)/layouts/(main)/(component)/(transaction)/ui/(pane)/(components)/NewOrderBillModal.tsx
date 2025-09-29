@@ -122,13 +122,7 @@ const getPendingActive = (o: Transaction) => {
     return { pending, active, paid };
 };
 
-export default function NewOrderBillModal({
-                                              items,
-                                              mode,
-                                              label = 'Buat Tagihan',
-                                              variant = 'contained',
-                                              transaction,
-                                          }: Props) {
+export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan', variant = 'contained', transaction }: Props) {
     const { txId, bumpReload, clearSelection} = useTx()
     const {bump} = useTransactionEventTrigger()
     const isClosed = Boolean(transaction?.time_closed);
@@ -289,8 +283,8 @@ export default function NewOrderBillModal({
                     px: 2.2,
                     fontWeight: 800,
                     letterSpacing: .2,
-                    minHeight: 32,         // jumbo
-                    fontSize: '1.3rem',   // ~20px
+                    minHeight: 24,         // jumbo
+                    fontSize: '1rem',   // ~20px
                     borderRadius: 3,       // sudut mantap
                     // --- Warna adaptif mode ---
                     bgcolor: light ? '#000' : '#fff',

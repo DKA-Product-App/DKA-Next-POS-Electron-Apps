@@ -3,6 +3,8 @@ import { compile } from "path-to-regexp";
 import { ApiConfig } from "../../config/api.config";
 import { ApiRequestInstance } from "../../functions/api/api.request.instance";
 
+let lastCtrl: AbortController | null = null;
+
 export function Transaction(mainWindow ?: BrowserWindow) {
     // CREATE
     mainWindow?.webContents?.ipc?.handle?.("api.transaction:create", (_event, args) => {
@@ -46,11 +48,15 @@ export function Transaction(mainWindow ?: BrowserWindow) {
     // READ ALL
     mainWindow?.webContents?.ipc?.handle?.("api.transaction:read.all", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction`);
+        lastCtrl?.abort(); // batalin yang lama
+        const ctrl = new AbortController();
+        lastCtrl = ctrl;
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
                 url: toPath(),
                 method: "GET",
                 params: args,
+                signal: ctrl.signal
             })
                 .then((response) => {
                     const data = response?.data;

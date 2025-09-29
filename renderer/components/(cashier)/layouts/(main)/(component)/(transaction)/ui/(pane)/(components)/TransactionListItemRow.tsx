@@ -2,29 +2,98 @@
 'use client'
 
 import * as React from 'react'
-import { Box, Chip, ListItemButton, Stack, Typography, Checkbox } from '@mui/material'
-import { alpha } from '@mui/material/styles'
+import {Box, Checkbox, Chip, ListItemButton, Stack, Typography} from '@mui/material'
+import {alpha} from '@mui/material/styles'
 
 import ReceiptLongRounded from '@mui/icons-material/ReceiptLongRounded'
 import LocalMallRounded from '@mui/icons-material/LocalMallRounded'
-import StorageIcon from '@mui/icons-material/Storage'
+import StorageIcon from '@mui/icons-material/Storage';
 import LayersRounded from '@mui/icons-material/LayersRounded'
 import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded'
 import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
 import CheckRounded from '@mui/icons-material/CheckRounded'
-import moment from 'moment-timezone'
+import moment from "moment-timezone"
 
 import TransactionListItemPrintTransaction from './TransactionListItemPrintTransaction'
-import { Transaction } from '../../types/api.transaction.type'
+import {Transaction, TransactionBatchesItems, TransactionBills} from "../../types/api.transaction.type";
+/* ========= Utils khusus Row ========= */
+const rupiah = (n: number | string) =>
+    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
+        .format(typeof n === 'string' ? parseFloat(n) : n)
 
-/* ========= Constants ========= */
-const IDR = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
-const rupiah = (n: number | string) => IDR.format(typeof n === 'string' ? parseFloat(n) : n)
 
-const GRAD_WARN_TO_SUCCESS = 'linear-gradient(90deg, #F59E0B, #10B981)'
-const GRAD_ERROR_TO_WARN   = 'linear-gradient(90deg, #EF4444, #F59E0B)'
-const GRAD_GRAY            = 'linear-gradient(90deg, #9CA3AF, #6B7280)'
-const GRAD_PURPLE_PINK     = 'linear-gradient(180deg, #6366F1, #8B5CF6 35%, #EC4899)'
+const totalQty = (o: Transaction) => (o.batches ?? []).reduce((acc, b) => acc + (b.items ?? []).reduce((a, i) => a + i.qty, 0), 0)
+const totalItems = (o: Transaction) => (o.batches ?? []).reduce((acc, b) => acc + (b.items ?? []).length, 0)
+const totalBatches = (o: Transaction) => (o.batches ?? []).length
+
+// ====== Bills-aware helpers ======
+const isVoided = (i: TransactionBatchesItems) => i?.void?.is_approved === true
+const isPendingVoided = (i: TransactionBatchesItems) => i?.void?.is_approved === false
+const pickBills = (o: Transaction) => o.bills ?? [];
+
+const isSuccessPaidItem = (item: TransactionBatchesItems, bills: TransactionBills[]) =>
+    bills?.some((bill) =>
+        (bill?.paid != null && bill?.paid?.status === true) &&
+        Array.isArray(bill?.items) &&
+        bill.items.some((bi: any) => bi?.transactionItem?.id === item?.id)
+    )
+
+const getPendingActive = (o: Transaction) => {
+    const bills = pickBills(o);
+
+    const ids =
+        (o?.batches ?? [])
+            .flatMap((bt: any) => Array.isArray(bt?.items) ? bt.items : [])
+            .map((it: any) => it?.id)
+            .filter(Boolean);
+
+    const allBillIdSet = new Set(
+        bills
+            .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
+            .map((bi: any) => bi?.transactionItem?.id)
+            .filter(Boolean)
+    );
+
+    const pendingBillIdSet = new Set(
+        bills
+            .filter((b) => (b?.paid == null) || (b?.paid?.status === false))
+            .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
+            .map((bi: any) => bi?.transactionItem?.id)
+            .filter(Boolean)
+    );
+
+    const paidBillIdSet = new Set(
+        bills
+            .filter((b) => (b?.paid == null) || (b?.paid?.status === true))
+            .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
+            .map((bi: any) => bi?.transactionItem?.id)
+            .filter(Boolean)
+    );
+
+    const pending = ids.filter((id: any) => pendingBillIdSet.has(id)).length;
+    const paid  = ids.filter((id: any) => paidBillIdSet.has(id)).length;
+    const active  = ids.filter((id: any) => !allBillIdSet.has(id)).length;
+
+    return { pending, active, paid };
+};
+
+// Total harga transaksi, skip void-approved & success-paid
+const totalPrices = (o: Transaction) => {
+    const paidTxnItemIds = o.bills
+        .filter(b => b?.paid?.status === true)
+        .flatMap(b => b?.items ?? [])
+        .map(it => it?.transactionItem?.id)
+        .filter((id): id is string => Boolean(id));
+
+    const orders = o.batches
+        .flatMap(b => b?.items ?? [])
+        .filter(() => o.time_closed === null)
+        .filter(it => it?.void === null || it?.void?.is_approved === false)
+        .filter(it => !paidTxnItemIds.includes(it.id))
+        .reduce((sum, it) => sum + Number(it?.sub_total ?? 0), 0);
+
+    return { orders } as const;
+};
 
 /* ========= Timer ========= */
 const addMonths = (d: Date, months: number) => {
@@ -151,49 +220,48 @@ const RoundCheckbox: React.FC<{
 /* ========= ROW ========= */
 export const TransactionListItemRow: React.FC<{
     o: Transaction
-    agg: {
-        qtySum: number
-        itemCount: number
-        batchCount: number
-        pendingCount: number
-        activeCount: number
-        paidCount: number
-        subtotal: number // total harga yang belum void-approved & belum success-paid
-    }
     singleSelected?: boolean
     multiChecked?: boolean
     onRowClick?: () => void
     onMultiToggle?: (checked: boolean) => void
-}> = ({ o, agg, singleSelected = false, multiChecked = false, onRowClick, onMultiToggle }) => {
-    // O(1) read dari agregat
-    const qtys    = agg.qtySum
-    const items   = agg.itemCount
-    const batches = agg.batchCount
-    const pending = agg.pendingCount
-    const active  = agg.activeCount
-    // const paid = agg.paidCount // kalau mau dipakai sebagai badge tambahan
-    const prices  = agg.subtotal
-
+}> = ({ o, singleSelected = false, multiChecked = false, onRowClick, onMultiToggle }) => {
+    const qtys = totalQty(o)
+    const items = totalItems(o)
+    const batches = totalBatches(o)
+    const { pending, active, paid } = getPendingActive(o);
+    const { orders } = totalPrices(o) // <-- sudah skip pending-paid & void
     const isClosed = Boolean(o.time_closed)
 
-    // ★ flags/gradients (sinkron dengan list batch)
+    // ★ flags/gradients
     const hasPending = pending > 0
     const allSuccessPaid = pending === 0 && active === 0
+    const GRAD_WARN_TO_SUCCESS = 'linear-gradient(90deg, #F59E0B, #10B981)'
+    const GRAD_ERROR_TO_WARN   = 'linear-gradient(90deg, #EF4444, #F59E0B)'
+    const GRAD_GRAY            = 'linear-gradient(90deg, #9CA3AF, #6B7280)'
+    const GRAD_PURPLE_PINK     = 'linear-gradient(180deg, #6366F1, #8B5CF6 35%, #EC4899)'
 
     const cardBorderColor = singleSelected ? 'primary.outlinedBorder' : (isClosed ? 'error.light' : 'divider')
 
+    // ★ left stripe logic (mirror aturan komponen list batch)
     const leftStripe = singleSelected
         ? GRAD_PURPLE_PINK
         : isClosed
             ? (hasPending ? GRAD_ERROR_TO_WARN : 'linear-gradient(180deg, #ef4444, #dc2626 60%, #b91c1c)')
             : (hasPending ? GRAD_WARN_TO_SUCCESS : 'transparent')
 
+    // ★ footer background:
+    // - all success paid -> abu-abu
+    // - closed + pending -> merah→kuning
+    // - closed -> merah solid
+    // - aktif + pending -> kuning→hijau
+    // - else -> success solid
     const footerBg = allSuccessPaid
         ? GRAD_GRAY
         : isClosed
             ? (hasPending ? GRAD_ERROR_TO_WARN : 'linear-gradient(90deg, #DC2626, #EF4444)')
             : (hasPending ? GRAD_WARN_TO_SUCCESS : 'success.main')
 
+    // ★ footer text color (gradient = putih; solid = contrast)
     const footerColor =
         footerBg.includes('linear-gradient') ? '#fff'
             : isClosed ? 'error.contrastText'
@@ -217,7 +285,7 @@ export const TransactionListItemRow: React.FC<{
                     '&::before': {
                         content: '""', position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
                         borderTopLeftRadius: 8, borderBottomLeftRadius: 0,
-                        background: leftStripe,
+                        background: leftStripe, // ★ pakai aturan baru
                     },
                 }}
             >
@@ -235,9 +303,9 @@ export const TransactionListItemRow: React.FC<{
                         <Typography
                             variant="subtitle1"
                             fontWeight={900}
-                            title={rupiah(prices ?? 0)}
+                            title={rupiah(orders)}
                         >
-                            {rupiah(prices ?? 0)}
+                            {rupiah(orders ?? 0)}
                         </Typography>
                     </Stack>
 
@@ -252,7 +320,7 @@ export const TransactionListItemRow: React.FC<{
                         <TransactionListItemPrintTransaction tx={o} />
                     </Stack>
 
-                    {/* Baris 3 — kasir, shift, dan itemCount */}
+                    {/* Baris 3 — kasir, shift, dan kode meja */}
                     <Stack direction="row" alignItems="center" gap={0.75}>
                         <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
                             <Chip
@@ -266,21 +334,23 @@ export const TransactionListItemRow: React.FC<{
                         </Stack>
                     </Stack>
 
-                    {/* Jika mau tampilkan breakdown bills:
-          <Stack direction="row" alignItems="center" gap={0.75}>
-            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
-              <Chip size="small" label={`unpaid : ${active}`} />
-              <Chip size="small" label={`pending : ${pending}`} />
-              <Chip size="small" label={`paid : ${agg.paidCount}`} />
-            </Stack>
-          </Stack>
-          */}
+                    {/*<Stack direction="row" alignItems="center" gap={0.75}>
+                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
+                            <Chip
+                                size="small"
+                                icon={<PersonOutlineRounded />}
+                                label={o.reference?.name?.first_name ?? o.reference?.username ?? (o.reference?.id ? `${o.reference.id.slice(0,8)}…` : '-')}
+                                title={o.reference?.id ?? ''}
+                            />
+                            <Chip size="small" label={`unpaid : ${active}`} />
+                            <Chip size="small" label={`pending : ${pending}`} />
+                            <Chip size="small" label={`paid : ${paid}`} />
+                        </Stack>
+                    </Stack>*/}
 
-                    {/* Timestamp + RoundCheckbox (kanan) */}
+                    {/* Timestamp asli + RoundCheckbox (kanan) */}
                     <Stack direction="row" alignItems="center" justifyContent="space-between">
-                        <Typography variant="caption" color="text.secondary">
-                            {moment(o.time_created).format('HH:mm:ss DD-MM-YYYY')}
-                        </Typography>
+                        <Typography variant="caption" color="text.secondary">{moment(o.time_created).format(`HH:mm:ss DD-MM-YYYY`)}</Typography>
                         {!isClosed && (
                             <RoundCheckbox
                                 checked={!!multiChecked}
@@ -303,9 +373,9 @@ export const TransactionListItemRow: React.FC<{
                 sx={{
                     border: '1px solid', borderTop: 'none', borderColor: cardBorderColor,
                     borderBottomLeftRadius: 8, borderBottomRightRadius: 8,
-                    bgcolor: footerBg.includes('linear-gradient') ? undefined : footerBg,
-                    background: footerBg.includes('linear-gradient') ? footerBg : undefined,
-                    color: footerColor,
+                    bgcolor: footerBg.includes('linear-gradient') ? undefined : footerBg,   // ★ solid via theme key
+                    background: footerBg.includes('linear-gradient') ? footerBg : undefined, // ★ gradient manual
+                    color: footerColor,                                                      // ★ teks adaptif
                     px: 1.5, py: 0.8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1,
                 }}
             >
