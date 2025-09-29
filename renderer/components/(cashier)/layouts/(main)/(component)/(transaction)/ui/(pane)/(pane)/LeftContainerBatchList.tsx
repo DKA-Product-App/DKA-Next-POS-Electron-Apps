@@ -3,13 +3,20 @@
 import * as React from 'react'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
-import { Box, Chip, List, ListItemButton, Stack, Typography } from '@mui/material'
+import { Box, Chip, List, Stack, Typography } from '@mui/material'
 import { useTx } from '../context/TransactionContext'
-import LeftContainerBatchListNewOrder from './(components)/LeftContainerBatchListNewOrder'
 import {useSession} from "../../../../../../../../../contexts/SessionProviderContext";
-import LeftContainerBatchListRowSkeleton from '../../(loading)/LeftContainerBatchListRowSkeleton'
 import dynamic from "next/dynamic";
 import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../types/api.transaction.type";
+
+
+const LeftContainerBatchListRowSkeleton = dynamic(() => import('../../(loading)/LeftContainerBatchListRowSkeleton'), {
+    ssr: false,
+})
+
+const LeftContainerBatchListNewOrder = dynamic(() => import('./(components)/LeftContainerBatchListNewOrder'), {
+    ssr: false,
+})
 
 const LeftContainerBatchListRow = dynamic(() => import('./(components)/LeftContainerBatchListRow'), {
     ssr: false,
@@ -286,9 +293,8 @@ const LeftContainerBatchList: React.FC<{ transaction: Transaction }> = ({ transa
                         <List disablePadding sx={{ py: 1, pr: 1 }}>
                             <LeftContainerBatchListRowSkeleton />
                             <LeftContainerBatchListRowSkeleton />
-                            <LeftContainerBatchListRowSkeleton selected />
                             <Typography variant="caption" sx={{ color: 'text.secondary', px: 1.5, py: 0.5 }}>
-                                Memuat batch… Server Sedang Mengelola Data 🔄
+                               Server Sedang Mengelola Data 🔄
                             </Typography>
                         </List>
                     </PerfectScrollbar>

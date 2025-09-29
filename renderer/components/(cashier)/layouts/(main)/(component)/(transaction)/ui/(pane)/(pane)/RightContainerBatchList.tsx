@@ -9,37 +9,12 @@ import Image, { ImageLoader } from 'next/image'
 import Skeleton from '@mui/material/Skeleton'
 import { motion } from 'framer-motion'
 import { useTx } from '../context/TransactionContext'
-import RightContainerBatchDetailRowSkeleton from '../../(loading)/RightContainerBatchDetailRowSkeleton'
 import dynamic from "next/dynamic";
-import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../types/api.transaction.type";
+import {Transaction, TransactionBatchesItems} from "../../types/api.transaction.type";
 
-/* ===== Types sync ===== */
-export type Name = { first_name: string; last_name?: string }
-export type Reference = { id: string; name?: Name; username?: string }
-export type OrderType = { id: string; code: string; name: string }
-export type Table = { id: string; code: string; name: string }
-export type Product = { id: string; name: string; description?: string; image?: string }
-export type Variant = { id: string; code?: string; name?: string; price?: string }
-
-/** Tambahan minimal supaya path bills aman tanpa “drastis” ngubah struktur */
-type BillPaid = { is_paid?: boolean } | null | undefined
-type Bill = { paid?: BillPaid } | null | undefined
-type Tx = { bills?: Bill[] } | null | undefined
-type Batch = { transaction?: Tx } | null | undefined
-
-export type Item = {
-    id: string
-    qty: number
-    price: string
-    sub_total: string
-    note?: string | null
-    reference?: Reference | null
-    product: Product
-    variant?: Variant
-    void?: { void_time: string; is_approved: boolean } | null
-    /** opsional dari backend, biar akses bills aman */
-    batch?: Batch
-}
+const RightContainerBatchDetailRowSkeleton = dynamic(() => import('../../(loading)/RightContainerBatchDetailRowSkeleton'), {
+    ssr: false,
+})
 
 const RightContainerBatchDetailRow = dynamic(() => import('./(components)/RightContainerBatchDetailRow'), {
     ssr: false,
@@ -131,7 +106,7 @@ const RightContainerBatchDetail: React.FC<{ transaction : Transaction}> = ({ tra
                 <Grid container spacing={2} sx={{ py: 1, pr: 2 }}>
                     {/* Saat BELUM ada data setelah fetch dimulai: tampilkan skeleton */}
                     {items.length === 0 ? (
-                        Array.from({ length: 8 }).map((_, i) => (
+                        Array.from({ length: 4 }).map((_, i) => (
                             <Grid key={`skel-${i}`} size={{ xs: 12, sm: 12, md: 4, lg: 3 }}>
                                 <RightContainerBatchDetailRowSkeleton />
                             </Grid>

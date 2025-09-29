@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import ResizableGrid from '../ResizableContainer'
 import {
     Box,
     Chip,
@@ -21,14 +20,17 @@ import dynamic from 'next/dynamic'
 import ShimmerMenuSelectLoading from '../(loading)/ShimmerMenuSelectLoading'
 import OrderVoidModal from './(components)/OrderVoidModal'
 import NewOrderBillModal from './(components)/NewOrderBillModal'
-import { Transaction } from '../types/api.transaction.type'
+import { Transaction, TransactionBills } from '../types/api.transaction.type'
 
 /* ========= Utils ========= */
-const rupiah = (n: number | string) =>
-    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
-        .format(typeof n === 'string' ? parseFloat(n) : n)
-
+const IDR = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
+const rupiah = (n: number | string) => IDR.format(typeof n === 'string' ? parseFloat(n) : n)
 const toId = (v: unknown) => `${v ?? ''}`.trim()
+
+const ResizableGrid = dynamic(() => import('./../ResizableContainer'), {
+    loading: () => <ShimmerMenuSelectLoading />,
+    ssr: false,
+})
 
 /* ========= Lazy panes ========= */
 const LeftContainerBatchList = dynamic(() => import('./(pane)/LeftContainerBatchList'), {
@@ -45,7 +47,11 @@ const RightContainerBatchDetail = dynamic(() => import('./(pane)/RightContainerB
 const totalItems = (o: Transaction) =>
     (o?.batches ?? []).reduce((acc, b) => acc + (b?.items?.length ?? 0), 0)
 
-const pickBills = (o: Transaction) => Array.isArray(o?.bills) ? o.bills : []
+const pickBills = (o: Transaction): TransactionBills[] => Array.isArray(o?.bills) ? o.bills : []
+
+/** versi sederhana utk invalidasi memo per transaksi */
+const txVersion = (t: Transaction) =>
+    `${t.time_updated ?? t.time_created ?? ''}|${t.batches?.length ?? 0}|${(t.batches ?? []).reduce((a,b)=>a+(b.items?.length ?? 0),0)}`
 
 /**
  * Hitung jumlah item:
@@ -53,24 +59,20 @@ const pickBills = (o: Transaction) => Array.isArray(o?.bills) ? o.bills : []
  * - pending : item yg masuk bill dgn paid null/false
  * - paid    : item yg masuk bill dgn paid true
  */
-const getPendingActive = (o: Transaction) => {
+const calcPendingActive = (o: Transaction) => {
     const bills = pickBills(o)
 
-    // semua id item di transaksi
     const ids: string[] = (o?.batches ?? [])
         .flatMap(b => Array.isArray(b?.items) ? b!.items! : [])
         .map(it => toId(it?.id))
         .filter(Boolean)
 
-    // semua item yang pernah dibillin (pending ataupun paid)
     const allBillIdSet = new Set(
-        bills
-            .flatMap(b => Array.isArray(b?.items) ? b!.items! : [])
+        bills.flatMap(b => Array.isArray(b?.items) ? b!.items! : [])
             .map(bi => toId(bi?.transactionItem?.id))
             .filter(Boolean)
     )
 
-    // pending: paid null/false
     const pendingBillIdSet = new Set(
         bills
             .filter(b => (b?.paid == null) || (b?.paid?.status === false))
@@ -79,7 +81,6 @@ const getPendingActive = (o: Transaction) => {
             .filter(Boolean)
     )
 
-    // paid: paid true
     const paidBillIdSet = new Set(
         bills
             .filter(b => b?.paid?.status === true)
@@ -104,19 +105,21 @@ function Body({ transaction }: { transaction: Transaction }) {
         clearSelection,
     } = useTx()
 
-    const isClosed = Boolean(transaction?.time_closed)
-    const itemQty = totalItems(transaction)
-    const { active, pending, paid } = getPendingActive(transaction)
+    const version = React.useMemo(() => txVersion(transaction), [transaction])
 
-    // Semua ID item transaksi (untuk full-bill mode)
+    const isClosed = Boolean(transaction?.time_closed)
+    const itemQty = React.useMemo(() => totalItems(transaction), [version])
+
+    const { active, pending, paid } = React.useMemo(() => calcPendingActive(transaction), [version])
+
+    // Semua ID item transaksi (untuk full-bill mode), memo per versi
     const allItemIds: string[] = React.useMemo(() => {
         const fromBatches = (transaction?.batches ?? [])
             .flatMap(b => Array.isArray(b?.items) ? b!.items! : [])
             .map(it => toId(it?.id))
             .filter(Boolean)
-
-        return fromBatches.length ? fromBatches : [];
-    }, [transaction])
+        return fromBatches.length ? fromBatches : []
+    }, [version])
 
     const selectedIdList: string[] = React.useMemo(
         () => Array.from(selectedItemIds ?? []).map(toId).filter(Boolean),
@@ -125,7 +128,8 @@ function Body({ transaction }: { transaction: Transaction }) {
 
     const isSplitMode = (selectedItemIds?.size ?? 0) > 0
 
-    const Header = (
+    // Memoize header/footer UI biar nggak kebentuk ulang tiap keystroke di child
+    const Header = React.useMemo(() => (
         <Paper
             elevation={0}
             sx={(t) => ({
@@ -175,9 +179,9 @@ function Body({ transaction }: { transaction: Transaction }) {
                 </Stack>
             )}
         </Paper>
-    )
+    ), [transaction?.invoice, transaction?.order_type?.name, transaction?.table?.code, transaction?.reference?.name?.first_name, transaction?.shift?.name, transaction?.time_closed, selectedItemIds?.size, clearSelection])
 
-    const Footer = (
+    const Footer = React.useMemo(() => (
         <Paper elevation={0} sx={{ px: 1.5, py: 1.25, borderTop: '1px solid', borderColor: 'divider' }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1.5}>
                 {/* Kiri: Total + Info ringkas */}
@@ -187,7 +191,7 @@ function Body({ transaction }: { transaction: Transaction }) {
                     </Typography>
 
                     <Typography sx={{ lineHeight: 1, fontWeight: 900, fontSize: { xs: '2.1rem', sm: '2.2rem', md: '3.1rem' } }}>
-                        {isSplitMode ? rupiah(selectedTotal ?? 0) : (grandTotal && grandTotal > 0 ? rupiah(grandTotal) : 0)}
+                        {isSplitMode ? rupiah(selectedTotal ?? 0) : rupiah(grandTotal ?? 0)}
                     </Typography>
 
                     <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap mt={0.5}>
@@ -209,12 +213,9 @@ function Body({ transaction }: { transaction: Transaction }) {
 
                 {/* Kanan: Aksi */}
                 <Stack direction="row" gap={1.25} alignItems="center" sx={{ pr: 4 }}>
-                    {/* Void */}
                     <OrderVoidModal transaction={transaction} />
-
-                    {/* Buat Tagihan — kirim array **ID** item */}
                     <NewOrderBillModal
-                        items={isSplitMode ? selectedIdList : allItemIds} // string[]
+                        items={isSplitMode ? selectedIdList : allItemIds}
                         mode={isSplitMode ? 'split' : 'full'}
                         label="Buat Tagihan"
                         variant="contained"
@@ -223,6 +224,17 @@ function Body({ transaction }: { transaction: Transaction }) {
                 </Stack>
             </Stack>
         </Paper>
+    ), [isSplitMode, selectedTotal, grandTotal, transaction?.invoice, isClosed, selectedItemIds?.size, itemQty, active, pending, paid, allItemIds, selectedIdList, transaction])
+
+    // Stabilkan pane supaya gak remount kalau state kecil berubah
+    const leftPane = React.useMemo(
+        () => <LeftContainerBatchList key={`left-${transaction.id}`} transaction={transaction} />,
+        [transaction.id, version] // remount saat data tx beneran berubah
+    )
+
+    const rightPane = React.useMemo(
+        () => <RightContainerBatchDetail key={`right-${transaction.id}`} transaction={transaction} />,
+        [transaction.id, version]
     )
 
     return (
@@ -232,8 +244,8 @@ function Body({ transaction }: { transaction: Transaction }) {
                 <ResizableGrid
                     defaultSize="25%"
                     minSize={330}
-                    left={<LeftContainerBatchList transaction={transaction} />}
-                    right={<RightContainerBatchDetail transaction={transaction} />}
+                    left={leftPane}
+                    right={rightPane}
                 />
             </Box>
             {Footer}
@@ -242,8 +254,10 @@ function Body({ transaction }: { transaction: Transaction }) {
 }
 
 export default function TransactionContainer({ id, transaction }: { id?: string; transaction: Transaction }) {
+    // kunci provider dengan tx.id agar context remount saat transaksi berganti (bukan tiap rerender kecil)
+    const key = id ?? transaction?.id ?? 'tx'
     return (
-        <TxProvider key={id ?? transaction?.id ?? 'tx'} txId={toId(id ?? transaction?.id)}>
+        <TxProvider key={key} txId={toId(key)}>
             <Body transaction={transaction} />
         </TxProvider>
     )

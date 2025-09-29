@@ -12,17 +12,6 @@ export type Product = { id: string; name: string; description?: string; image?: 
 export type Variant = { id: string; code?: string; name?: string; price?: string }
 export type Item = { id: string; qty: number; price: string; sub_total: string; note?: string | null; reference?: Reference | null; product: Product; variant?: Variant }
 
-export type TxHeader = {
-    id?: string
-    batch?: any
-    invoice?: string
-    total?: string
-    time_closed?: string | null
-    reference?: Reference
-    shift?: { id: string; name: string }
-    order_type?: OrderType
-    table?: Table
-}
 
 type Ctx = {
     txId: string

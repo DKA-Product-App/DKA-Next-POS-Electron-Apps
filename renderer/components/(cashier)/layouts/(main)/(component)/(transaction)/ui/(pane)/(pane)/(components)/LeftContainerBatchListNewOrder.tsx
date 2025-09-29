@@ -14,14 +14,13 @@ import FullscreenRounded from '@mui/icons-material/FullscreenRounded'
 import FullscreenExitRounded from '@mui/icons-material/FullscreenExitRounded'
 import dynamic from 'next/dynamic'
 import { useTx } from '../../context/TransactionContext'
-import { Batch } from '../LeftContainerBatchList'
 import { useDiningMode } from '../../../../context/DiningModeContext'
 import { CartItem } from '../../../../../../../(select-product)/context/CartContext'
 import { useTheme } from '@mui/material/styles'
 import { useThemeCharger } from '../../../../../../../../context/ThemeCharger'
 import {useTransactionEventTrigger} from "../../context/TransactionEventTriggerContext";
 import {useSession} from "../../../../../../../../../../contexts/SessionProviderContext";
-import {Transaction} from "../../../types/api.transaction.type";
+import {Transaction, TransactionBatches } from "../../../types/api.transaction.type";
 
 const Billing = dynamic(() => import('../../../../../../../(select-product)'), { ssr: true })
 
@@ -34,7 +33,7 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: Transaction }> = ({ tx }) =
     const { setDefaultValue, setDisableOtherDefault } = useDiningMode();
     const { Session } = useSession();
     const { bump } = useTransactionEventTrigger()
-    const [batches, setBatches] = React.useState<Batch[]>([])
+    const [batches, setBatches] = React.useState<TransactionBatches[]>([])
     const isClosed = Boolean(tx?.time_closed)
     const [open, setOpen] = React.useState(false)
     const [fullScreen, setFullScreen] = React.useState(false)
@@ -85,7 +84,7 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: Transaction }> = ({ tx }) =
             .then((res: any) => {
                 // 1) map response ke tipe Batch lokal kita (tanpa refetch total)
                 const b = res?.data
-                const mapped: Batch = {
+                const mapped: TransactionBatches = {
                     id: String(b.id),
                     batch: Number(b.batch),
                     note: b.note ?? null,
@@ -118,7 +117,7 @@ const LeftContainerBatchListNewOrder: React.FC<{ tx: Transaction }> = ({ tx }) =
             .then((res: any) => {
                 const list = (res?.data ?? []) as any[]
                 const t = list[0]?.transaction
-                const mapped: Batch[] = list.map(b => ({
+                const mapped: TransactionBatches[] = list.map(b => ({
                     id: String(b.id),
                     batch: Number(b.batch),
                     note: b.note ?? null,

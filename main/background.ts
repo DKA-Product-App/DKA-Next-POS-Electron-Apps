@@ -6,6 +6,9 @@ import { registerDataProtocol } from "./functions";
 
 const isProd = process.env.NODE_ENV === 'production'
 
+// Naikkan heap V8 utk SEMUA proses (main & renderer)
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=4096 --initial-old-space-size=1024');
+
 if (isProd) {
     serve({directory: 'app'})
 } else {
