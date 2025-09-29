@@ -8,7 +8,7 @@ import { motion } from 'framer-motion'
 import LocalOfferRoundedIcon from '@mui/icons-material/LocalOfferRounded'
 import CheckRounded from '@mui/icons-material/CheckRounded'
 import { NoteAltRounded } from '@mui/icons-material'
-import type { Item } from '../RightContainerBatchList' // ⬅️ sesuaikan path tipe Item dari parent
+import {TransactionBatchesItems} from "../../../types/api.transaction.type";
 
 const MotionPaper = motion(Paper)
 const GRADIENT = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
@@ -59,7 +59,7 @@ const ImgWithSkeleton: React.FC<{ src: string; alt: string; loader?: ImageLoader
 }
 
 type Props = {
-    item: Item
+    item: TransactionBatchesItems
     /** label rupiah(total) yang sudah dihitung parent */
     totalLabel: string
     /** label qty x price yang sudah dihitung parent (contoh: "2 x Rp 10.000") */
@@ -78,7 +78,7 @@ type Props = {
     isPendingPaid?: boolean
     isPaid?: boolean
 
-    onToggle: (it: Item) => void
+    onToggle: (it: TransactionBatchesItems) => void
 }
 
 const RightContainerBatchDetailRow: React.FC<Props> = ({
@@ -123,7 +123,7 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({
                         size="small"
                         label="Pending Void"
                         sx={{ position: 'absolute', top: 8, right: 8, fontWeight: 800, bgcolor: 'warning.main', color: 'warning.contrastText', boxShadow: 1, textTransform: 'uppercase', letterSpacing: .2 }}
-                        title={item.void?.void_time ? `Diajukan: ${new Date(item.void.void_time).toLocaleString('id-ID')}` : undefined}
+                        title={item.void?.time_created ? `Diajukan: ${new Date(item.void.time_created).toLocaleString('id-ID')}` : undefined}
                     />
                 )}
                 {isApprovedVoid && (
@@ -131,7 +131,7 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({
                         size="small"
                         label="Voided"
                         sx={{ position: 'absolute', top: 8, right: 8, fontWeight: 800, bgcolor: 'error.main', color: 'error.contrastText', boxShadow: 1, textTransform: 'uppercase', letterSpacing: .2 }}
-                        title={item.void?.void_time ? `Disetujui: ${new Date(item.void.void_time).toLocaleString('id-ID')}` : undefined}
+                        title={item.void?.time_created ? `Disetujui: ${new Date(item.void.time_created).toLocaleString('id-ID')}` : undefined}
                     />
                 )}
                 {isClosed && (

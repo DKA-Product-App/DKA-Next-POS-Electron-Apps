@@ -22,9 +22,8 @@ import {useThemeCharger} from '../../../../../../../context/ThemeCharger'
 import dynamic from 'next/dynamic'
 import {useTabNavigationHandlerContext} from '../../../context/TabNavigationHandlerContext'
 import {useTransactionEventTrigger} from "../context/TransactionEventTriggerContext";
-import {useAuth} from "../../../../../../../../../contexts/AuthProviderContext";
 import {useSession} from "../../../../../../../../../contexts/SessionProviderContext";
-import {Transaction} from "./TransactionListItemRow";
+import {Transaction} from "../../types/api.transaction.type";
 
 const BillListItemDetail = dynamic(
     () => import('./../../../../(bills)/ui/(pane)/BillsListItemDetail'),
@@ -79,7 +78,7 @@ type Props = {
 }
 
 const totalItems = (o: Transaction) => (o.batches ?? []).reduce((acc, b) => acc + (b.items ?? []).length, 0)
-const pickBills = (o: any) => o?.bills ?? o?.transaction?.bills ?? []
+const pickBills = (o: Transaction) => o?.bills ?? []
 const getPendingActive = (o: Transaction) => {
     const bills = pickBills(o);
 

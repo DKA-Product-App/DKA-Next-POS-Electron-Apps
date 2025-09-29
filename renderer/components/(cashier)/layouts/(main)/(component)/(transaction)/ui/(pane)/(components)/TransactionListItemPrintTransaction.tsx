@@ -18,7 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { NoteAltRounded } from '@mui/icons-material'
 import PendingActionsRounded from '@mui/icons-material/PendingActionsRounded'
-import {Transaction} from "./TransactionListItemRow";
+import {Transaction, TransactionBatchesItems} from "../../types/api.transaction.type";
 
 /* ===== Types (selaraskan dengan project kamu) ===== */
 export type Name = { first_name: string; last_name?: string }
@@ -77,14 +77,14 @@ const ImgWithSkeleton: React.FC<{ src: string; alt: string; loader?: ImageLoader
 }
 
 /* ===== Void helpers ===== */
-const isApprovedVoid = (it: Item) => Boolean(it?.void) && it.void!.is_approved === true
-const isPendingVoid  = (it: Item) => Boolean(it?.void) && it.void!.is_approved !== true
+const isApprovedVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved === true
+const isPendingVoid  = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved !== true
 
 /* ===== Grouping helpers ===== */
-type PrinterBucket = { id: string; name: string; description: string; items: Item[] }
+type PrinterBucket = { id: string; name: string; description: string; items: TransactionBatchesItems[] }
 
-function categoriesForPrinter(it: Item, printerId: string): string {
-    const cats: any[] = Array.isArray((it as any)?.product?.category) ? (it as any).product.category : []
+function categoriesForPrinter(it: TransactionBatchesItems, printerId: string): string {
+    const cats: any[] = Array.isArray(it?.product?.category) ? (it as any).product.category : []
     const names: string[] = []
     cats.forEach(c => {
         const printers: any[] = Array.isArray(c?.printer) ? c.printer : []
@@ -94,7 +94,7 @@ function categoriesForPrinter(it: Item, printerId: string): string {
     return names.length ? names.join(', ') : ''
 }
 
-function allTxItems(tx: Transaction): Item[] {
+function allTxItems(tx: Transaction): TransactionBatchesItems[] {
     return tx.batches.flatMap(b => Array.isArray(b.items) ? b.items : [])
 }
 
@@ -114,7 +114,7 @@ function groupTxItemsByPrinter(tx: Transaction): PrinterBucket[] {
                 const name = String(p?.name ?? pid)
                 const description = String(p?.description ?? name)
                 const bucket = map.get(pid) ?? { id: pid, name, description, items: [] }
-                bucket.items.push(it)
+                bucket.items.push(it as Item)
                 map.set(pid, bucket)
             })
         })
@@ -123,17 +123,17 @@ function groupTxItemsByPrinter(tx: Transaction): PrinterBucket[] {
 }
 
 /* ===== Merge helpers (UI only) ===== */
-type MergedItem = { sample: Item; qty: number; hasPending: boolean }
+type MergedItem = { sample: TransactionBatchesItems; qty: number; hasPending: boolean }
 
 // ⬅️ bedakan key berdasarkan status pending vs normal
-const keyOf = (it: Item) => {
+const keyOf = (it: TransactionBatchesItems) => {
     const productId = it.product?.id ?? ''
     const variantId = it.variant?.id ?? it.product?.id ?? ''
     const statusKey = isPendingVoid(it) ? 'P' : 'N'   // P = pending void, N = normal
     return `${productId}::${variantId}::${statusKey}`
 }
 
-function mergeItemsByVariant(items: Item[]): MergedItem[] {
+function mergeItemsByVariant(items: TransactionBatchesItems[]): MergedItem[] {
     const rec = items.reduce((acc, it) => {
         // approved void sudah difilter sebelum ini; tinggal bedakan pending vs normal
         const key = keyOf(it)
@@ -331,7 +331,7 @@ const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx
                                                                                     alignItems="center"
                                                                                     spacing={0.25}
                                                                                     sx={{ ml: 0.5, flexShrink: 0 }}
-                                                                                    title={it.void?.void_time ? `Diajukan: ${new Date(it.void.void_time).toLocaleString('id-ID')}` : undefined}
+                                                                                    title={it.void?.time_created ? `Diajukan: ${new Date(it.void.time_created).toLocaleString('id-ID')}` : undefined}
                                                                                 >
                                                                                     <PendingActionsRounded sx={(t) => ({ fontSize: 16, color: t.palette.warning.main })} />
                                                                                     <Typography

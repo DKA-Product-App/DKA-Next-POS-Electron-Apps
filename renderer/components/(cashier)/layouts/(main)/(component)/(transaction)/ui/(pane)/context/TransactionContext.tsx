@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import {TransactionBatches, TransactionBatchesItems} from "../../types/api.transaction.type";
 
 /* ====== Minimal types (sinkron dg pane) ====== */
 export type Name = { first_name: string; last_name?: string }
@@ -30,12 +31,12 @@ type Ctx = {
     selectedBatchId?: string
     setSelectedBatchId: (id?: string) => void
     selectedItemIds: Set<string>
-    toggleItem: (item: Item) => void
+    toggleItem: (item: TransactionBatchesItems) => void
     clearSelection: () => void
 
     // Items cache per batch → utk hitung total terpilih secara global
-    registerItems: (batchId: string, items: Item[]) => void
-    itemsByBatch: Record<string, Item[]>
+    registerItems: (batchId: string, items: TransactionBatchesItems[]) => void
+    itemsByBatch: Record<string, TransactionBatchesItems[]>
     selectedTotal: number
 
     // Trigger refetch pane

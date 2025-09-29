@@ -9,7 +9,7 @@ import type { ButtonProps, IconButtonProps } from '@mui/material'
 import { DoneAllRounded, DeleteRounded } from '@mui/icons-material'
 import { useTx } from '../context/TransactionContext'
 import { useSession } from '../../../../../../../../../contexts/SessionProviderContext'
-import {Transaction} from "./TransactionListItemRow";
+import {Transaction} from "../../types/api.transaction.type";
 
 
 const rupiah = (n: number | string) =>

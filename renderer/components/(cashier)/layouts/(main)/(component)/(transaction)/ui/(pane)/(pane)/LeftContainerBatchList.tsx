@@ -7,33 +7,9 @@ import { Box, Chip, List, ListItemButton, Stack, Typography } from '@mui/materia
 import { useTx } from '../context/TransactionContext'
 import LeftContainerBatchListNewOrder from './(components)/LeftContainerBatchListNewOrder'
 import {useSession} from "../../../../../../../../../contexts/SessionProviderContext";
-import {Transaction} from "../(components)/TransactionListItemRow";
 import LeftContainerBatchListRowSkeleton from '../../(loading)/LeftContainerBatchListRowSkeleton'
 import dynamic from "next/dynamic";
-
-export type Name = { first_name: string; last_name?: string }
-export type Reference = { id: string; name?: Name; username?: string }
-export type OrderType = { id: string; code: string; name: string }
-export type Table = { id: string; code: string; name: string }
-export type Product = { id: string; name: string; description?: string; image?: string }
-export type Variant = { id: string; code?: string; name?: string; price?: string }
-export type Item = { id: string; qty: number; price: string; sub_total: string; note?: string | null; reference?: Reference | null; product: Product; variant?: Variant }
-
-// ⬇️ Tambah __bills agar batch bisa bawa konteks tagihan pending
-export type Batch = {
-    id: string
-    batch: number
-    note?: string | null
-    time_created?: string
-    time_updated?: string
-    items: Item[]
-    __bills?: any[] // <<— NEW
-}
-
-export type TransactionHeader = {
-    id: string; invoice: string; total: string; time_closed?: string | null;
-    reference?: Reference; shift?: { id: string; name: string }; order_type: OrderType; table?: Table; bills?: any[];
-}
+import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../types/api.transaction.type";
 
 const LeftContainerBatchListRow = dynamic(() => import('./(components)/LeftContainerBatchListRow'), {
     ssr: false,
@@ -49,8 +25,8 @@ const fmtDT = (iso?: string) =>
             .format(new Date(iso))
         : '-'
 
-const totalItem = (b: Batch) => b.items.length
-const totalQty = (b: Batch) => b.items.reduce((a, i) => a + i.qty, 0)
+const totalItem = (b: TransactionBatches) => b.items.length
+const totalQty = (b: TransactionBatches) => b.items.reduce((a, i) => a + i.qty, 0)
 
 // ===== Timer utils (tahun/bulan/hari + jam/menit/detik, tanpa minggu) =====
 const addMonths = (d: Date, months: number) => {
@@ -132,7 +108,7 @@ const TimerText: React.FC<{ startIso?: string; endIso?: string | null; active: b
 }
 
 // ambil printerId dari product.category[].printer[]
-const getPrinterIdsFromItem = (it: Item): string[] => {
+const getPrinterIdsFromItem = (it: TransactionBatchesItems): string[] => {
     const cats: any[] = Array.isArray((it as any)?.product?.category) ? (it as any).product.category : []
     const ids: string[] = []
     cats.forEach(c => {
@@ -143,8 +119,8 @@ const getPrinterIdsFromItem = (it: Item): string[] => {
 }
 
 // kelompokkan item per printerId
-const groupItemsByPrinter = (items: Item[]) => {
-    const map = new Map<string, Item[]>()
+const groupItemsByPrinter = (items: TransactionBatchesItems[]) => {
+    const map = new Map<string, TransactionBatchesItems[]>()
     items.forEach(it => {
         const pids = getPrinterIdsFromItem(it)
         pids.forEach(pid => {
@@ -196,7 +172,7 @@ const pickBillsFromBatch = (b: any) =>
     ?? []
 
 // --- HANYA terima Batch ---
-export const batchTotal = (b: Batch) => {
+export const batchTotal = (b: TransactionBatches) => {
     const bills = pickBillsFromBatch(b)
     return (b?.items ?? []).reduce(
         (acc: number, i: any) =>
@@ -237,7 +213,7 @@ export const getPendingActiveForBatch = (batch: any) => {
 
 const LeftContainerBatchList: React.FC<{ transaction: Transaction }> = ({ transaction }) => {
     const { txId, setGrandTotal, selectedBatchId, setSelectedBatchId, reloadKey, setReloadKey } = useTx()
-    const [batches, setBatches] = React.useState<Batch[]>([])
+    const [batches, setBatches] = React.useState<TransactionBatches[]>([])
     const { Session } = useSession()
     const [isLoading, setIsLoading] = React.useState(false)
 
@@ -254,7 +230,7 @@ const LeftContainerBatchList: React.FC<{ transaction: Transaction }> = ({ transa
                 const t = list[0]?.transaction
                 setGrandTotal(totalPrices(t))
                 const bills = t?.bills ?? []
-                const mapped: Batch[] = list.map(b => ({
+                const mapped: TransactionBatches[] = list.map(b => ({
                     id: String(b.id),
                     batch: Number(b.batch),
                     note: b.note ?? null,
@@ -270,7 +246,7 @@ const LeftContainerBatchList: React.FC<{ transaction: Transaction }> = ({ transa
             .finally(() => setIsLoading(false))
     }, [txId, reloadKey, setGrandTotal, setSelectedBatchId])
 
-    const onClickItem = (b: Batch) => {
+    const onClickItem = (b: TransactionBatches) => {
         setSelectedBatchId(selectedBatchId === b.id ? '' as any : b.id) // gunakan '' sebagai NONE
         setReloadKey(k => k + 1)
     }

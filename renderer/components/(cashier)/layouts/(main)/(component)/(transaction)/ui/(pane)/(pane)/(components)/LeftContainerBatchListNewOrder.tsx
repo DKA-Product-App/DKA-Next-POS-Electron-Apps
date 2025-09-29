@@ -21,7 +21,7 @@ import { useTheme } from '@mui/material/styles'
 import { useThemeCharger } from '../../../../../../../../context/ThemeCharger'
 import {useTransactionEventTrigger} from "../../context/TransactionEventTriggerContext";
 import {useSession} from "../../../../../../../../../../contexts/SessionProviderContext";
-import {Transaction} from "../../(components)/TransactionListItemRow"; // ⬅️ sesuaikan alias/path kamu
+import {Transaction} from "../../../types/api.transaction.type";
 
 const Billing = dynamic(() => import('../../../../../../../(select-product)'), { ssr: true })
 

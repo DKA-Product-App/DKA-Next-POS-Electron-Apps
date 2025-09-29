@@ -17,25 +17,7 @@ import 'react-perfect-scrollbar/dist/css/styles.css'
 import Image, { ImageLoader } from 'next/image'
 import Skeleton from '@mui/material/Skeleton'
 import { NoteAltRounded } from '@mui/icons-material'
-import {Transaction} from "../../(components)/TransactionListItemRow";
-
-/* ===== Types (samakan dengan project kamu) ===== */
-export type Name = { first_name: string; last_name?: string }
-export type Reference = { id: string; name?: Name; username?: string }
-export type OrderType = { id: string; code: string; name: string }
-export type Table = { id: string; code: string; name: string }
-export type Product = { id: string; name: string; image?: string; category?: any[] }
-export type Variant = { id: string; code?: string; name?: string; price?: string }
-export type Item = {
-    id: string; qty: number; price: string; sub_total: string;
-    note?: string | null; reference?: Reference | null; product: Product; variant?: Variant;
-    void?: { void_time: string; is_approved: boolean } | null;
-}
-export type Batch = { id: string; batch: number; items: Item[] }
-export type TransactionHeader = {
-    id?: string; invoice?: string; total?: string; time_closed?: string | null;
-    reference?: Reference; shift?: { id?: string; name?: string }; order_type?: OrderType; table?: Table
-}
+import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../../types/api.transaction.type";
 
 const PURPLE_GRAD = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
 const ACCENT = 'linear-gradient(90deg, #7C3AED, #6366F1 45%, #8B5CF6)'
@@ -83,13 +65,13 @@ const ImgWithSkeleton: React.FC<{ src: string; alt: string; loader?: ImageLoader
 }
 
 /* ===== Void helpers ===== */
-const isApprovedVoid = (it: Item) => Boolean(it?.void) && it.void!.is_approved === true
-const isPendingVoid = (it: Item) => Boolean(it?.void) && it.void!.is_approved !== true
+const isApprovedVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved === true
+const isPendingVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved !== true
 
 /* ===== Printer grouping ===== */
-type PrinterBucket = { id: string; name: string; description: string; items: Item[] }
+type PrinterBucket = { id: string; name: string; description: string; items: TransactionBatchesItems[] }
 
-function categoriesForPrinter(it: Item, printerId: string): string {
+function categoriesForPrinter(it: TransactionBatchesItems, printerId: string): string {
     const cats: any[] = Array.isArray((it as any)?.product?.category) ? (it as any).product.category : []
     const names: string[] = []
     cats.forEach(c => {
@@ -100,7 +82,7 @@ function categoriesForPrinter(it: Item, printerId: string): string {
     return names.length ? names.join(', ') : ''
 }
 
-function groupItemsByPrinter(items: Item[]): PrinterBucket[] {
+function groupItemsByPrinter(items: TransactionBatchesItems[]): PrinterBucket[] {
     const map = new Map<string, PrinterBucket>()
     items.forEach(it => {
         const cats: any[] = Array.isArray((it as any)?.product?.category) ? (it as any).product.category : []
@@ -123,10 +105,10 @@ function groupItemsByPrinter(items: Item[]): PrinterBucket[] {
 }
 
 /* ===== Merge helpers (UI only) ===== */
-type MergedItem = { sample: Item; qty: number; hasPending: boolean }
-const keyOf = (it: Item) => `${it.product?.id ?? ''}::${it.variant?.id ?? it.product?.id ?? ''}`
+type MergedItem = { sample: TransactionBatchesItems; qty: number; hasPending: boolean }
+const keyOf = (it: TransactionBatchesItems) => `${it.product?.id ?? ''}::${it.variant?.id ?? it.product?.id ?? ''}`
 
-function mergeItemsByVariant(items: Item[]): MergedItem[] {
+function mergeItemsByVariant(items: TransactionBatchesItems[]): MergedItem[] {
     const rec = items.reduce((acc, it) => {
         const key = keyOf(it)
         const cur = acc[key]
@@ -141,7 +123,7 @@ function mergeItemsByVariant(items: Item[]): MergedItem[] {
 }
 
 /* ===== Komponen ===== */
-type Props = { transaction: Transaction; batch: Batch }
+type Props = { transaction: Transaction; batch: TransactionBatches }
 const MotionItem = motion(Paper)
 
 const LeftContainerBatchPrintChecker: React.FC<Props> = ({ transaction, batch }) => {
@@ -317,7 +299,7 @@ const LeftContainerBatchPrintChecker: React.FC<Props> = ({ transaction, batch })
                                                                                     alignItems="center"
                                                                                     spacing={0.25}
                                                                                     sx={{ ml: 0.5, flexShrink: 0 }}
-                                                                                    title={it.void?.void_time ? `Diajukan: ${new Date(it.void.void_time).toLocaleString('id-ID')}` : undefined}
+                                                                                    title={it.void?.time_created ? `Diajukan: ${new Date(it.void.time_created).toLocaleString('id-ID')}` : undefined}
                                                                                 >
                                                                                     <PendingActionsRounded
                                                                                         sx={(t) => ({ fontSize: 16, color: t.palette.warning.main })}

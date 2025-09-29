@@ -9,9 +9,9 @@ import Image, { ImageLoader } from 'next/image'
 import Skeleton from '@mui/material/Skeleton'
 import { motion } from 'framer-motion'
 import { useTx } from '../context/TransactionContext'
-import {Transaction} from "../(components)/TransactionListItemRow";
 import RightContainerBatchDetailRowSkeleton from '../../(loading)/RightContainerBatchDetailRowSkeleton'
 import dynamic from "next/dynamic";
+import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../types/api.transaction.type";
 
 /* ===== Types sync ===== */
 export type Name = { first_name: string; last_name?: string }
@@ -76,7 +76,7 @@ const ImgWithSkeleton: React.FC<{ src: string; alt: string; loader?: ImageLoader
 
 const RightContainerBatchDetail: React.FC<{ transaction : Transaction}> = ({ transaction }) => {
     const { selectedBatchId, selectedItemIds, toggleItem, registerItems, reloadKey } = useTx()
-    const [items, setItems] = React.useState<Item[]>([])
+    const [items, setItems] = React.useState<TransactionBatchesItems[]>([])
     const fetchSeqRef = React.useRef(0)
 
     React.useEffect(() => {
@@ -89,7 +89,7 @@ const RightContainerBatchDetail: React.FC<{ transaction : Transaction}> = ({ tra
         window.api.invoke('api.transaction.batch.item:read.all', { batch: selectedBatchId })
             .then((res: any) => {
                 if (seq !== fetchSeqRef.current) return
-                const arr: Item[] = res?.data ?? []
+                const arr: TransactionBatchesItems[] = res?.data ?? []
                 setItems(arr)
                 registerItems(selectedBatchId, arr)
             })
@@ -101,13 +101,13 @@ const RightContainerBatchDetail: React.FC<{ transaction : Transaction}> = ({ tra
 
     const isClosed = Boolean(transaction?.time_closed)
 
-    const hasNote = (it: Item) => Boolean(it.note?.trim()?.length)
-    const isPendingVoid = (it: Item) => Boolean(it?.void) && it.void!.is_approved !== true
-    const isApprovedVoid = (it: Item) => Boolean(it?.void) && it.void!.is_approved === true
+    const hasNote = (it: TransactionBatchesItems) => Boolean(it.note?.trim()?.length)
+    const isPendingVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved !== true
+    const isApprovedVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved === true
 
     /** ✅ Item dianggap “Pending Paid” jika ada bill dan paid.is_paid === true */
     /** ✅ Pending jika: bill.paid == null DAN bill.items[*].transactionItem.id === it.id */
-    const isPendingPaid = (it: Item) => {
+    const isPendingPaid = (it: TransactionBatchesItems) => {
         const bills = it?.batch?.transaction?.bills ?? [];
         return bills.some((b: any) =>
             (b?.paid === null || b?.paid?.status === false) &&
@@ -115,7 +115,7 @@ const RightContainerBatchDetail: React.FC<{ transaction : Transaction}> = ({ tra
         );
     };
 
-    const isPaid = (it: Item) => {
+    const isPaid = (it: TransactionBatchesItems) => {
         const bills = it?.batch?.transaction?.bills ?? [];
         return bills.some((b: any) =>
             (b?.paid?.status === true) &&

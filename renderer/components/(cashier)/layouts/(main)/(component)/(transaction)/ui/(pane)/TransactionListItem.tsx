@@ -16,11 +16,11 @@ import CloseRounded from '@mui/icons-material/CloseRounded'
 import ReplayRounded from '@mui/icons-material/ReplayRounded'
 
 import type { Filters } from './widgets/TransactionListItemHeaderWidget'
-import type { Transaction } from './(components)/TransactionListItemRow'
 import ShimmerLoadingTransactionListItemRow from '../(loading)/ShimmerLoadingTransactionListItemRow'
 import ShimmerLoadingTransactionContainer from '../(loading)/ShimmerLoadingTransactionContainer'
 import { useTransactionEventTrigger } from './context/TransactionEventTriggerContext'
 import {useSession} from "../../../../../../../../contexts/SessionProviderContext";
+import {Transaction} from "../types/api.transaction.type";
 // ===== Const =====
 const TZ_OFFSET = '+08:00' // Asia/Makassar
 const GRADIENT_PURPLE = 'linear-gradient(90deg, #6366F1, #8B5CF6 30%, #EC4899)'

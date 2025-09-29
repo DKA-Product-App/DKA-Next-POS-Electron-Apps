@@ -14,23 +14,7 @@ import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
 import CheckRounded from '@mui/icons-material/CheckRounded'
 
 import TransactionListItemPrintTransaction from './TransactionListItemPrintTransaction'
-
-/* ========= Types ========= */
-export type Name = { first_name: string; last_name?: string }
-export type Reference = { id: string; name?: Name; username?: string }
-export type OrderType = { id: string; code: string; name: string }
-export type Table = { id: string; code: string; name: string }
-export type Product = { id: string; name: string; description?: string; image?: string }
-export type Variant = { id: string; code?: string; name?: string; price?: string }
-export type Item = { id: string; price: string; qty: number; sub_total: string; note?: string | null; reference?: Reference | null; product: Product; variant?: Variant }
-export type Batch = { id: string; batch: number; note?: string | null; items: Item[] }
-export type Transaction = {
-    id?: string; invoice?: string; total?: string; time_created?: string; time_updated?: string; time_closed?: string | null;
-    items: Array<any>;
-    reference?: Reference; shift?: { id?: string; name?: string }; order_type?: OrderType; table?: Table; batches: Batch[];
-    bills?: any[]; // <-- penting buat pending-paid checker
-}
-
+import {Transaction, TransactionBatchesItems, TransactionBills} from "../../types/api.transaction.type";
 /* ========= Utils khusus Row ========= */
 const rupiah = (n: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
@@ -44,11 +28,12 @@ const totalItems = (o: Transaction) => (o.batches ?? []).reduce((acc, b) => acc 
 const totalBatches = (o: Transaction) => (o.batches ?? []).length
 
 // ====== Bills-aware helpers ======
-const isVoided = (i: Item) => (i as any)?.void?.is_approved === true
+const isVoided = (i: TransactionBatchesItems) => i?.void?.is_approved === true
+const isPendingVoided = (i: TransactionBatchesItems) => i?.void?.is_approved === false
 const pickBills = (o: any) => o?.bills ?? o?.transaction?.bills ?? []
 
-const isSuccessPaidItem = (item: any, bills: any[]) =>
-    bills?.some((bill: any) =>
+const isSuccessPaidItem = (item: TransactionBatchesItems, bills: TransactionBills[]) =>
+    bills?.some((bill) =>
         (bill?.paid != null && bill?.paid?.status === true) &&
         Array.isArray(bill?.items) &&
         bill.items.some((bi: any) => bi?.transactionItem?.id === item?.id)
@@ -65,23 +50,23 @@ const getPendingActive = (o: Transaction) => {
 
     const allBillIdSet = new Set(
         bills
-            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
+            .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
             .map((bi: any) => bi?.transactionItem?.id)
             .filter(Boolean)
     );
 
     const pendingBillIdSet = new Set(
         bills
-            .filter((b: any) => (b?.paid == null) || (b?.paid?.status === false))
-            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
+            .filter((b) => (b?.paid == null) || (b?.paid?.status === false))
+            .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
             .map((bi: any) => bi?.transactionItem?.id)
             .filter(Boolean)
     );
 
     const paidBillIdSet = new Set(
         bills
-            .filter((b: any) => (b?.paid == null) || (b?.paid?.status === true))
-            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
+            .filter((b) => (b?.paid == null) || (b?.paid?.status === true))
+            .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
             .map((bi: any) => bi?.transactionItem?.id)
             .filter(Boolean)
     );
@@ -100,7 +85,7 @@ const totalPrices = (o: Transaction) => {
         (acc, b) =>
             acc +
             (b.items ?? []).reduce(
-                (a, i) => a + ((isVoided(i) || isSuccessPaidItem(i, bills)) ? 0 : (+i.sub_total || 0)),
+                (a, i) => a + ((!isVoided(i) || !isSuccessPaidItem(i, bills)) ? 0 : (+i.sub_total || 0)),
                 0
             ),
         0

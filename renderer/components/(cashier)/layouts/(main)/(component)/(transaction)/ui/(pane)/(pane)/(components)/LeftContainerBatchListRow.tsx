@@ -5,11 +5,10 @@ import { Box, Chip, ListItemButton, Stack, Typography } from '@mui/material'
 import LayersRounded from '@mui/icons-material/LayersRounded'
 import LocalMallRounded from '@mui/icons-material/LocalMallRounded'
 import LeftContainerBatchPrintChecker from './../(components)/LeftContainerBatchPrintChecker'
-import type { Transaction } from '../../(components)/TransactionListItemRow'
-import type { Batch } from '../LeftContainerBatchList' // tipe Batch ambil dari parent
+import {Transaction, TransactionBatches} from "../../../types/api.transaction.type"; // tipe Batch ambil dari parent
 
 type Props = {
-    batch: Batch
+    batch: TransactionBatches
     transaction: Transaction
     selected: boolean
     priceLabel: string
@@ -20,7 +19,7 @@ type Props = {
     startIso?: string
     endIso?: string | null
     isActiveTimer: boolean
-    onClick: (b: Batch) => void
+    onClick: (b: TransactionBatches) => void
     TimerText: React.FC<{ startIso?: string; endIso?: string | null; active: boolean }>
 }
 

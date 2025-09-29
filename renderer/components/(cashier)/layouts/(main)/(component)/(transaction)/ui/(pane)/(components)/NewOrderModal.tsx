@@ -15,9 +15,8 @@ import FullscreenExitRounded from '@mui/icons-material/FullscreenExitRounded'
 import dynamic from 'next/dynamic'
 import { useTheme } from '@mui/material/styles'
 import { useThemeCharger } from '../../../../../../../context/ThemeCharger'
-import { useAuth } from '../../../../../../../../../contexts/AuthProviderContext'
-import {useSession} from "../../../../../../../../../contexts/SessionProviderContext";
 import normalizeIpcError from "../../../../../../../../../helpers/electronMessageErrorEsctration";
+import { useSession } from '../../../../../../../../../contexts/SessionProviderContext'
 
 // === Dynamically loaded pages ===
 const Billing = dynamic(() => import('../../../../../../(select-product)'), { ssr: false })

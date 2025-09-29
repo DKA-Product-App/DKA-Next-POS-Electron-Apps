@@ -21,12 +21,16 @@ import dynamic from 'next/dynamic'
 import ShimmerMenuSelectLoading from '../(loading)/ShimmerMenuSelectLoading'
 import OrderVoidModal from './(components)/OrderVoidModal'
 import NewOrderBillModal from './(components)/NewOrderBillModal'
-import {Transaction} from "./(components)/TransactionListItemRow";
+import { Transaction } from '../types/api.transaction.type'
 
+/* ========= Utils ========= */
 const rupiah = (n: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
         .format(typeof n === 'string' ? parseFloat(n) : n)
 
+const toId = (v: unknown) => `${v ?? ''}`.trim()
+
+/* ========= Lazy panes ========= */
 const LeftContainerBatchList = dynamic(() => import('./(pane)/LeftContainerBatchList'), {
     loading: () => <ShimmerMenuSelectLoading />,
     ssr: false,
@@ -37,99 +41,89 @@ const RightContainerBatchDetail = dynamic(() => import('./(pane)/RightContainerB
     ssr: false,
 })
 
-const totalItems = (o: Transaction) => (o.batches ?? []).reduce((acc, b) => acc + (b.items ?? []).length, 0)
-const pickBills = (o: any) => o?.bills ?? o?.transaction?.bills ?? []
+/* ========= Selectors & Counters ========= */
+const totalItems = (o: Transaction) =>
+    (o?.batches ?? []).reduce((acc, b) => acc + (b?.items?.length ?? 0), 0)
+
+const pickBills = (o: Transaction) => Array.isArray(o?.bills) ? o.bills : []
+
+/**
+ * Hitung jumlah item:
+ * - active  : item yg belum pernah masuk bill manapun
+ * - pending : item yg masuk bill dgn paid null/false
+ * - paid    : item yg masuk bill dgn paid true
+ */
 const getPendingActive = (o: Transaction) => {
-    const bills = pickBills(o);
+    const bills = pickBills(o)
 
-    // Kumpulin semua id item transaksi (o.batches[].items[].id)
-    const ids =
-        (o?.batches ?? [])
-            .flatMap((bt: any) => Array.isArray(bt?.items) ? bt.items : [])
-            .map((it: any) => it?.id)
-            .filter(Boolean);
+    // semua id item di transaksi
+    const ids: string[] = (o?.batches ?? [])
+        .flatMap(b => Array.isArray(b?.items) ? b!.items! : [])
+        .map(it => toId(it?.id))
+        .filter(Boolean)
 
-    // Set semua id item yang SUDAH masuk bill (paid apapun)
+    // semua item yang pernah dibillin (pending ataupun paid)
     const allBillIdSet = new Set(
         bills
-            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
-            .map((bi: any) => bi?.transactionItem?.id)
+            .flatMap(b => Array.isArray(b?.items) ? b!.items! : [])
+            .map(bi => toId(bi?.transactionItem?.id))
             .filter(Boolean)
-    );
+    )
 
-    // Set id item yang masuk bill PENDING (paid null/false)
+    // pending: paid null/false
     const pendingBillIdSet = new Set(
         bills
-            .filter((b: any) => (b?.paid == null) || (b?.paid?.status === false))
-            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
-            .map((bi: any) => bi?.transactionItem?.id)
+            .filter(b => (b?.paid == null) || (b?.paid?.status === false))
+            .flatMap(b => Array.isArray(b?.items) ? b!.items! : [])
+            .map(bi => toId(bi?.transactionItem?.id))
             .filter(Boolean)
-    );
+    )
 
+    // paid: paid true
     const paidBillIdSet = new Set(
         bills
-            .filter((b: any) => (b?.paid == null) || (b?.paid?.status === true))
-            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
-            .map((bi: any) => bi?.transactionItem?.id)
+            .filter(b => b?.paid?.status === true)
+            .flatMap(b => Array.isArray(b?.items) ? b!.items! : [])
+            .map(bi => toId(bi?.transactionItem?.id))
             .filter(Boolean)
-    );
+    )
 
-    const pending = ids.filter((id: any) => pendingBillIdSet.has(id)).length;
-    const paid  = ids.filter((id: any) => paidBillIdSet.has(id)).length;
-    const active  = ids.filter((id: any) => !allBillIdSet.has(id)).length;
+    const pending = ids.filter(id => pendingBillIdSet.has(id)).length
+    const paid    = ids.filter(id => paidBillIdSet.has(id)).length
+    const active  = ids.filter(id => !allBillIdSet.has(id)).length
 
-
-    return { pending, active, paid };
-};
+    return { pending, active, paid }
+}
 
 /* ===== Header + Grid + Footer composed with Context ===== */
-function Body({ transaction } : { transaction : Transaction }) {
+function Body({ transaction }: { transaction: Transaction }) {
     const {
         grandTotal,
         selectedItemIds,
         selectedTotal,
         clearSelection,
-        bumpReload,
-        reloadKey
     } = useTx()
 
-    const isClosed = Boolean(transaction.time_closed)
-    const itemQty = totalItems(transaction);
-    const { active, pending, paid } = getPendingActive(transaction);
+    const isClosed = Boolean(transaction?.time_closed)
+    const itemQty = totalItems(transaction)
+    const { active, pending, paid } = getPendingActive(transaction)
 
-
-
-    // normalizer id → string
-    const toId = (v: unknown) => `${v ?? ''}`.trim()
-
-    /**
-     * Ambil semua **ID item** dari transaksi.
-     * Support:
-     *  - transaction.items[]
-     *  - transaction.batches[].items[]
-     */
+    // Semua ID item transaksi (untuk full-bill mode)
     const allItemIds: string[] = React.useMemo(() => {
-        if (Array.isArray(transaction?.items))
-            return transaction.items
-                .map((it: any) => toId(it.id ?? it._id ?? it.item_id))
-                .filter(Boolean)
+        const fromBatches = (transaction?.batches ?? [])
+            .flatMap(b => Array.isArray(b?.items) ? b!.items! : [])
+            .map(it => toId(it?.id))
+            .filter(Boolean)
 
-        if (Array.isArray(transaction?.batches))
-            return transaction.batches
-                .flatMap((b: any) => Array.isArray(b.items) ? b.items : [])
-                .map((it: any) => toId(it.id ?? it._id ?? it.item_id))
-                .filter(Boolean)
-
-        return []
+        return fromBatches.length ? fromBatches : [];
     }, [transaction])
 
-    // Konversi Set → string[]
     const selectedIdList: string[] = React.useMemo(
-        () => Array.from(selectedItemIds || []).map(toId).filter(Boolean),
+        () => Array.from(selectedItemIds ?? []).map(toId).filter(Boolean),
         [selectedItemIds]
     )
 
-    const isSplitMode = (selectedItemIds?.size || 0) > 0
+    const isSplitMode = (selectedItemIds?.size ?? 0) > 0
 
     const Header = (
         <Paper
@@ -152,7 +146,7 @@ function Body({ transaction } : { transaction : Transaction }) {
                     inset: 0,
                     pointerEvents: 'none',
                     zIndex: 0,
-                    background: transaction.time_closed
+                    background: transaction?.time_closed
                         ? 'linear-gradient(90deg, #ef4444, #dc2626 35%, #b91c1c)'
                         : 'linear-gradient(90deg, #22c55e, #16a34a 35%, #15803d)',
                     opacity: t.palette.mode === 'dark' ? 0.18 : 0.12,
@@ -161,16 +155,20 @@ function Body({ transaction } : { transaction : Transaction }) {
             })}
         >
             <ReceiptLongRounded fontSize="small" />
-            <Typography variant="subtitle1" fontWeight={900} sx={{ mr: 1 }}># {transaction.invoice ?? '—'}</Typography>
-            <Chip size="small" label={transaction.order_type?.name ?? '-'} variant="outlined" />
-            {transaction.table?.code ? <Chip size="small" icon={<TableRestaurantRounded />} label={`Table ${transaction.table.code}`} /> : null}
-            <Chip size="small" icon={<PersonOutlineRounded />} label={`${transaction.reference?.name?.first_name ?? '-'}`} />
-            <Chip size="small" icon={<AccessTimeRounded />} label={transaction.shift?.name ?? '-'} />
+            <Typography variant="subtitle1" fontWeight={900} sx={{ mr: 1 }}>
+                # {transaction?.invoice ?? '—'}
+            </Typography>
+            <Chip size="small" label={transaction?.order_type?.name ?? '-'} variant="outlined" />
+            {transaction?.table?.code ? (
+                <Chip size="small" icon={<TableRestaurantRounded />} label={`Table ${transaction.table.code}`} />
+            ) : null}
+            <Chip size="small" icon={<PersonOutlineRounded />} label={`${transaction?.reference?.name?.first_name ?? '-'}`} />
+            <Chip size="small" icon={<AccessTimeRounded />} label={transaction?.shift?.name ?? '-'} />
             <Box sx={{ flex: 1 }} />
-            {selectedItemIds.size > 0 && (
+            {(selectedItemIds?.size ?? 0) > 0 && (
                 <Stack direction="row" alignItems="center" spacing={1}>
                     <DoneAllRounded fontSize="small" />
-                    <Typography variant="body2" fontWeight={700}>{selectedItemIds.size} item dipilih</Typography>
+                    <Typography variant="body2" fontWeight={700}>{selectedItemIds?.size} item dipilih</Typography>
                     <Button size="small" onClick={clearSelection} title="Kosongkan" variant="text" sx={{ minWidth: 0, p: 0.5 }}>
                         <ClearRounded fontSize="small" />
                     </Button>
@@ -189,18 +187,23 @@ function Body({ transaction } : { transaction : Transaction }) {
                     </Typography>
 
                     <Typography sx={{ lineHeight: 1, fontWeight: 900, fontSize: { xs: '2.1rem', sm: '2.2rem', md: '3.1rem' } }}>
-                        {isSplitMode ? rupiah(selectedTotal) : (grandTotal > 0 ? rupiah(grandTotal) : 0)}
+                        {isSplitMode ? rupiah(selectedTotal ?? 0) : (grandTotal && grandTotal > 0 ? rupiah(grandTotal) : 0)}
                     </Typography>
 
                     <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap mt={0.5}>
-                        <Chip size="small" label={`Invoice #${transaction.invoice ?? '—'}`} />
+                        <Chip size="small" label={`Invoice #${transaction?.invoice ?? '—'}`} />
                         <Chip
                             size="small"
                             variant="outlined"
                             label={isClosed ? 'Status: Tertutup' : 'Status: Aktif'}
                             color={isClosed ? 'error' : 'success'}
                         />
-                        {isSplitMode ? <Chip size="small" icon={<DoneAllRounded />} label={`${selectedItemIds.size} item`} /> : null}
+                        {isSplitMode ? <Chip size="small" icon={<DoneAllRounded />} label={`${selectedItemIds?.size ?? 0} item`} /> : null}
+                        {/* Info ringkes: jumlah item / active / pending / paid */}
+                        <Chip size="small" label={`Item: ${itemQty}`} />
+                        <Chip size="small" label={`Active: ${active}`} />
+                        <Chip size="small" label={`Pending: ${pending}`} />
+                        <Chip size="small" label={`Paid: ${paid}`} />
                     </Stack>
                 </Box>
 
@@ -211,7 +214,7 @@ function Body({ transaction } : { transaction : Transaction }) {
 
                     {/* Buat Tagihan — kirim array **ID** item */}
                     <NewOrderBillModal
-                        items={isSplitMode ? selectedIdList : allItemIds} // ⬅️ string[]
+                        items={isSplitMode ? selectedIdList : allItemIds} // string[]
                         mode={isSplitMode ? 'split' : 'full'}
                         label="Buat Tagihan"
                         variant="contained"
@@ -230,7 +233,7 @@ function Body({ transaction } : { transaction : Transaction }) {
                     defaultSize="25%"
                     minSize={330}
                     left={<LeftContainerBatchList transaction={transaction} />}
-                    right={<RightContainerBatchDetail transaction={transaction}  />}
+                    right={<RightContainerBatchDetail transaction={transaction} />}
                 />
             </Box>
             {Footer}
@@ -238,10 +241,10 @@ function Body({ transaction } : { transaction : Transaction }) {
     )
 }
 
-export default function TransactionContainer({ id, transaction }) {
+export default function TransactionContainer({ id, transaction }: { id?: string; transaction: Transaction }) {
     return (
-        <TxProvider key={id} txId={id}>
-            <Body transaction={transaction}/>
+        <TxProvider key={id ?? transaction?.id ?? 'tx'} txId={toId(id ?? transaction?.id)}>
+            <Body transaction={transaction} />
         </TxProvider>
     )
 }
