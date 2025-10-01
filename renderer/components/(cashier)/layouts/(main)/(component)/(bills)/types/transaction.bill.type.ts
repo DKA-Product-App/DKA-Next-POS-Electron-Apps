@@ -15,10 +15,20 @@ export interface ApiResponseTransactionBill {
     data?: TransactionBill[]
 }
 
+
+export interface TransactionBillPaid {
+    id?: UUID;
+    bill?: TransactionBill
+    status?: boolean;
+    payment_method?: Maybe<TransactionBillPaymentMethod>;
+    time_created?: ISODate
+    time_updated?: ISODate
+}
+
 export interface TransactionBill {
     id?: UUID
     number?: string
-    paid?: { time : ISODate, status: boolean}
+    paid?: TransactionBillPaid
     time_created?: ISODate
     time_updated?: ISODate
     reference?: TransactionBillReferenceUser

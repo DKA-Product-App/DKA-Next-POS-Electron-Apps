@@ -3,10 +3,10 @@ import { compile } from "path-to-regexp";
 import { ApiConfig } from "../../../config/api.config";
 import { ApiRequestInstance } from "../../../functions/api/api.request.instance";
 
-export function TransactionBills(mainWindow ?: BrowserWindow) {
+export function TransactionBillsPaid(mainWindow ?: BrowserWindow) {
     // CREATE
-    mainWindow?.webContents?.ipc?.handle?.("api.transaction.bills:create", (_event, args) => {
-        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/bill`);
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.bills.paid:create", (_event, args) => {
+        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/bill/paid`);
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
                 url: toPath(),
@@ -43,8 +43,8 @@ export function TransactionBills(mainWindow ?: BrowserWindow) {
         });
     });
     // READ ALL
-    mainWindow?.webContents?.ipc?.handle?.("api.transaction.bills:read.all", (_event, args) => {
-        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/bill`);
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.bills.paid:read.all", (_event, args) => {
+        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/bill/paid`);
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
                 url: toPath(),
@@ -81,8 +81,8 @@ export function TransactionBills(mainWindow ?: BrowserWindow) {
         });
     });
     // READ ONE
-    mainWindow?.webContents?.ipc?.handle?.("api.transaction.bills:read.one", (_event, args) => {
-        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/bill/:id`);
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.bills.paid:read.one", (_event, args) => {
+        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/bill/paid/:id`);
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
                 url: toPath(args),
@@ -118,12 +118,12 @@ export function TransactionBills(mainWindow ?: BrowserWindow) {
         });
     });
     // UPDATE ONE
-    mainWindow?.webContents?.ipc?.handle?.("api.transaction.bills:update.one", (_event, { params, data }) => {
-        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/bill/:id`);
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.bills.paid:update.one", (_event, { params, data }) => {
+        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/bill/paid/:id`);
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
                 url: toPath(params),
-                method: "PUT",
+                method: "PATCH",
                 data: data,
             })
                 .then((response) => {
@@ -156,8 +156,8 @@ export function TransactionBills(mainWindow ?: BrowserWindow) {
         });
     });
     // DELETE ONE
-    mainWindow?.webContents?.ipc?.handle?.("api.transaction.bills:delete.one", (_event, args) => {
-        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/bill/:id`);
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.bills.paid:delete.one", (_event, args) => {
+        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/bill/paid/:id`);
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
                 url: toPath(args),
@@ -194,4 +194,4 @@ export function TransactionBills(mainWindow ?: BrowserWindow) {
     });
 }
 
-export default TransactionBills;
+export default TransactionBillsPaid;

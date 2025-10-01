@@ -43,7 +43,8 @@ const getPendingActive = (o: Transaction) => {
 
     const ids =
         (o?.batches ?? [])
-            .flatMap((bt: any) => Array.isArray(bt?.items) ? bt.items : [])
+            .flatMap((bt) => Array.isArray(bt?.items) ? bt.items : [])
+            .filter(it => it && (it.void?.is_approved !== true)) // tidak void approved
             .map((it: any) => it?.id)
             .filter(Boolean);
 
@@ -56,7 +57,7 @@ const getPendingActive = (o: Transaction) => {
 
     const pendingBillIdSet = new Set(
         bills
-            .filter((b) => (b?.paid == null) || (b?.paid?.status === false))
+            .filter((b) => (b?.paid === undefined) || (b?.paid?.status === false))
             .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
             .map((bi: any) => bi?.transactionItem?.id)
             .filter(Boolean)
@@ -64,7 +65,7 @@ const getPendingActive = (o: Transaction) => {
 
     const paidBillIdSet = new Set(
         bills
-            .filter((b) => (b?.paid == null) || (b?.paid?.status === true))
+            .filter((b) => (b?.paid !== undefined) || (b?.paid?.status === true))
             .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
             .map((bi: any) => bi?.transactionItem?.id)
             .filter(Boolean)

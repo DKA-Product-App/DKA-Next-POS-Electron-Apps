@@ -288,7 +288,7 @@ const BillsListItem: React.FC = () => {
     const handleSelect = (bill: TransactionBill) => {
         setActiveId(prev => {
             const next = prev === bill.id ? null : bill.id
-            setLayout(p => ({ ...(p ?? {}), right: next ? <BillListItemDetail bill={bill} /> : <BillsRightEmpty /> }))
+            setLayout(p => ({ ...(p ?? {}), right: next ? <BillListItemDetail billId={bill.id} /> : <BillsRightEmpty /> }))
             return next
         })
     }

@@ -19,15 +19,17 @@ import type { Filters } from './widgets/TransactionListItemHeaderWidget'
 import ShimmerLoadingTransactionListItemRow from '../(loading)/ShimmerLoadingTransactionListItemRow'
 import ShimmerLoadingTransactionContainer from '../(loading)/ShimmerLoadingTransactionContainer'
 import { useTransactionEventTrigger } from './context/TransactionEventTriggerContext'
-import {useSession} from "../../../../../../../../contexts/SessionProviderContext";
-import {Transaction} from "../types/api.transaction.type";
+import { useSession } from '../../../../../../../../contexts/SessionProviderContext'
+import { Transaction } from '../types/api.transaction.type'
+
 // ===== Const =====
 const TZ_OFFSET = '+08:00' // Asia/Makassar
 const GRADIENT_PURPLE = 'linear-gradient(90deg, #6366F1, #8B5CF6 30%, #EC4899)'
 
 // ===== Utils (parent-only) =====
 const shortId = (s?: string) => (s ? `${s.slice(0, 8)}…` : '-')
-const totalItems = (o: Transaction) => o.batches.reduce((acc, b) => acc + b.items.reduce((a, i) => a + i.qty, 0), 0)
+const totalItems = (o: Transaction) =>
+    o.batches.reduce((acc, b) => acc + b.items.reduce((a, i) => a + i.qty, 0), 0)
 const totalBatches = (o: Transaction) => o.batches.length
 const matchesQuery = (o: Transaction, q: string) => {
     const s = q.trim().toLowerCase()
@@ -78,8 +80,9 @@ const TransactionListItemNotFound = dynamic(() => import('./(components)/Transac
  * =======================*/
 const TransactionListItem: React.FC = () => {
     const { setLayout } = useLayoutManipulatorResizable()
-    const { Session } = useSession();
+    const { Session } = useSession()
     const [transaction, setTransaction] = React.useState<Array<Transaction>>([])
+
     // ✅ Pisah state: single vs multi
     const [singleSelectedId, setSingleSelectedId] = React.useState<string>()
     const [multiSelectedIds, setMultiSelectedIds] = React.useState<Set<string>>(new Set())
@@ -107,11 +110,11 @@ const TransactionListItem: React.FC = () => {
     }
 
     // === Soft refetch (tanpa menyentuh reloadKey) ===
-    const softRefetch = React.useCallback(() => {
+    const softRefetch = React.useCallback(async () => {
         const { startAt, endAt } = filters
         if (!startAt || !endAt) return
         const payload = {
-            startAt: `${startAt}:00${TZ_OFFSET}`, endAt: `${endAt}:59${TZ_OFFSET}` ,
+            startAt: `${startAt}:00${TZ_OFFSET}`, endAt: `${endAt}:59${TZ_OFFSET}`,
             reference: Session.id
         }
 
@@ -130,7 +133,7 @@ const TransactionListItem: React.FC = () => {
                 return undefined
             })
             .finally(() => setIsFetching(false))
-    }, [filters])
+    }, [filters, Session?.id])
 
     // === FETCH by date range ===
     React.useEffect(() => {
@@ -155,7 +158,7 @@ const TransactionListItem: React.FC = () => {
                 setFetchError(toErrorMessage(err))
             })
             .finally(() => setIsFetching(false))
-    }, [filters.startAt, filters.endAt, reloadKey])
+    }, [filters.startAt, filters.endAt, reloadKey, Session?.id])
 
     // Opsi filter
     const shiftOptions = React.useMemo(() => {
@@ -173,9 +176,35 @@ const TransactionListItem: React.FC = () => {
         return Array.from(set).sort()
     }, [transaction])
 
-    // Slider max
-    const maxItems = React.useMemo(() => transaction.length ? Math.max(...transaction.map(totalItems)) : 0, [transaction])
-    const maxBatches = React.useMemo(() => transaction.length ? Math.max(...transaction.map(totalBatches)) : 0, [transaction])
+    // ====== HARD MAX (puncak maksimum selama date-range aktif)
+    const hardMaxItemsRef = React.useRef(0)
+    const hardMaxBatchesRef = React.useRef(0)
+
+    // Nilai max berdasarkan data fetch TERKINI
+    const computedMaxItems = React.useMemo(
+        () => transaction.length ? Math.max(...transaction.map(totalItems)) : 0,
+        [transaction]
+    )
+    const computedMaxBatches = React.useMemo(
+        () => transaction.length ? Math.max(...transaction.map(totalBatches)) : 0,
+        [transaction]
+    )
+
+    // Update puncak jika ada nilai lebih tinggi
+    React.useEffect(() => {
+        if (computedMaxItems > hardMaxItemsRef.current) hardMaxItemsRef.current = computedMaxItems
+        if (computedMaxBatches > hardMaxBatchesRef.current) hardMaxBatchesRef.current = computedMaxBatches
+    }, [computedMaxItems, computedMaxBatches])
+
+    // Reset puncak saat ganti rentang tanggal
+    React.useEffect(() => {
+        hardMaxItemsRef.current = 0
+        hardMaxBatchesRef.current = 0
+    }, [filters.startAt, filters.endAt])
+
+    // Nilai max untuk slider (pakai puncak)
+    const maxItems = hardMaxItemsRef.current
+    const maxBatches = hardMaxBatchesRef.current
 
     // a) token berubah → refetch tanpa ngapa-ngapain ke filter
     React.useEffect(() => {
@@ -183,46 +212,48 @@ const TransactionListItem: React.FC = () => {
         lastReasonRef.current = reason ?? null
         setFetchError(null)
         softRefetch()
-    }, [token, reason])
+    }, [token, reason, softRefetch])
 
-    // b) kalau reason === 'batch' → set slider ke maksimal SETELAH max* update
+    // b) kalau reason === 'batch' → set ujung slider ke puncak (bukan computed)
     React.useEffect(() => {
         if (lastReasonRef.current === 'batch') {
-            const mi = Math.max(0, maxItems)
-            const mb = Math.max(0, maxBatches)
+            const mi = Math.max(0, hardMaxItemsRef.current)
+            const mb = Math.max(0, hardMaxBatchesRef.current)
             setFilters(prev => ({ ...prev, itemRange: [prev.itemRange[0], mi], batchRange: [prev.batchRange[0], mb] }))
             lastReasonRef.current = null
         }
-    }, [maxItems, maxBatches])
+    }, [computedMaxItems, computedMaxBatches])
 
-    // Jaga range tetap valid thd data terbaru, tanpa reset pilihan user
+    // Jaga range tetap valid thd data terbaru, TANPA menurunkan ujung kanan
     React.useEffect(() => {
         setFilters(prev => {
             const patch: Partial<Filters> = {}
             let changed = false
             const clamp = (v: number, max: number) => Math.min(Math.max(v, 0), Math.max(0, max))
-            const maxI = Math.max(0, maxItems)
-            const maxB = Math.max(0, maxBatches)
+            const maxI = hardMaxItemsRef.current
+            const maxB = hardMaxBatchesRef.current
 
             const [i0, i1] = prev.itemRange
-            if (i0 === 0 && i1 === 0) { patch.itemRange = [0, maxI]; changed = true }
-            else {
+            if (i0 === 0 && i1 === 0) {
+                patch.itemRange = [0, maxI]; changed = true
+            } else {
                 const ni0 = clamp(i0, maxI)
-                const ni1 = clamp(i1 === 0 ? maxI : i1, maxI)
+                const ni1 = i1 === 0 ? maxI : Math.max(i1, maxI) // ⬅️ jangan menurunkan ujung kanan
                 if (ni0 !== i0 || ni1 !== i1) { patch.itemRange = [ni0, ni1]; changed = true }
             }
 
             const [b0, b1] = prev.batchRange
-            if (b0 === 0 && b1 === 0) { patch.batchRange = [0, maxB]; changed = true }
-            else {
+            if (b0 === 0 && b1 === 0) {
+                patch.batchRange = [0, maxB]; changed = true
+            } else {
                 const nb0 = clamp(b0, maxB)
-                const nb1 = clamp(b1 === 0 ? maxB : b1, maxB)
+                const nb1 = b1 === 0 ? maxB : Math.max(b1, maxB) // ⬅️ jangan menurunkan ujung kanan
                 if (nb0 !== b0 || nb1 !== b1) { patch.batchRange = [nb0, nb1]; changed = true }
             }
 
             return changed ? { ...prev, ...patch } : prev
         })
-    }, [maxItems, maxBatches])
+    }, [computedMaxItems, computedMaxBatches])
 
     // Urut terbaru
     const transactions = React.useMemo(
@@ -281,14 +312,14 @@ const TransactionListItem: React.FC = () => {
 
     // Handler single select via row click (TOGGLE on second click)
     const onRowClick = (id: string) => {
-        softRefetch();
+        softRefetch()
         setSingleSelectedId(prev => {
             if (prev === id) {
                 setLayout(p => ({ ...p, right: <TransactionListItemNotFound /> }))
                 return undefined
             }
             setLayout(p => ({ ...p, right: <TransactionContainerItems id={id} transaction={transactions.find((data) => data.id === id)} /> }))
-            //setLayout(p => ({ ...p, right: <TransactionContainer id={id} transaction={transactions.find((data) => data.id === id)}  /> }))
+            // setLayout(p => ({ ...p, right: <TransactionContainer id={id} transaction={transactions.find((data) => data.id === id)}  /> }))
             return id
         })
     }

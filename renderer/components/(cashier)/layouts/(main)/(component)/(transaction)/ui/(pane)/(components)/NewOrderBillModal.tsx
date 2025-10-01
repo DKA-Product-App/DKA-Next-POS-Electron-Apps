@@ -129,10 +129,6 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
 
     const {Session} = useSession();
 
-    const isPaidBool = (p: any) => p === true || p?.is_paid === true || p?.status === true
-    const hasBills = Array.isArray((transaction as any)?.bills) && (transaction as any).bills.length > 0
-    const hasPaidField = typeof (transaction as any)?.paid !== 'undefined' && (transaction as any)?.paid !== null
-    const blockedByUnpaidBill = hasBills && hasPaidField && !isPaidBool((transaction as any)?.paid)
 
     const itemQty = totalItems(transaction);
     const { active, pending, paid } = getPendingActive(transaction);
@@ -145,50 +141,34 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
 
     const isSplitMode = mode === 'split'
     const baseIcon = isSplitMode ? <CallSplitRounded sx={{fontSize: 36}}/> : <ReceiptLongRounded sx={{fontSize: 36}}/>
-    const color: ButtonProps['color'] = blockedByUnpaidBill ? 'error' : (isSplitMode ? 'warning' : 'success')
+    const color: ButtonProps['color'] = (isSplitMode ? 'warning' : 'success')
 
     const [transactionBatchItems, setTransactionBatchItems] = useState<Array<any>>([])
     const [layoutPaper, setLayoutPaper] = useState<React.ReactNode>(<></>)
 
     // ====== LOCK semua input saat modal dibuka ======
-    const [lockedBlocked, setLockedBlocked] = useState<boolean | null>(null)
     const [lockedItemsKey, setLockedItemsKey] = useState<string | null>(null)       // kunci daftar item
     const [lockedTxId, setLockedTxId] = useState<string | null>(null)               // kunci txId
     const lockRef = useRef(false)
 
-    const modalBlocked = open ? (lockedBlocked ?? blockedByUnpaidBill) : blockedByUnpaidBill
-    const disabled = isClosed || items.length === 0 || blockedByUnpaidBill
-    const tooltip = blockedByUnpaidBill
-        ? 'Tidak bisa membuat tagihan: ada tagihan sebelumnya yang belum lunas.'
-        : `Buat Tagihan (${isSplitMode ? 'Split' : 'Keseluruhan'}) — ${items.length} item`
+    const disabled = isClosed || items.length === 0 || paid === itemQty
+    const tooltip = `Buat Tagihan (${isSplitMode ? 'Split' : 'Keseluruhan'}) — ${items.length} item`
 
-    const openWithUnpaidBillNotice = () => {
-        const firstBill = transaction?.bills?.[0] ?? null
-        setLayoutPaper(
-            <ErrorDataLayout
-                status={false}
-                code={402}
-                msg={'Terdapat tagihan belum lunas untuk transaksi ini. Selesaikan dahulu sebelum membuat tagihan baru.'}
-                extra={{data: firstBill}}
-            />
-        )
-        setOpen(true)
-    }
+    React.useEffect(() => {
+        console.log(` ${items.length} | ${paid} < ${itemQty}`)
+    })
 
     const handleOpen = () => {
         if (isClosed || items.length === 0) return
         // kunci snapshot saat ini
-        setLockedBlocked(blockedByUnpaidBill)
         setLockedItemsKey(items.join('|'))      // gunakan string stabil agar efek tidak kepicu lagi
         setLockedTxId(txId)
         lockRef.current = true
 
-        if (blockedByUnpaidBill) return openWithUnpaidBillNotice()
         setOpen(true)
     }
     const handleClose = () => {
         setOpen(false)
-        setLockedBlocked(null)
         setLockedItemsKey(null)
         setLockedTxId(null)
         lockRef.current = false
@@ -196,7 +176,7 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
 
     // ====== Fetch items sekali dengan key terkunci (tidak terganggu prop items/transaction) ======
     useEffect(() => {
-        if (!open || modalBlocked) return
+        if (!open) return
         if (!lockedItemsKey) return
 
         window?.api?.invoke?.('api.transaction.batch.item:read.all', {ids: lockedItemsKey.split('|')})
@@ -212,11 +192,11 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
                 setLayoutPaper(<ErrorDataLayout {...e} />)
             })
         // HANYA tergantung lock, bukan props items/transaction
-    }, [open, modalBlocked, lockedItemsKey])
+    }, [open, lockedItemsKey])
 
     // ====== Create bill + tampilkan preview, sekali saja untuk batch yang sudah terkunci ======
     useEffect(() => {
-        if (!open || modalBlocked) return
+        if (!open) return
         if (transactionBatchItems.length === 0) return
         if (!lockedTxId) return
 
@@ -236,6 +216,9 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
             transaction: {id: lockedTxId},
             number: Date.now(),
             items: arrayRefactor,
+            paid: {
+                status: false,
+            }
         }
 
         // kalau sudah ada preview (BillListItemDetail), jangan recreate
@@ -247,7 +230,14 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
         window?.api?.invoke?.('api.transaction.bills:create', payload)
             .then((result: any) => {
                 if (!lockRef.current) return
-                setLayoutPaper(<BillListItemDetail bill={result.data}/>)
+                setLayoutPaper(<BillListItemDetail
+                    billId={result?.data?.id}
+                    onPaySuccess={() => {
+                        bumpReload()
+                        bump('batch')
+                        clearSelection()
+                    }}
+                />)
                 // penting: reload context TANPA memicu efek modal (karena semua input di-lock + efek tidak tergantung transaction/items)
                 setTimeout(() => {
                     try {
@@ -265,13 +255,13 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
                 setLayoutPaper(<ErrorDataLayout {...e} />)
             })
         // HANYA tergantung state terkunci
-    }, [open, modalBlocked, transactionBatchItems, lockedTxId])
+    }, [open, transactionBatchItems, lockedTxId])
 
     const ButtonEl = (
         <Button
             variant={variant}
             color={color}
-            disabled={disabled || itemQty === paid}
+            disabled={disabled}
             onClick={handleOpen}
             size="large"
             startIcon={baseIcon}
@@ -314,7 +304,6 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
         <span>
           {isSplitMode ? (
               <Badge
-                  color={blockedByUnpaidBill ? 'error' : 'warning'}
                   badgeContent={items.length}
                   invisible={items.length === 0}
                   anchorOrigin={{vertical: 'top', horizontal: 'right'}}
@@ -352,9 +341,7 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
             >
                 <DialogTitle sx={{display: 'flex', alignItems: 'center', pr: 1.5, gap: 1}}>
                     <Typography variant="h6" fontWeight={800}>
-                        {modalBlocked
-                            ? 'Tagihan Belum Lunas Ditemukan'
-                            : (isSplitMode ? 'Preview Tagihan (Split)' : 'Preview Tagihan (Keseluruhan)')}
+                        {(isSplitMode ? 'Preview Tagihan (Split)' : 'Preview Tagihan (Keseluruhan)')}
                     </Typography>
 
                     <Stack direction="row" spacing={0.5} alignItems="center" sx={{ml: 'auto'}}>

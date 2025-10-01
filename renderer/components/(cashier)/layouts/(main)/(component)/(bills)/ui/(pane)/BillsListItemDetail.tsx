@@ -8,7 +8,6 @@ import {
 } from '@mui/material'
 import PrintRounded from '@mui/icons-material/PrintRounded'
 import RequestQuoteRounded from '@mui/icons-material/RequestQuoteRounded'
-import LocalMallRounded from '@mui/icons-material/LocalMallRounded'
 import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
 import AttachMoneyRounded from '@mui/icons-material/AttachMoneyRounded'
 import QrCode2Rounded from '@mui/icons-material/QrCode2Rounded'
@@ -20,8 +19,12 @@ import 'react-perfect-scrollbar/dist/css/styles.css'
 
 import Image, { ImageLoader } from 'next/image'
 import Skeleton from '@mui/material/Skeleton'
-import { TransactionBill, TransactionBillTransactionItem } from '../../types/transaction.bill.type'
-import {useTabNavigationHandlerContext} from "../../../(transaction)/context/TabNavigationHandlerContext";
+import {
+    ApiResponseTransactionBill,
+    TransactionBill, TransactionBills,
+    TransactionBillTransactionItem
+} from '../../types/transaction.bill.type'
+import { useEffect, useMemo, useRef, useState } from "react"
 
 /* ================================= THEME ACCENTS ================================= */
 const PURPLE_GRAD = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
@@ -37,10 +40,10 @@ const fmtIDR = (n?: number | string) =>
 const fmtTimeShort = (iso?: string) =>
     iso ? new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '—'
 
-const statusChip = (bill: TransactionBill) => {
-    const paid = (bill as any).paid
-    if (!paid || !paid.status) return { color: 'warning' as const, label: 'Unpaid' }
-    return paid.status ? { color: 'success' as const, label: 'Paid' } : { color: 'warning' as const, label: 'Unpaid' }
+const statusChip = (bill?: TransactionBill) => {
+    const paid = bill?.paid
+    if (!paid || !paid?.status) return { color: 'warning' as const, label: 'Unpaid' }
+    return paid?.status ? { color: 'success' as const, label: 'Paid' } : { color: 'warning' as const, label: 'Unpaid' }
 }
 
 const first = <T,>(a?: T[] | T | null): T | undefined =>
@@ -62,8 +65,8 @@ const ph = (name?: string, img?: string) =>
     toUploadUrl(img) ?? `https://placehold.co/600x400/png?text=${encodeURIComponent(name || 'Item')}`
 
 const ImgWithSkeleton: React.FC<{ src: string; alt: string; loader?: ImageLoader; radius?: number }> = ({ src, alt, loader, radius = 8 }) => {
-    const [loaded, setLoaded] = React.useState(false)
-    const [err, setErr] = React.useState(false)
+    const [loaded, setLoaded] = useState(false)
+    const [err, setErr] = useState(false)
     const finalSrc = err ? 'https://placehold.co/600x400/png?text=No%20Image' : src
     return (
         <Box sx={{ position: 'relative', width: '100%', aspectRatio: '1 / 1', bgcolor: 'action.hover', overflow: 'hidden', borderRadius: radius / 2 }}>
@@ -85,18 +88,18 @@ const ImgWithSkeleton: React.FC<{ src: string; alt: string; loader?: ImageLoader
 }
 
 /* ================================= DATA DERIVERS ================================= */
-const getInvoice = (b: TransactionBill) => (b as any).transaction?.invoice ?? String((b as any).number ?? '')
-const getIssuedAt = (b: TransactionBill) => (b as any).time_created || (b as any).transaction?.time_created
-const getPaidAt = (b: TransactionBill) => (b as any).paid?.time
-const getRef = (b: TransactionBill) =>
-    (b as any).transaction?.table?.name
-    || (b as any).transaction?.table?.code
-    || (b as any).transaction?.order_type?.name
-    || (b as any).transaction?.order_type?.code
+const getInvoice = (b?: TransactionBill) => b?.transaction?.invoice ?? String(b?.number ?? '')
+const getIssuedAt = (b?: TransactionBill) => b?.paid?.time_created || b?.transaction?.time_created
+const getPaidAt = (b?: TransactionBill) => b?.paid?.time_updated
+const getRef = (b?: TransactionBill) =>
+    b?.transaction?.table?.name
+    || b?.transaction?.table?.code
+    || b?.transaction?.order_type?.name
+    || b?.transaction?.order_type?.code
     || undefined
 
-const deriveLineItems = (bill: TransactionBill): TransactionBillTransactionItem[] =>
-    (bill.items ?? []).map((wrap) => {
+const deriveLineItems = (bill?: TransactionBill): TransactionBillTransactionItem[] =>
+    (bill?.items ?? []).map((wrap) => {
         const it = wrap.transactionItem ?? {}
         return {
             id: String(wrap.id ?? it.id ?? Math.random()),
@@ -104,7 +107,7 @@ const deriveLineItems = (bill: TransactionBill): TransactionBillTransactionItem[
             price: Number((wrap.price ?? it.price ?? 0) as number),
             sub_total: Number((wrap.sub_total ?? it.sub_total ?? 0) as number),
             note: it.note ?? undefined,
-            number: bill.number ?? "# -",
+            number: bill?.number ?? "# -",
             time_created: it.time_created,
             time_updated: it.time_updated,
             void: it.void,
@@ -180,11 +183,11 @@ const PaymentMethodsPicker: React.FC<{
     selectedId?: string
     onSelect: (m: PaymentMethod) => void
 }> = ({ disabled, selectedId, onSelect }) => {
-    const [methods, setMethods] = React.useState<PaymentMethod[]>([])
-    const [loading, setLoading] = React.useState(true)
-    const [err, setErr] = React.useState<string | null>(null)
+    const [methods, setMethods] = useState<PaymentMethod[]>([])
+    const [loading, setLoading] = useState(true)
+    const [err, setErr] = useState<string | null>(null)
 
-    React.useEffect(() => {
+    useEffect(() => {
         let alive = true
         setLoading(true)
         // @ts-ignore
@@ -226,34 +229,46 @@ const PaymentMethodsPicker: React.FC<{
 /* ================================= MAIN ================================= */
 type TenderMode = 'idle' | 'entry' | 'ready'
 
-const BillListItemDetail: React.FC<{ bill: TransactionBill }> = ({ bill }) => {
-    const st = statusChip(bill)
-    const isPaid = !!(bill as any).paid?.status
-    const items = deriveLineItems(bill)
+const BillListItemDetail: React.FC<{ billId: string, onPaySuccess?: () => void }> = ({ billId, onPaySuccess }) => {
+    const [bill, setBill] = useState<TransactionBill | undefined>(undefined)
+
+    // ==== ⛓️ DERIVED FROM `bill` (selalu up-to-date) ====
+    const isPaid = useMemo(() => !!bill?.paid?.status, [bill])
+    const st = useMemo(() => statusChip(bill), [bill])
+    const items = useMemo(() => deriveLineItems(bill), [bill])
 
     const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0)
-    const itemsSubtotal = items.length ? sum(items.map(i => Number(i.sub_total ?? 0))) : 0
-    const [taxRate] = React.useState<number>(0.10)
-    const tax = Math.max(0, Math.round(itemsSubtotal * taxRate))
-    const grandTotal = Math.max(0, itemsSubtotal + tax)
+    const itemsSubtotal = useMemo(() => items.length ? sum(items.map(i => Number(i.sub_total ?? 0))) : 0, [items])
+    const taxRate = 0.10
+    const tax = useMemo(() => Math.max(0, Math.round(itemsSubtotal * taxRate)), [itemsSubtotal])
+    const grandTotal = useMemo(() => Math.max(0, itemsSubtotal + tax), [itemsSubtotal, tax])
 
-    const invoice = getInvoice(bill)
-    const ref = getRef(bill)
+    const invoice = useMemo(() => getInvoice(bill), [bill])
+    const ref = useMemo(() => getRef(bill), [bill])
     const itemsCount = items.length
-    const qtyTotal = items.reduce((a, it) => a + Number(it.qty ?? 0), 0)
+    const qtyTotal = useMemo(() => items.reduce((a, it) => a + Number(it.qty ?? 0), 0), [items])
 
     /* ---------------- PAYMENT STATE ---------------- */
-    const [method, setMethod] = React.useState<PaymentMethod | null>(null)
-    const [needTender, setNeedTender] = React.useState<boolean>(false)
-    const [tenderMode, setTenderMode] = React.useState<TenderMode>('idle')
-    const [showTotals, setShowTotals] = React.useState<boolean>(true)
-    const [cashStr, setCashStr] = React.useState<string>('')
+    const [method, setMethod] = useState<PaymentMethod | null>(null)
+    const [needTender, setNeedTender] = useState<boolean>(false)
+    const [tenderMode, setTenderMode] = useState<TenderMode>('idle')
+    const [showTotals, setShowTotals] = useState<boolean>(true)
+    const [cashStr, setCashStr] = useState<string>('')
+
     const cash = cashStr === '' ? 0 : Number(cashStr.replaceAll('.', '').replaceAll(',', ''))
     const change = Math.max(0, cash - grandTotal)
-    const shortage = Math.max(0, grandTotal - cash)
-    const cashRef = React.useRef<HTMLInputElement>(null)
+    const cashRef = useRef<HTMLInputElement>(null)
 
-    React.useEffect(() => {
+    // initial fetch bill
+    useEffect(() => {
+        // @ts-ignore
+        window.api.invoke('api.transaction.bills:read.one', { id: billId })
+            .then(({ data }) => setBill(data))
+            .catch(console.error)
+    }, [billId])
+
+    // respond to method/isPaid changes (form logic)
+    useEffect(() => {
         const nt = !!method?.need_tender
         setNeedTender(nt)
         if (isPaid) {
@@ -284,16 +299,12 @@ const BillListItemDetail: React.FC<{ bill: TransactionBill }> = ({ bill }) => {
         }
     }
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (tenderMode === 'ready' && cash < grandTotal && needTender && !isPaid) {
             setTenderMode('entry')
             setShowTotals(false)
         }
     }, [cash, grandTotal, needTender, isPaid, tenderMode])
-
-    const helper = needTender
-        ? (cash > 0 ? (cash < grandTotal ? `Kurang ${fmtIDR(shortage)}` : 'Uang cukup • tekan Enter') : 'Masukkan nominal tunai')
-        : 'Pilih metode pembayaran'
 
     const canPay = !isPaid && (!needTender || tenderMode === 'ready')
 
@@ -312,6 +323,24 @@ const BillListItemDetail: React.FC<{ bill: TransactionBill }> = ({ bill }) => {
 
     const printLabel = isPaid ? 'Print Bukti Pembayaran' : 'Print Tagihan'
 
+    // ✅ After-pay: update then refetch bill to get latest server state
+    const onPay = () => {
+        // @ts-ignore
+        window.api.invoke('api.transaction.bills.paid:update.one', {
+            params: { id: bill?.paid?.id },
+            data: { status: true }
+        })
+            .then(({ data }) =>
+                // @ts-ignore
+                window.api.invoke('api.transaction.bills:read.one', { id: billId })
+            )
+            .then(({ data }) => {
+                onPaySuccess?.();
+                setBill(data)
+            })
+            .catch(console.error)
+    }
+
     return (
         <Box sx={{ height: '100%', width: '100%' }}>
             <Paper elevation={0} sx={{ height: '100%', width: '100%', border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper', borderRadius: 0, display: 'flex', flexDirection: 'column' }}>
@@ -322,7 +351,7 @@ const BillListItemDetail: React.FC<{ bill: TransactionBill }> = ({ bill }) => {
                             <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
                                 <RequestQuoteRounded sx={{ fontSize: { xs: 18, md: 20 } }} />
                                 <Typography variant="h5" fontWeight={900} noWrap sx={{ letterSpacing: 0.2 }}>
-                                    #{' '}{bill.number}
+                                    #{' '}{bill?.number}
                                 </Typography>
                                 <Chip size="small" color={st.color} label={st.label} sx={{ borderRadius: 0, fontSize: { xs: 12, md: 13 } }} />
                                 <Chip size="small" variant="outlined" label={`${itemsCount} item${itemsCount === 1 ? '' : 's'} • ${qtyTotal} qty`} sx={{ borderRadius: 0, fontSize: { xs: 12, md: 13 } }} />
@@ -343,7 +372,6 @@ const BillListItemDetail: React.FC<{ bill: TransactionBill }> = ({ bill }) => {
 
                 {/* ===== Items header ===== */}
                 <Box sx={{ px: { xs: 2, md: 2.5 }, pt: 1, pb: 1, flexShrink: 0 }}>
-
                     <Box sx={(t) => ({ display: 'grid', gridTemplateColumns: { xs: ITEM_COLS.xs, md: ITEM_COLS.md }, gap: 0, border: '1px solid', borderColor: 'divider', bgcolor: t.palette.action.hover })}>
                         <Box sx={{ ...colCell(false), px: 1.25, py: 1 }}><Typography variant="body2" fontWeight={900} textAlign="center">#</Typography></Box>
                         <Box sx={{ ...colCell(true), px: 1.25, py: 1 }}><Typography variant="body2" fontWeight={900}>Produk</Typography></Box>
@@ -361,7 +389,7 @@ const BillListItemDetail: React.FC<{ bill: TransactionBill }> = ({ bill }) => {
                                     const imgSrc = ph(it.product?.name ?? '', it.product?.image ?? '')
                                     return (
                                         <Paper key={it.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', position: 'relative', '&::before': { content: '""', position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: ACCENT } }}>
-                                            <ButtonBase sx={{ width: '100%', display: 'grid', alignItems: 'stretch', textAlign: 'left', gridTemplateColumns: { xs: ITEM_COLS.xs, md: ITEM_COLS.md }, p: 0, '&:hover': { backgroundColor: 'action.hover' } }}>
+                                            <ButtonBase disabled={isPaid} sx={{ width: '100%', display: 'grid', alignItems: 'stretch', textAlign: 'left', gridTemplateColumns: { xs: ITEM_COLS.xs, md: ITEM_COLS.md }, p: 0, '&:hover': { backgroundColor: 'action.hover' } }}>
                                                 {/* # */}
                                                 <Box sx={{ ...colCell(false), px: 1.25, py: 1.1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                     <Chip size="small" label={idx + 1} sx={{ fontWeight: 800, background: PURPLE_GRAD, color: '#fff' }} />
@@ -407,7 +435,7 @@ const BillListItemDetail: React.FC<{ bill: TransactionBill }> = ({ bill }) => {
                             <Typography variant="subtitle1" fontWeight={900} sx={{ mb: 1 }}>Pilih Pembayaran</Typography>
                             <PaymentMethodsPicker
                                 disabled={isPaid}
-                                selectedId={method?.id}
+                                selectedId={method?.id || undefined}
                                 onSelect={(m) => setMethod(m)}
                             />
                             {isPaid && <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>Bill sudah dibayar — metode dikunci mengikuti data server.</Typography>}
@@ -512,8 +540,9 @@ const BillListItemDetail: React.FC<{ bill: TransactionBill }> = ({ bill }) => {
                     <Button
                         variant="contained"
                         color="success"
-                        disabled={!(!isPaid && (!method?.need_tender || tenderMode === 'ready'))}
+                        disabled={!canPay}
                         startIcon={<AttachMoneyRounded sx={{ fontSize: 36 }} />}
+                        onClick={onPay}
                         sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, fontSize: { xs: 14, md: 15 }, py: 1.1, px: 2.2 }}
                         title={isPaid ? 'Sudah dibayar' : (method?.need_tender ? (tenderMode === 'ready' ? 'Bayar sekarang' : 'Masukkan & konfirmasi nominal (Enter)') : (method ? 'Bayar sekarang' : 'Pilih metode'))}
                     >

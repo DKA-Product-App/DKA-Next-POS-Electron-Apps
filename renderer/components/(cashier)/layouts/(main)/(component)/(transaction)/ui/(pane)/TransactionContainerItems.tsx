@@ -23,6 +23,7 @@ import LeftContainerBatchListNewOrder from './(pane)/(components)/LeftContainerB
 /** 🔽 NEW: Filter context & button */
 import { FilterOrderHeaderProvider } from './context/FilterOrderHeaderContext'
 import FilterOrderHeader from './(components)/FilterOrderHeader'
+import {useTransactionEventTrigger} from "./context/TransactionEventTriggerContext";
 
 /* ========= Utils ========= */
 const rupiah = (n: number | string) =>
@@ -57,7 +58,7 @@ const getPendingActive = (o: Transaction) => {
     )
 
     const pendingBillIdSet = new Set(
-        bills.filter(b => (b?.paid == null) || (b?.paid?.status === false))
+        bills.filter(b => (b?.paid === undefined) || (b?.paid?.status === false))
             .flatMap(b => Array.isArray(b?.items) ? b!.items! : [])
             .map(bi => toId(bi?.transactionItem?.id))
             .filter(Boolean)
@@ -99,20 +100,32 @@ const totalPrices = (o: Transaction) => {
 /* ===== Body ===== */
 function Body({ transaction }: { transaction: Transaction }) {
     const { selectedItemIds, selectedTotal, clearSelection } = useTx()
-    const { layout, setLayout } = useLayoutManipulatorBatch()
-
+    const { token, reason } = useTransactionEventTrigger()
     const isClosed = Boolean(transaction?.time_closed)
     const itemQty = totalItems(transaction)
     const { active, pending, paid } = getPendingActive(transaction)
 
-    const allItemIds: string[] = React.useMemo(() => {
-        const fromBatches = (transaction?.batches ?? [])
-            .flatMap(b => Array.isArray(b?.items) ? b!.items! : [])
-            .map(it => toId(it?.id))
-            .filter(Boolean)
 
-        return fromBatches.length ? fromBatches : []
-    }, [transaction])
+    // 🔽 ambil semua transactionItem.id yang sudah masuk bill (pending / paid)
+    const billedTxnItemIdSet = React.useMemo(() => {
+        const bills = Array.isArray(transaction?.bills) ? transaction.bills : []
+        const ids = bills
+            .flatMap(b => Array.isArray(b?.items) ? b.items : [])
+            .map(bi => bi?.transactionItem?.id)
+            .filter((id): id is string => Boolean(id))
+            .map(String)
+        return new Set(ids)
+    }, [transaction?.bills])
+
+// 🔽 allItemIds: hanya item yang belum di-bill & tidak void; jika closed, kosongkan
+    const allItemIds: string[] = React.useMemo(() => {
+        if (transaction?.time_closed) return []
+        const items = (transaction?.batches ?? []).flatMap(b => b?.items ?? [])
+        return items
+            .filter(it => it && (it.void === null)) // tidak void approved
+            .filter(it => !billedTxnItemIdSet.has(String(it.id)))                    // belum ada di bill (pending / paid)
+            .map(it => String(it.id))
+    }, [transaction?.batches, transaction?.time_closed, billedTxnItemIdSet])
 
     const selectedIdList: string[] = React.useMemo(
         () => Array.from(selectedItemIds ?? []).map(toId).filter(Boolean),

@@ -268,7 +268,13 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPr
             </Box>
 
             <Box sx={{ p: 1.25, display: 'grid', gap: .5, flexGrow: 1 }}>
-                <Typography variant="h6" fontWeight={800} title={item.product?.name}>
+                <Typography
+                    variant="h6"
+                    fontWeight={800}
+                    title={item.product?.name}
+                    noWrap
+                    sx={{ fontSize: '1rem', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                >
                     {item.product?.name}
                 </Typography>
 
