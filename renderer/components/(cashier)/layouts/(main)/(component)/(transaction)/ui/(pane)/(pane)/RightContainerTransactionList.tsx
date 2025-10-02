@@ -54,7 +54,7 @@ const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ tr
     const isPendingPaid = (it: TransactionBatchesItems) => {
         const bills = it?.batch?.transaction?.bills ?? []
         return bills.some((b: any) =>
-            (b?.paid === undefined || b?.paid?.status === false) &&
+            (b?.paid === null || b?.paid?.status === false) &&
             (b?.items ?? []).some((bi: any) => bi?.transactionItem?.id === it.id)
         )
     }
@@ -72,9 +72,6 @@ const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ tr
     // 🔽 NEW: apply filter sebelum render
     const filteredItems = items.filter(matchItem)
 
-    React.useEffect(() => {
-
-    },[ selectedBatchId ])
 
     return (
         <Box sx={{ flex: 1, minHeight: 0, px: 1.5, height: '100%' }}>
@@ -95,7 +92,7 @@ const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ tr
                             const totalLabel = rupiah(it.sub_total || it.price || 0)
 
                             return (
-                                <Grid key={it.id} size={{ xs: 12, sm: 6, md: 3, lg: 2 }}>
+                                <Grid key={it.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                                     <RightContainerBatchDetailRow
                                         item={it}
                                         totalLabel={totalLabel}

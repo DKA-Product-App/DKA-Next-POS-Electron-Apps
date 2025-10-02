@@ -30,7 +30,7 @@ const rupiah = (n: number | string) =>
         .format(typeof n === 'string' ? parseFloat(n) : n)
 
 const LeftContainerBatchListNewOrder: React.FC<{ transactionId: string }> = ({ transactionId }) => {
-    const { txId, grandTotal, setGrandTotal, selectedBatchId, setSelectedBatchId, reloadKey, clearSelection } = useTx();
+    const { txId, grandTotal, setGrandTotal, selectedBatchId, setSelectedBatchId, reloadKey, clearSelection, bumpReload } = useTx();
     const { bump } = useTransactionEventTrigger()
     const { setDefaultValue, setDisableOtherDefault } = useDiningMode();
     const { Session } = useSession();
@@ -100,9 +100,11 @@ const LeftContainerBatchListNewOrder: React.FC<{ transactionId: string }> = ({ t
         })
             .then(({ data }) => {
                 // 3) set selection ke batch yang baru dibuat (opsional)
-                bump();
+                bumpReload()
+                bump('batch')
+                bump('pay')
+                clearSelection()
                 clearSelection();
-                setSelectedBatchId(data.id)
                 // 5) tutup dialog — layout di belakang tetap stay
                 closeDialog()
             })

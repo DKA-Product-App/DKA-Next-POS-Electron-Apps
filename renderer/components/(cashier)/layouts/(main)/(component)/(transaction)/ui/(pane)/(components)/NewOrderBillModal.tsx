@@ -77,9 +77,9 @@ type Props = {
     transaction: Transaction
 }
 
-const totalItems = (o: Transaction) => (o.batches ?? []).reduce((acc, b) => acc + (b.items ?? []).length, 0)
-const pickBills = (o: Transaction) => o?.bills ?? []
-const getPendingActive = (o: Transaction) => {
+const totalItems = (o?: Transaction) => (o?.batches ?? []).reduce((acc, b) => acc + (b.items ?? []).length, 0)
+const pickBills = (o?: Transaction) => o?.bills ?? []
+const getPendingActive = (o?: Transaction) => {
     const bills = pickBills(o);
 
     // Kumpulin semua id item transaksi (o.batches[].items[].id)
@@ -123,7 +123,7 @@ const getPendingActive = (o: Transaction) => {
 };
 
 export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan', variant = 'contained', transaction }: Props) {
-    const { txId, bumpReload, clearSelection} = useTx()
+    const { txId, bumpReload, clearSelection, setReloadKey } = useTx()
     const {bump} = useTransactionEventTrigger()
     const isClosed = Boolean(transaction?.time_closed);
 
@@ -235,6 +235,7 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
                     onPaySuccess={() => {
                         bumpReload()
                         bump('batch')
+                        bump('pay')
                         clearSelection()
                     }}
                 />)
@@ -244,6 +245,7 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
                         bumpReload();
                         // 4) ping global kalau ada listener lain (boleh dipertahankan)
                         bump('batch');
+                        bump('pay')
                         clearSelection();
                     } catch {
                     }

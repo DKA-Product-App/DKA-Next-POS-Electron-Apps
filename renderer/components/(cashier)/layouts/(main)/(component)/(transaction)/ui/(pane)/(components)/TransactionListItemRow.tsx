@@ -27,57 +27,84 @@ const totalItems = (o: Transaction) => (o.batches ?? []).reduce((acc, b) => acc 
 const totalBatches = (o: Transaction) => (o.batches ?? []).length
 
 // ====== Bills-aware helpers ======
-const isVoided = (i: TransactionBatchesItems) => i?.void?.is_approved === true
-const isPendingVoided = (i: TransactionBatchesItems) => i?.void?.is_approved === false
 const pickBills = (o: Transaction) => o.bills ?? [];
+const getStatusSummary = (o: Transaction) => {
+    const bills = (pickBills(o) ?? []);
+    const allItems = (o?.batches ?? []).flatMap(b => Array.isArray(b?.items) ? b.items : []);
 
-const isSuccessPaidItem = (item: TransactionBatchesItems, bills: TransactionBills[]) =>
-    bills?.some((bill) =>
-        (bill?.paid != null && bill?.paid?.status === true) &&
-        Array.isArray(bill?.items) &&
-        bill.items.some((bi: any) => bi?.transactionItem?.id === item?.id)
-    )
-
-const getPendingActive = (o: Transaction) => {
-    const bills = pickBills(o);
-
-    const ids =
-        (o?.batches ?? [])
-            .flatMap((bt) => Array.isArray(bt?.items) ? bt.items : [])
-            .filter(it => it && (it.void?.is_approved !== true)) // tidak void approved
-            .map((it: any) => it?.id)
-            .filter(Boolean);
-
-    const allBillIdSet = new Set(
-        bills
-            .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
-            .map((bi: any) => bi?.transactionItem?.id)
-            .filter(Boolean)
+    // --- Kumpulan ID item transaksi (stringified), skip null/undefined
+    const allItemIdsSet = new Set(
+        allItems.map(it => it?.id != null ? String(it.id) : undefined).filter(Boolean) as string[]
     );
 
-    const pendingBillIdSet = new Set(
-        bills
-            .filter((b) => (b?.paid === undefined) || (b?.paid?.status === false))
-            .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
-            .map((bi: any) => bi?.transactionItem?.id)
-            .filter(Boolean)
+    // --- VOID
+    const voidPendingIdsSet = new Set(
+        allItems
+            .filter(it => it?.void?.is_approved === false)
+            .map(it => it?.id != null ? String(it.id) : undefined)
+            .filter(Boolean) as string[]
     );
 
-    const paidBillIdSet = new Set(
-        bills
-            .filter((b) => (b?.paid !== undefined) || (b?.paid?.status === true))
-            .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
-            .map((bi: any) => bi?.transactionItem?.id)
-            .filter(Boolean)
+    const voidApprovedIdsSet = new Set(
+        allItems
+            .filter(it => it?.void?.is_approved === true)
+            .map(it => it?.id != null ? String(it.id) : undefined)
+            .filter(Boolean) as string[]
     );
 
-    const pending = ids.filter((id: any) => pendingBillIdSet.has(id)).length;
-    const paid  = ids.filter((id: any) => paidBillIdSet.has(id)).length;
-    const active  = ids.filter((id: any) => !allBillIdSet.has(id)).length;
+    // --- BILLED
+    const billedItemIdsSet = new Set(
+        bills
+            .flatMap(b => Array.isArray(b?.items) ? b.items : [])
+            .map(bi => bi?.transactionItem?.id != null ? String(bi.transactionItem.id) : undefined)
+            .filter(Boolean) as string[]
+    );
 
-    return { pending, active, paid };
+    const paidBillItemIdsSet = new Set(
+        bills
+            .filter(b => b?.paid?.status === true)
+            .flatMap(b => Array.isArray(b?.items) ? b.items : [])
+            .map(bi => bi?.transactionItem?.id != null ? String(bi.transactionItem.id) : undefined)
+            .filter(Boolean) as string[]
+    );
+
+    const pendingBillItemIdsSet = new Set(
+        bills
+            .filter(b => !b?.paid || b?.paid?.status === false)
+            .flatMap(b => Array.isArray(b?.items) ? b.items : [])
+            .map(bi => bi?.transactionItem?.id != null ? String(bi.transactionItem.id) : undefined)
+            .filter(Boolean) as string[]
+    );
+
+    // --- Array aman buat filter (hindari TS2802)
+    const allIds = Array.from(allItemIdsSet);
+
+    // Catatan: item yang pending/approved void dikeluarkan dari paid/pending/unpaid
+    const notVoided = (id: string) => !voidPendingIdsSet.has(id) && !voidApprovedIdsSet.has(id);
+
+    const pendingVoidIds = Array.from(voidPendingIdsSet);
+    const voidedIds      = Array.from(voidApprovedIdsSet);
+    const pendingPaidIds = allIds.filter(id => pendingBillItemIdsSet.has(id) && notVoided(id));
+    const paidIds        = allIds.filter(id => paidBillItemIdsSet.has(id)    && notVoided(id));
+    const unpaidIds      = allIds.filter(id => !billedItemIdsSet.has(id)     && notVoided(id));
+
+    return {
+        counts: {
+            pendingVoid: pendingVoidIds.length,
+            void: voidedIds.length,
+            pendingPaid: pendingPaidIds.length,
+            paid: paidIds.length,
+            unpaid: unpaidIds.length,
+        },
+        ids: {
+            pendingVoid: pendingVoidIds,
+            void: voidedIds,
+            pendingPaid: pendingPaidIds,
+            paid: paidIds,
+            unpaid: unpaidIds,
+        },
+    };
 };
-
 // Total harga transaksi, skip void-approved & success-paid
 const totalPrices = (o: Transaction) => {
     const paidTxnItemIds = o.bills
@@ -229,13 +256,14 @@ export const TransactionListItemRow: React.FC<{
     const qtys = totalQty(o)
     const items = totalItems(o)
     const batches = totalBatches(o)
-    const { pending, active, paid } = getPendingActive(o);
+    const { counts } = getStatusSummary(o);
     const { orders } = totalPrices(o) // <-- sudah skip pending-paid & void
     const isClosed = Boolean(o.time_closed)
 
     // ★ flags/gradients
-    const hasPending = pending > 0
-    const allSuccessPaid = pending === 0 && active === 0
+    const hasPending = counts.pendingPaid > 0
+    const allSuccessPaid = counts.pendingPaid === 0 && counts.unpaid === 0 && ((counts.paid + counts.void) === items)
+
     const GRAD_WARN_TO_SUCCESS = 'linear-gradient(90deg, #F59E0B, #10B981)'
     const GRAD_ERROR_TO_WARN   = 'linear-gradient(90deg, #EF4444, #F59E0B)'
     const GRAD_GRAY            = 'linear-gradient(90deg, #9CA3AF, #6B7280)'

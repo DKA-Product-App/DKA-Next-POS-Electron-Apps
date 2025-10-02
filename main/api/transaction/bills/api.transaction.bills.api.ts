@@ -123,7 +123,7 @@ export function TransactionBills(mainWindow ?: BrowserWindow) {
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
                 url: toPath(params),
-                method: "PUT",
+                method: "PATCH",
                 data: data,
             })
                 .then((response) => {

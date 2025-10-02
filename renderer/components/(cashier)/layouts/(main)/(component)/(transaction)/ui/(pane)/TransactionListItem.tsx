@@ -21,6 +21,7 @@ import ShimmerLoadingTransactionContainer from '../(loading)/ShimmerLoadingTrans
 import { useTransactionEventTrigger } from './context/TransactionEventTriggerContext'
 import { useSession } from '../../../../../../../../contexts/SessionProviderContext'
 import { Transaction } from '../types/api.transaction.type'
+import {useEffect} from "react";
 
 // ===== Const =====
 const TZ_OFFSET = '+08:00' // Asia/Makassar
@@ -133,7 +134,7 @@ const TransactionListItem: React.FC = () => {
                 return undefined
             })
             .finally(() => setIsFetching(false))
-    }, [filters, Session?.id])
+    }, [filters, Session?.id, reloadKey])
 
     // === FETCH by date range ===
     React.useEffect(() => {
@@ -211,8 +212,9 @@ const TransactionListItem: React.FC = () => {
         if (!token) return
         lastReasonRef.current = reason ?? null
         setFetchError(null)
-        softRefetch()
     }, [token, reason, softRefetch])
+
+
 
     // b) kalau reason === 'batch' → set ujung slider ke puncak (bukan computed)
     React.useEffect(() => {
@@ -310,9 +312,12 @@ const TransactionListItem: React.FC = () => {
         }
     }, [filtered, singleSelectedId, setLayout])
 
+    React.useEffect(() => {
+        softRefetch();
+    }, [token, reason]);
     // Handler single select via row click (TOGGLE on second click)
     const onRowClick = (id: string) => {
-        softRefetch()
+        softRefetch();
         setSingleSelectedId(prev => {
             if (prev === id) {
                 setLayout(p => ({ ...p, right: <TransactionListItemNotFound /> }))

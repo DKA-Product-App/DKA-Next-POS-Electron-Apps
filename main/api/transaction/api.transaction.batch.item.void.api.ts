@@ -4,11 +4,11 @@ import qs from "qs";
 import { ApiConfig } from "../../config/api.config";
 import { ApiRequestInstance } from "../../functions/api/api.request.instance";
 
-export function TransactionBatchItem(mainWindow ?: BrowserWindow) {
+export function TransactionBatchItemVoid(mainWindow ?: BrowserWindow) {
     // CREATE
-    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:create", (_event, args) => {
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item.void:create", (_event, args) => {
 
-        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item`);
+        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item/void`);
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
                 url: toPath(),
@@ -45,8 +45,8 @@ export function TransactionBatchItem(mainWindow ?: BrowserWindow) {
         });
     });
     // READ ALL
-    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:read.all", (_event, args) => {
-        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item`);
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item.void:read.all", (_event, args) => {
+        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item/void`);
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
                 url: toPath(),
@@ -84,8 +84,8 @@ export function TransactionBatchItem(mainWindow ?: BrowserWindow) {
         });
     });
     // READ ONE
-    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:read.one", (_event, args) => {
-        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item/:id`);
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item.void:read.one", (_event, args) => {
+        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item/void/:id`);
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
                 url: toPath(args),
@@ -121,53 +121,13 @@ export function TransactionBatchItem(mainWindow ?: BrowserWindow) {
         });
     });
     // UPDATE ONE
-    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:update.one", (_event, { params, data }) => {
-        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item/:id`);
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item.void:update.one", (_event, args) => {
+        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item/void/:id`);
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
-                url: toPath(params),
-                method: "PATCH",
-                data: data,
-            })
-                .then((response) => {
-                    const data = response?.data;
-                    return resolve({ ...data });
-                })
-                .catch((err) => {
-                    const pack = (payload: any) => {
-                        const e = new Error(JSON.stringify(payload)); // <-- kirim JSON di message
-                        (e as any).data = payload;                    // <-- bonus: taruh raw data kalau Electron gak nyopot
-                        (e as any).code = payload?.code ?? 530;
-                        return reject(e);
-                    };
-
-                    if (err?.response?.data) return pack(err.response.data);
-
-                    const code = err?.code;
-                    if (code === "ENOTFOUND")    return pack({ status: false, code: 530, msg: "Host tidak ditemukan" });
-                    if (code === "ECONNREFUSED") return pack({ status: false, code: 530, msg: "Koneksi ditolak oleh server" });
-                    if (code === "ETIMEDOUT" || code === "ECONNABORTED")
-                        return pack({ status: false, code: 530, msg: "Waktu koneksi habis" });
-
-                    const isNetwork = typeof err?.message === "string" && err.message.includes("Network Error");
-                    return pack({
-                        status: false,
-                        code: 530,
-                        msg: isNetwork ? "Jaringan/offline atau server tidak dapat dijangkau" : "Gagal menghubungi server"
-                    });
-                });
-        });
-    });
-
-    // UPDATE ONE
-    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:update.many", (_event, { query, data }) => {
-        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item`);
-        return new Promise(async (resolve, reject) => {
-            return ApiRequestInstance({
-                url: toPath(),
-                method: "PATCH",
-                params: query,
-                data: data,
+                url: toPath(args),
+                method: "PUT",
+                data: args,
             })
                 .then((response) => {
                     const data = response?.data;
@@ -199,8 +159,8 @@ export function TransactionBatchItem(mainWindow ?: BrowserWindow) {
         });
     });
     // DELETE ONE
-    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:delete.one", (_event, args) => {
-        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item/:id`);
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item.void:delete.one", (_event, args) => {
+        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item/void/:id`);
         return new Promise(async (resolve, reject) => {
             return ApiRequestInstance({
                 url: toPath(args),
@@ -237,4 +197,4 @@ export function TransactionBatchItem(mainWindow ?: BrowserWindow) {
     });
 }
 
-export default TransactionBatchItem;
+export default TransactionBatchItemVoid;

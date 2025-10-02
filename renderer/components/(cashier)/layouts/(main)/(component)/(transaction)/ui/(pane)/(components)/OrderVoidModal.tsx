@@ -19,33 +19,43 @@ const rupiah = (n: number | string) =>
 const toButtonColor = (c: IconButtonProps['color']): ButtonProps['color'] =>
     c === 'default' ? 'primary' : (c as ButtonProps['color'])
 
-export default function OrderVoidModal({ transaction } : { transaction: Transaction }) {
+export default function OrderVoidModal({ transaction } : { transaction?: Transaction }) {
     const { txId, selectedItemIds, selectedTotal, clearSelection, bumpReload } = useTx()
     const { Session } = useSession();
     const [open, setOpen] = React.useState(false)
     const [reason, setReason] = React.useState('')
 
-    const isClosed = Boolean(transaction.time_closed)
+    const isClosed = Boolean(transaction?.time_closed)
     const disabled = selectedItemIds.size === 0 || isClosed
 
     const kasirName = React.useMemo(() => {
-        const n = transaction.reference?.name
+        const n = transaction?.reference?.name
         return [n?.first_name, n?.last_name].filter(Boolean).join(' ') || '-'
-    }, [transaction.reference])
+    }, [transaction?.reference])
 
     const handleOpen  = () => setOpen(true)
     const handleClose = () => { setOpen(false); setReason('') }
 
-    const handleConfirm = () =>
-        // @ts-ignore – sesuaikan channel IPC kalau namanya beda
-        window.api.invoke('api.transaction.item:void', {
-            reference : { id : Session.id },
-            transaction_id: txId,
-            item_ids: Array.from(selectedItemIds),
-            reason: reason || undefined,
+    const handleConfirm = () => {
+        return window.api.invoke('api.transaction.batch.item:update.many', {
+            query : {
+                ids: Array.from(selectedItemIds),
+            },
+            data: {
+                void: {
+                    reason: reason || undefined,
+                }
+            }
         })
-            .then(() => { clearSelection(); bumpReload(); handleClose() })
-            .catch(() => {})
+            .then((result) => {
+                console.log(result)
+                clearSelection(); bumpReload(); handleClose()
+            })
+            .catch((error) => {
+                console.error(error);
+                clearSelection(); bumpReload(); handleClose()
+            })
+    }
 
     return (
         <>
@@ -86,7 +96,7 @@ export default function OrderVoidModal({ transaction } : { transaction: Transact
 
                     <Alert severity="warning" variant="outlined">
                         <Typography variant="body2">
-                            Saya <b>{kasirName}</b> yang bertugas pada <b>{transaction.shift?.name ?? '-'}</b> ingin mengajukan void
+                            Saya <b>{kasirName}</b> yang bertugas pada <b>{transaction?.shift?.name ?? '-'}</b> ingin mengajukan void
                             dengan alasan di bawah ini. Segala macam risiko yang timbul akan menjadi tanggung jawab saya selama bertugas.
                             Yakin ingin mengajukan void?
                         </Typography>
