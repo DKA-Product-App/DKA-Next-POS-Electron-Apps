@@ -46,7 +46,7 @@ const BillsListItemRowModel1: React.FC<Props> = ({ bill, selected, onRowClick })
     const chipColor = isPaid ? 'success' : 'default'
 
     // waktu tampil: prioritas paid.time; fallback time_created/transaction/time item
-    const paidAt = bill.paid?.time
+    const paidAt = bill.paid?.time_updated
     const issuedAt = bill.time_created || bill.transaction?.time_created || bill.items?.[0]?.time_created
     const displayTime = paidAt ?? issuedAt
 
