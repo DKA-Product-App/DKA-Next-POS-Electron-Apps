@@ -6,9 +6,6 @@ import type { ProductsVariants } from '../types/products.variants.type'
 
 /* =========================
  *  TIPE DATA BARU
- *  - CartItem langsung pegang variant (full object)
- *  - key = variant.id (unique)
- *  - price = Number(variant.price) aman utk "31000.00"
  * ========================= */
 export type CartItem = {
     key: string
@@ -21,7 +18,6 @@ export type CartItem = {
 type CartState = {
     items: CartItem[]
     onSubmit: (() => void) | undefined
-    taxRate: number
 }
 
 type Action =
@@ -30,7 +26,6 @@ type Action =
     | { type: 'DEC'; payload: { key: string } }
     | { type: 'REMOVE'; payload: { key: string } }
     | { type: 'CLEAR' }
-    | { type: 'SET_TAX_RATE'; payload: { taxRate: number } }
     | { type: 'SET_DESC'; payload: { key: string; description: string } } // tetap kompatibel – map ke "note"
 
 const CartStateCtx = React.createContext<CartState | null>(null)
@@ -40,7 +35,6 @@ const CartActionsCtx = React.createContext<{
     dec: (key: string) => void
     remove: (key: string) => void
     clear: () => void
-    setTaxRate: (n: number) => void
     setDescription: (key: string, description: string) => void
 } | null>(null)
 
@@ -99,8 +93,6 @@ const reducer = (state: CartState, action: Action): CartState => {
 
     if (action.type === 'CLEAR') return { ...state, items: [] }
 
-    if (action.type === 'SET_TAX_RATE') return { ...state, taxRate: action.payload.taxRate }
-
     if (action.type === 'SET_DESC') {
         const items = state.items.map(it =>
             it.key === action.payload.key ? { ...it, note: action.payload.description } : it
@@ -113,27 +105,20 @@ const reducer = (state: CartState, action: Action): CartState => {
 
 /* =========================
  *  STORAGE (NO-OP)
- *  - Tidak membaca/menulis ke storage.
- *  - loadInitialState selalu start fresh dari memori.
  * ========================= */
-
-const loadInitialState = (initialTaxRate: number): CartState => {
-    // Tidak membaca sessionStorage/localStorage
-    return { items: [], onSubmit: undefined, taxRate: initialTaxRate }
-}
-
+const loadInitialState = (): CartState => ({
+    items: [],
+    onSubmit: undefined,
+})
 
 /* =========================
  *  PROVIDER
  * ========================= */
-export const CartProvider: React.FC<{
-    children: React.ReactNode
-    initialTaxRate?: number
-}> = ({ children, initialTaxRate = 0.11 }) => {
+export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [state, dispatch] = React.useReducer(
         reducer,
         undefined as unknown as CartState,
-        () => loadInitialState(initialTaxRate)
+        loadInitialState
     )
 
     const valueActions = React.useMemo(
@@ -143,7 +128,6 @@ export const CartProvider: React.FC<{
             dec: (key: string) => dispatch({ type: 'DEC', payload: { key } }),
             remove: (key: string) => dispatch({ type: 'REMOVE', payload: { key } }),
             clear: () => dispatch({ type: 'CLEAR' }),
-            setTaxRate: (n: number) => dispatch({ type: 'SET_TAX_RATE', payload: { taxRate: n } }),
             setDescription: (key: string, description: string) =>
                 dispatch({ type: 'SET_DESC', payload: { key, description } }),
         }),
@@ -175,13 +159,16 @@ export const useCartActions = () => {
 }
 
 export const useCartMoney = () => {
-    const { items, taxRate } = useCart()
+    const { items } = useCart()
+
     const subtotal = React.useMemo(
         () => items.reduce((acc, it) => acc + it.price * it.qty, 0),
         [items]
     )
-    const tax = React.useMemo(() => Math.round(subtotal * taxRate), [subtotal, taxRate])
-    const total = subtotal + tax
+
+    // TANPA TAX: total = subtotal
+    const total = subtotal
+
     const rupiahFmt = React.useMemo(
         () =>
             new Intl.NumberFormat('id-ID', {
@@ -192,6 +179,6 @@ export const useCartMoney = () => {
         []
     )
     const rupiah = (n: number) => rupiahFmt.format(n)
-    const taxRatePct = Math.round(taxRate * 100)
-    return { subtotal, tax, total, rupiah, taxRatePct }
+
+    return { subtotal, total, rupiah }
 }

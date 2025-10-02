@@ -132,13 +132,11 @@ const HeaderBar: React.FC<{ count: number; onClear: () => void }> = ({ count, on
 // ==== Footer
 const FooterBar: React.FC<{
     subtotal: number;
-    tax: number;
     total: number;
-    taxRatePct: number;
     rupiah: (n: number) => string;
     disabled: boolean;
     onClick?: () => void;
-}> = ({ subtotal, tax, total, taxRatePct, rupiah, disabled, onClick }) => (
+}> = ({ subtotal, total, rupiah, disabled, onClick }) => (
     <Box sx={{ position: "sticky", bottom: 0, zIndex: 2 }}>
         <Box
             sx={{
@@ -157,10 +155,6 @@ const FooterBar: React.FC<{
                 <Stack direction="row" justifyContent="space-between">
                     <Typography color="text.secondary">Subtotal</Typography>
                     <Typography sx={{ fontVariantNumeric: "tabular-nums" }}>{rupiah(subtotal)}</Typography>
-                </Stack>
-                <Stack direction="row" justifyContent="space-between">
-                    <Typography color="text.secondary">Pajak ({taxRatePct}%)</Typography>
-                    <Typography sx={{ fontVariantNumeric: "tabular-nums" }}>{rupiah(tax)}</Typography>
                 </Stack>
 
                 <Divider sx={{ my: 0.75 }} />
@@ -207,7 +201,7 @@ const FooterBar: React.FC<{
 const PreviewSelectCheckout: React.FC<{ onSubmit?: (item : CartItem[]) => void }> = ({ onSubmit }) => {
     const { items } = useCart();
     const { inc, dec, remove, clear } = useCartActions();
-    const { subtotal, tax, total, rupiah, taxRatePct } = useCartMoney();
+    const { subtotal, total, rupiah } = useCartMoney();
 
     const refMap = React.useRef<Record<string, DetailItemHandle | null>>({});
 
@@ -360,9 +354,7 @@ const PreviewSelectCheckout: React.FC<{ onSubmit?: (item : CartItem[]) => void }
 
             <FooterBar
                 subtotal={subtotal}
-                tax={tax}
                 total={total}
-                taxRatePct={taxRatePct}
                 rupiah={rupiah}
                 disabled={items.length === 0}
                 onClick={onClickSubmit}
