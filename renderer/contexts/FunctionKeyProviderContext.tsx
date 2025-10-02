@@ -2,62 +2,122 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 
-type FunctionKeyEvent = {
-    key?: string           // "F1"..."F12"
-    seq: number            // auto-increment setiap event
-    at: number             // timestamp (Date.now())
+/* =========================
+   Types
+   ========================= */
+
+export type FnKey = `F${1|2|3|4|5|6|7|8|9|10|11|12}`
+export type Shortcut = { key: FnKey; label: string; }
+
+type FunctionKeyContextValue = {
+    /** last pressed info */
+    key?: FnKey
+    seq: number
+    at: number
+
+    /** sorted menu F1..F12 */
+    menu: Shortcut[]
+
+    /** CRUD (immutables, no for-loops) */
+    add: (s: Shortcut) => void
+    update: (key: FnKey, patch: Partial<Shortcut>) => void
+    remove: (key: FnKey) => void
+    move: (fromIdx: number, toIdx: number) => void
+    setMenu: React.Dispatch<React.SetStateAction<Shortcut[]>>
 }
 
-type FunctionKeyContextValue = FunctionKeyEvent
+
+const CHANNEL = 'shortcut'
+const ALLOWED = new Set(Array.from({ length: 12 }, (_, i) => `F${i + 1}` as FnKey))
+
+const DEFAULT_MENU: Shortcut[] = [
+    { key: 'F7', label: 'Layar Penuh' },
+    { key: 'F8', label: 'Dev Mode' },
+]
+
+const sortMenu = (arr: Shortcut[]) =>
+    [...arr].sort((a, b) => Number(a.key.slice(1)) - Number(b.key.slice(1)))
+
+const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n))
+
+/* =========================
+   Context
+   ========================= */
 
 const FunctionKeyContext = createContext<FunctionKeyContextValue | undefined>(undefined)
 
-export function FunctionKeyProvider({ children }: { children: React.ReactNode }) {
+/* =========================
+   Provider
+   ========================= */
+
+export function FunctionKeyProvider({
+                                        children,
+                                        initialMenu,
+                                    }: {
+    children: React.ReactNode
+    /** seed optional (tetap in-memory, no persistence) */
+    initialMenu?: Shortcut[]
+}) {
     const seqRef = useRef(0)
-    const [evt, setEvt] = useState<FunctionKeyEvent>({ key: undefined, seq: 0, at: Date.now() })
-    useEffect(() => {
-        if (typeof window === 'undefined' || !window.shortcut) return
-        const handler = (args: string) => {
-            const k = String(args)
-            const nextSeq = ++seqRef.current;
-            // Update SELALU baru → memicu re-render walau key sama
-            setEvt({ key: k, seq: nextSeq, at: Date.now() })
-            // forward ke main process kalau perlu
-            window.shortcut.send('shortcut', k)
-        }
-        window.shortcut.on('shortcut', handler)
-        return () => {
-            // revoke sekali saat provider unmount
-            window.shortcut.revoke?.('shortcut')
-        }
-    }, [])
-    const value = useMemo(() => evt, [evt.seq]) // depend ke seq supaya konsumsi lean
-    return (
-        <FunctionKeyContext.Provider value={value}>
-            {children}
-        </FunctionKeyContext.Provider>
+    const [last, setLast] = useState<{ key?: FnKey; seq: number; at: number }>({ key: undefined, seq: 0, at: Date.now() })
+    const [rawMenu, setRawMenu] = useState<Shortcut[]>(
+        () => (initialMenu?.length ? initialMenu : DEFAULT_MENU)
     )
+
+    // subscribe event dari preload
+    useEffect(() => {
+        if (typeof window === 'undefined' || !window.shortcut?.on) return
+        const off = window.shortcut.on(CHANNEL, (payload: any) => {
+            const k = (typeof payload === 'string' ? payload : payload?.key) as FnKey
+            if (!k || !ALLOWED.has(k)) return
+            const nextSeq = ++seqRef.current
+            setLast({ key: k, seq: nextSeq, at: Date.now() })
+        })
+        return () => { typeof off === 'function' ? off() : undefined }
+    }, [])
+
+    /** CRUD */
+    const add = (s: Shortcut) =>
+        setRawMenu(prev => (!ALLOWED.has(s.key) || prev.some(x => x.key === s.key)) ? prev : [...prev, s])
+
+    const update = (key: FnKey, patch: Partial<Shortcut>) =>
+        setRawMenu(prev => prev.map(x => x.key === key ? ({ ...x, ...patch, key: (patch.key ?? x.key) as FnKey }) : x))
+
+    const remove = (key: FnKey) =>
+        setRawMenu(prev => prev.filter(x => x.key !== key))
+
+    const move = (fromIdx: number, toIdx: number) =>
+        setRawMenu(prev => {
+            const arr = [...prev]
+            const [it] = arr.splice(clamp(fromIdx, 0, arr.length - 1), 1)
+            return it ? (arr.splice(clamp(toIdx, 0, arr.length), 0, it), arr) : prev
+        })
+
+    /** menu yang di-expose: SELALU urut F1..F12 */
+    const menu = useMemo(() => sortMenu(rawMenu), [rawMenu])
+
+    const value = useMemo<FunctionKeyContextValue>(
+        () => ({ key: last.key, seq: last.seq, at: last.at, menu, add, update, remove, move, setMenu: setRawMenu }),
+        [last.seq, last.at, last.key, menu]
+    )
+
+    return <FunctionKeyContext.Provider value={value}>{children}</FunctionKeyContext.Provider>
 }
 
-// ======== Hooks pemakaian dasar ==========
-export function useFunctionKey() {
+/* =========================
+   Hooks
+   ========================= */
+
+export const useFunctionKeyCtx = () => {
     const ctx = useContext(FunctionKeyContext)
-    if (!ctx) throw new Error('useFunctionKey must be used inside FunctionKeyProvider')
+    if (!ctx) throw new Error('useFunctionKeyCtx must be used inside FunctionKeyProvider')
     return ctx
 }
 
-// ======== Hook event-style (recommended) ==========
-/**
- * Panggil callback SETIAP kali ada function key (termasuk jika key sama berulang).
- * Contoh:
- *   useOnFunctionKey(({key}) => { if(key==='F8') toggleDevtools() })
- */
-export function useOnFunctionKey(callback: (e: FunctionKeyEvent) => void) {
-    const evt = useFunctionKey()
-    const cbRef = useRef(callback)
-    useEffect(() => { cbRef.current = callback }, [callback])
-
-    useEffect(() => {
-        if (evt.seq > 0) cbRef.current(evt)
-    }, [evt.seq]) // trigger on every event
+/** Listener simple: dipanggil setiap ada key baru (berdasar seq naik) */
+export const useOnFunctionKey = (cb: (e: { key?: FnKey; seq: number; at: number }) => void) => {
+    const { key, seq, at } = useFunctionKeyCtx()
+    const ref = useRef(cb)
+    useEffect(() => { ref.current = cb }, [cb])
+    useEffect(() => { seq > 0 ? ref.current({ key, seq, at }) : undefined }, [seq, key, at])
 }

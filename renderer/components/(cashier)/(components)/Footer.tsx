@@ -3,19 +3,15 @@
 import * as React from 'react'
 import { Box, Typography, Stack, Chip, alpha } from '@mui/material'
 import dynamic from 'next/dynamic'
-
-type Shortcut = { key: string; label: string }
-
-const SHORTCUTS: Shortcut[] = [
-    { key: 'F7', label: 'Layar Penuh' },
-    { key: 'F8', label: 'Dev Mode' },
-]
+import {useFunctionKeyCtx} from "../../../contexts/FunctionKeyProviderContext";
 
 const UptimeWidget  = dynamic(() => import('./(ui)/UptimeWidget'),  { ssr: false })
 const BranchWidget  = dynamic(() => import('./(ui)/BranchWidget'),  { ssr: false })
 const ShiftWidget   = dynamic(() => import('./(ui)/ShiftWidget'),   { ssr: false })
 
 export default function Footer() {
+    const { menu } = useFunctionKeyCtx()
+
     return (
         <Box
             component="footer"
@@ -70,7 +66,7 @@ export default function Footer() {
         >
             {/* Kiri: shortcut keys */}
             <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
-                {SHORTCUTS.map((s) => (
+                {menu.map((s) => (
                     <Stack key={s.key} direction="row" spacing={1} alignItems="center">
                         <Chip
                             size="small"
@@ -127,7 +123,6 @@ export default function Footer() {
                     },
                 }}
             >
-                <UptimeWidget name="Uptime" description="00:00:00" />
                 <BranchWidget branchName="Cabang" registerName="Center Point Indonesia" />
                 <ShiftWidget label="Pagi" description="08:00–16:00" />
             </Stack>

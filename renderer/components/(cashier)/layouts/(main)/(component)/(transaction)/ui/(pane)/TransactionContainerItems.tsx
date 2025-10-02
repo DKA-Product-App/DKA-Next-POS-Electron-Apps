@@ -33,6 +33,7 @@ import LeftContainerBatchListNewOrder from './(pane)/(components)/LeftContainerB
 import { FilterOrderHeaderProvider } from './context/FilterOrderHeaderContext'
 import FilterOrderHeader from './(components)/FilterOrderHeader'
 import TaskAltRounded from "@mui/icons-material/TaskAltRounded";
+import {useFunctionKeyCtx} from "../../../../../../../../contexts/FunctionKeyProviderContext";
 
 /* ========= Utils ========= */
 const rupiah = (n: number | string) =>
@@ -155,7 +156,7 @@ const totalPrices = (o: Transaction) => {
 function Body({ tr }: { tr: Transaction }) {
     const { selectedItemIds, selectedTotal, clearSelection, reloadKey } = useTx()
     const [transaction, setTransaction] = React.useState<Transaction>(undefined)
-
+    const { setMenu, remove,  key, seq } = useFunctionKeyCtx()
     const isClosed = React.useMemo(() => Boolean(transaction?.time_closed), [transaction])
     const itemQty = React.useMemo(() => totalItems(transaction), [transaction])
     const { counts, ids } =  React.useMemo(() => getStatusSummary(transaction), [transaction])
@@ -166,6 +167,21 @@ function Body({ tr }: { tr: Transaction }) {
     )
 
     const isSplitMode = (selectedItemIds?.size ?? 0) > 0
+
+
+    React.useEffect(() => {
+        if (!isClosed){
+            setMenu((prev) => {
+                return [
+                    ...prev,
+                    { key : "F3", label: `Order Lagi` }
+                ]
+            })
+            return () => {
+                remove("F3")
+            }
+        }
+    }, [isClosed, transaction])
 
     React.useEffect(() => {
         window.api.invoke('api.transaction:read.one', {

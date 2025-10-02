@@ -1,57 +1,45 @@
-import { app, globalShortcut, BrowserWindow, Menu } from 'electron';
-
-
+// main/key-event.ts
+import { app, globalShortcut, BrowserWindow } from 'electron';
 
 const FN_KEYS = Array.from({ length: 12 }, (_, i) => `F${i + 1}` as const);
 type FnKey = typeof FN_KEYS[number];
 
+const CHANNEL = 'shortcut';
+
 export function KeyEvent() {
     let registered = false;
-    // Daftarkan global shortcuts saat window fokus, lepas saat blur.
-    // Ini biar gak "nyolong" F-keys waktu user pindah app lain.
+
+    const broadcast = (key: string, origin: 'global' | 'before-input') =>
+        BrowserWindow.getAllWindows().forEach(w =>
+            w.webContents.send(CHANNEL, { key, origin })
+        );
+
+    // Daftarkan global F1..F12 hanya saat ada window fokus
     const registerGlobals = () => {
         if (registered || !app.isReady()) return false;
-        registered = FN_KEYS
-            .map(k => globalShortcut.register(k, () => {
-                BrowserWindow
-                    .getAllWindows()
-                    .forEach(w => w.webContents.send('shortcut', k));
-            }))
-            .every(Boolean);
+        registered = FN_KEYS.map(k => globalShortcut.register(k, () => broadcast(k, 'global'))).every(Boolean);
         return registered;
     };
-    const unregisterGlobals = () => {
-        globalShortcut.unregisterAll();
-        registered = false;
-    };
 
-    // Pasang pencegah default behavior Chromium di satu window
-    const preventBrowserDefaults = (win: BrowserWindow) => {
+    const unregisterGlobals = () => (globalShortcut.unregisterAll(), registered = false);
+
+    // Blok default Chromium (F5/F11/F12, Ctrl/Cmd+R/I, F10 menu focus) → teruskan ke renderer
+    const preventBrowserDefaults = (win: BrowserWindow) =>
         win.webContents.on('before-input-event', (event, input) => {
-            const isFn = (FN_KEYS as readonly string[]).includes(input.key);
+            const isFn = (FN_KEYS as readonly string[]).includes(input.key as FnKey);
             const isReload = input.key === 'F5' || (input.key === 'R' && (input.control || input.meta));
             const isHardReload = input.key === 'R' && (input.control || input.meta) && input.shift;
             const isFullscreen = input.key === 'F11';
             const isDevtools = input.key === 'I' && (input.control || input.meta) && input.shift;
-            const shouldBlock = isFn || isReload || isHardReload || isFullscreen || isDevtools;
-            // Blok default & teruskan info kuncinya ke renderer biar bisa kamu handle
-            if (shouldBlock){
-                event.preventDefault();
-                win.webContents.send('shortcut', input.key)
-            }
+            const isMenuFocus = input.key === 'F10';
+            const shouldBlock = isFn || isReload || isHardReload || isFullscreen || isDevtools || isMenuFocus;
+
+            shouldBlock ? (event.preventDefault(), broadcast(input.key, 'before-input')) : null;
         });
-    };
 
-    // Auto pasang ke window mana pun yang dibuat (gak perlu ubah signature mainWindow())
-    app.on('browser-window-created', (_e, win) => {
-        preventBrowserDefaults(win);
-    });
-
-    // Registrasi global saat app window fokus, dan lepas saat blur
+    app.on('browser-window-created', (_e, win) => preventBrowserDefaults(win));
     app.on('browser-window-focus', registerGlobals);
     app.on('browser-window-blur', unregisterGlobals);
-
-    // Bersih saat quit
     app.on('will-quit', unregisterGlobals);
 }
 

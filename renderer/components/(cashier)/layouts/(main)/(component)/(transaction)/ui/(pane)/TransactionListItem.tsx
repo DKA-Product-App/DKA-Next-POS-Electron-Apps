@@ -22,6 +22,7 @@ import { useTransactionEventTrigger } from './context/TransactionEventTriggerCon
 import { useSession } from '../../../../../../../../contexts/SessionProviderContext'
 import { Transaction } from '../types/api.transaction.type'
 import {useEffect} from "react";
+import {useFunctionKeyCtx} from "../../../../../../../../contexts/FunctionKeyProviderContext";
 
 // ===== Const =====
 const TZ_OFFSET = '+08:00' // Asia/Makassar
@@ -82,6 +83,7 @@ const TransactionListItemNotFound = dynamic(() => import('./(components)/Transac
 const TransactionListItem: React.FC = () => {
     const { setLayout } = useLayoutManipulatorResizable()
     const { Session } = useSession()
+    const { setMenu, remove,  key, seq } = useFunctionKeyCtx()
     const [transaction, setTransaction] = React.useState<Array<Transaction>>([])
 
     // ✅ Pisah state: single vs multi
@@ -329,6 +331,18 @@ const TransactionListItem: React.FC = () => {
         })
     }
 
+    React.useEffect(() => {
+        setMenu((prev) => {
+            return [
+                ...prev,
+                { key : "F2", label: `Order baru` }
+            ]
+        })
+        return () => {
+            remove("F2")
+        }
+    }, [])
+
     // Handler multi-select via checkbox ONLY (guard: cegah add jika closed)
     const onToggleMulti = (id: string, checked: boolean) =>
         setMultiSelectedIds(prev => {
@@ -451,7 +465,7 @@ const TransactionListItem: React.FC = () => {
             >
                 <Stack direction="row" spacing={1.25} alignItems="center" justifyContent="flex-end" sx={{ flexShrink: 0 }}>
                     {/* pakai softRefetch biar tidak bikin remount */}
-                    <NewOrderModal onCreated={softRefetch} />
+                    <NewOrderModal onCreated={softRefetch}  />
                     <TransactionButtonJoinBillWidget
                         key={`join-${selectedCount}`}
                         selectedIds={Array.from(multiSelectedIds)}

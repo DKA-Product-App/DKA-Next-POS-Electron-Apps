@@ -17,6 +17,7 @@ import { useTheme } from '@mui/material/styles'
 import { useThemeCharger } from '../../../../../../../context/ThemeCharger'
 import normalizeIpcError from "../../../../../../../../../helpers/electronMessageErrorEsctration";
 import { useSession } from '../../../../../../../../../contexts/SessionProviderContext'
+import {useFunctionKeyCtx} from "../../../../../../../../../contexts/FunctionKeyProviderContext";
 
 // === Dynamically loaded pages ===
 const Billing = dynamic(() => import('../../../../../../(select-product)'), { ssr: false })
@@ -28,7 +29,7 @@ const DiningModeWidget = dynamic(
 
 
 
-type Props = { onCreated?: () => void }
+type Props = { onCreated?: () => void;  }
 type Option = {
     id: string; code: string; icon: string; name: string;
     description?: string; required_table_select?: boolean
@@ -57,6 +58,7 @@ const DiningIntro: React.FC = () => (
 const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
     const [open, setOpen] = useState(false)
     const { Session } = useSession();
+    const { key, seq } = useFunctionKeyCtx()
     // wizard data
     const [orderType, setOrderType] = useState<Option | undefined>(undefined)
     const needTable = !!orderType?.required_table_select
@@ -88,6 +90,16 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
         setActiveStep(0)
     }, [])
 
+    useEffect(() => {
+        switch (key) {
+            case "F2" :
+                setOpen((prevState) => {
+                    prevState ? closeDialog() : openDialog();
+                    return null;
+                })
+                break;
+        }
+    }, [seq]);
     /* ---------- submit ---------- */
     const submitOrder = useCallback((items: Item[]) => {
         if (!orderType?.id) {

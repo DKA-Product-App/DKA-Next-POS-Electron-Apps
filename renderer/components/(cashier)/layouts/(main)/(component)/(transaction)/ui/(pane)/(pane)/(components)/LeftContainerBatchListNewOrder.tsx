@@ -22,6 +22,8 @@ import {useTransactionEventTrigger} from "../../context/TransactionEventTriggerC
 import {useSession} from "../../../../../../../../../../contexts/SessionProviderContext";
 import {Transaction, TransactionBatches } from "../../../types/api.transaction.type";
 import {AxiosResponse} from "axios";
+import {useEffect} from "react";
+import {useFunctionKeyCtx} from "../../../../../../../../../../contexts/FunctionKeyProviderContext";
 
 const Billing = dynamic(() => import('../../../../../../../(select-product)'), { ssr: true })
 
@@ -32,6 +34,7 @@ const rupiah = (n: number | string) =>
 const LeftContainerBatchListNewOrder: React.FC<{ transactionId: string }> = ({ transactionId }) => {
     const { txId, grandTotal, setGrandTotal, selectedBatchId, setSelectedBatchId, reloadKey, clearSelection, bumpReload } = useTx();
     const { bump } = useTransactionEventTrigger()
+    const { key, seq } = useFunctionKeyCtx()
     const { setDefaultValue, setDisableOtherDefault } = useDiningMode();
     const { Session } = useSession();
     const [ transaction, setTransaction] = React.useState<undefined | Transaction>(undefined)
@@ -43,6 +46,19 @@ const LeftContainerBatchListNewOrder: React.FC<{ transactionId: string }> = ({ t
     const muiTheme = useTheme()
     const isDark = (muiTheme.palette as any)?.mode === 'dark' || (muiTheme.palette as any)?.colorScheme === 'dark'
     const { toggleMode } = useThemeCharger()
+
+
+    useEffect(() => {
+        switch (key) {
+            case "F3" :
+                setOpen((prevState) => {
+                    if (transaction?.time_closed !== null) return null;
+                    prevState ? closeDialog() : openDialog();
+                    return null;
+                })
+                break;
+        }
+    }, [seq]);
 
     React.useEffect(() => {
         if (!transactionId) {

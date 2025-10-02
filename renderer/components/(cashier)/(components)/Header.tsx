@@ -7,16 +7,12 @@ import {
     Chip, Badge,
     LinearProgress
 } from '@mui/material'
-import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import SyncRoundedIcon from '@mui/icons-material/SyncRounded'
 import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded'
 import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded'
 import {useEffect, useState} from "react";
 import dynamic from "next/dynamic";
-import { useFunctionKey } from '../../../contexts/FunctionKeyProviderContext'
-import {useAuth} from "../../../contexts/AuthProviderContext";
-import normalizeIpcError from "../../../helpers/electronMessageErrorEsctration";
-import {useSession} from "../../../contexts/SessionProviderContext";
+import { useFunctionKeyCtx } from '../../../contexts/FunctionKeyProviderContext'
 
 type HeaderProps = {
     appName?: string
@@ -67,7 +63,7 @@ const BackWidget = dynamic(() => import('./(ui)/BackWidget'), {
 export default function Header({branchName = 'Main Branch', registerName = 'REG-01', printerOnline = true, syncing = false, mode = 'light', onChangeMode = noop, onSwitchCashier = noop, onOpenSettings = noop,}: HeaderProps) {
     const router = useRouter()
     const pathname = usePathname()
-    const { key, seq } = useFunctionKey()
+    const { key, seq } = useFunctionKeyCtx()
     const [isGodMode, setGodMode] = useState(false);
 
     useEffect(() => {
