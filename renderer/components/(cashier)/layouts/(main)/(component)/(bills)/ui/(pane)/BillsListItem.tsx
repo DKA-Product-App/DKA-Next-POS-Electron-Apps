@@ -138,6 +138,7 @@ const BillsListItem: React.FC = () => {
 
     const [query, setQuery] = useState('')
     const [activeId, setActiveId] = useState<string | null>(null)
+    const [ reloadKey, setReloadKey ] = useState(1);
 
     // default kosong; widget akan mengisi start/end hari ini di mount
     const [filters, setFilters] = useState<BillFilters>({
@@ -196,6 +197,7 @@ const BillsListItem: React.FC = () => {
         // totalRange ikut refetch untuk server-side filter
         filters.totalRange?.[0],
         filters.totalRange?.[1],
+        reloadKey
     ])
 
     // Auto-select dari TabNavigationHandlerContext
@@ -288,7 +290,14 @@ const BillsListItem: React.FC = () => {
     const handleSelect = (bill: TransactionBill) => {
         setActiveId(prev => {
             const next = prev === bill.id ? null : bill.id
-            setLayout(p => ({ ...(p ?? {}), right: next ? <BillListItemDetail billId={bill.id} /> : <BillsRightEmpty /> }))
+            setLayout(p => ({ ...(p ?? {}), right: next ?
+                    <BillListItemDetail
+                        billId={bill.id}
+                        onPaySuccess={() => {
+                            setReloadKey(k => k + 1)
+                        }}
+                    /> :
+                    <BillsRightEmpty /> }))
             return next
         })
     }

@@ -154,9 +154,6 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
     const disabled = isClosed || items.length === 0 || paid === itemQty
     const tooltip = `Buat Tagihan (${isSplitMode ? 'Split' : 'Keseluruhan'}) — ${items.length} item`
 
-    React.useEffect(() => {
-        console.log(` ${items.length} | ${paid} < ${itemQty}`)
-    })
 
     const handleOpen = () => {
         if (isClosed || items.length === 0) return

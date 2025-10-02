@@ -120,6 +120,11 @@ export interface TransactionBillBatch {
 
 export interface TransactionBillPaymentMethod {
     id?: UUID
+    icon?: string
+    name: string
+    description?: string
+    need_tender?: boolean
+    status?: boolean
     // Detail belum muncul di sample (null). Tambahkan saat tersedia.
 }
 

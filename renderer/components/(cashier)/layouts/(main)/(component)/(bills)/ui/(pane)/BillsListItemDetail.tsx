@@ -21,7 +21,7 @@ import Image, { ImageLoader } from 'next/image'
 import Skeleton from '@mui/material/Skeleton'
 import {
     ApiResponseTransactionBill,
-    TransactionBill, TransactionBills,
+    TransactionBill, TransactionBillPaymentMethod, TransactionBills,
     TransactionBillTransactionItem
 } from '../../types/transaction.bill.type'
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -118,17 +118,9 @@ const deriveLineItems = (bill?: TransactionBill): TransactionBillTransactionItem
     })
 
 /* ================================== SUB-COMPONENTS ================================== */
-type PaymentMethod = {
-    id: string
-    icon?: string
-    name: string
-    description?: string
-    need_tender?: boolean
-    status?: boolean
-}
 type ApiResponse<T> = { status: boolean; code: number; msg: string; data: T }
 
-const iconFromMethod = (m?: PaymentMethod) => {
+const iconFromMethod = (m?: TransactionBillPaymentMethod) => {
     const key = (m?.icon || '').toLowerCase()
     const nm = (m?.name || '').toLowerCase()
     if (key.includes('qr') || nm.includes('qris')) return <QrCode2Rounded fontSize="medium" />
@@ -181,9 +173,9 @@ const MethodCard: React.FC<{
 const PaymentMethodsPicker: React.FC<{
     disabled?: boolean
     selectedId?: string
-    onSelect: (m: PaymentMethod) => void
+    onSelect: (m: TransactionBillPaymentMethod) => void
 }> = ({ disabled, selectedId, onSelect }) => {
-    const [methods, setMethods] = useState<PaymentMethod[]>([])
+    const [methods, setMethods] = useState<TransactionBillPaymentMethod[]>([])
     const [loading, setLoading] = useState(true)
     const [err, setErr] = useState<string | null>(null)
 
@@ -192,8 +184,8 @@ const PaymentMethodsPicker: React.FC<{
         setLoading(true)
         // @ts-ignore
         window.api.invoke('api.config.data.payment.method:read.all', {})
-            .then((res: ApiResponse<PaymentMethod[]> | { data: PaymentMethod[] } | undefined) => {
-                const arr = Array.isArray((res as any)?.data) ? (res as any).data as PaymentMethod[] : []
+            .then((res: ApiResponse<TransactionBillPaymentMethod[]> | { data: TransactionBillPaymentMethod[] } | undefined) => {
+                const arr = Array.isArray((res as any)?.data) ? (res as any).data as TransactionBillPaymentMethod[] : []
                 if (!alive) return
                 setMethods(arr.filter(m => m.status !== false))
                 setErr(null)
@@ -249,7 +241,7 @@ const BillListItemDetail: React.FC<{ billId: string, onPaySuccess?: () => void }
     const qtyTotal = useMemo(() => items.reduce((a, it) => a + Number(it.qty ?? 0), 0), [items])
 
     /* ---------------- PAYMENT STATE ---------------- */
-    const [method, setMethod] = useState<PaymentMethod | null>(null)
+    const [method, setMethod] = useState<TransactionBillPaymentMethod | null>(null)
     const [needTender, setNeedTender] = useState<boolean>(false)
     const [tenderMode, setTenderMode] = useState<TenderMode>('idle')
     const [showTotals, setShowTotals] = useState<boolean>(true)
@@ -268,24 +260,24 @@ const BillListItemDetail: React.FC<{ billId: string, onPaySuccess?: () => void }
     }, [billId])
 
     // respond to method/isPaid changes (form logic)
+    // --> ubah jadi begini:
     useEffect(() => {
         const nt = !!method?.need_tender
         setNeedTender(nt)
-        if (isPaid) {
-            setTenderMode('idle')
-            setShowTotals(true)
-            return
-        }
+
+        if (isPaid) { setTenderMode('idle'); setShowTotals(true); return }
+
         if (nt) {
             setTenderMode('entry')
             setShowTotals(false)
             setTimeout(() => cashRef.current?.focus(), 50)
         } else {
-            setTenderMode('idle')
-            setCashStr('')
+            // non-tender → langsung isi tender = grandTotal (string)
+            setTenderMode('ready')
             setShowTotals(true)
+            setCashStr(String(grandTotal))
         }
-    }, [method, isPaid])
+    }, [method, isPaid, grandTotal])
 
     const onCashKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
         if (e.key === 'Enter' && cash >= grandTotal) {
@@ -306,7 +298,9 @@ const BillListItemDetail: React.FC<{ billId: string, onPaySuccess?: () => void }
         }
     }, [cash, grandTotal, needTender, isPaid, tenderMode])
 
-    const canPay = !isPaid && (!needTender || tenderMode === 'ready')
+
+
+    const canPay = !isPaid && !!method && (!needTender || tenderMode === 'ready')
 
     /* ---------------- ITEM GRID ---------------- */
     const ITEM_COLS = {
@@ -325,19 +319,21 @@ const BillListItemDetail: React.FC<{ billId: string, onPaySuccess?: () => void }
 
     // ✅ After-pay: update then refetch bill to get latest server state
     const onPay = () => {
+        if (!method || isPaid) return
         // @ts-ignore
         window.api.invoke('api.transaction.bills.paid:update.one', {
             params: { id: bill?.paid?.id },
-            data: { status: true }
+            data: {
+                payment_method: method.id,
+                tender: Number(cashStr) ?? 0,
+                status: true
+            }
         })
             .then(({ data }) =>
                 // @ts-ignore
                 window.api.invoke('api.transaction.bills:read.one', { id: billId })
             )
-            .then(({ data }) => {
-                onPaySuccess?.();
-                setBill(data)
-            })
+            .then(({ data }) => { onPaySuccess?.(); setBill(data) })
             .catch(console.error)
     }
 
