@@ -1,12 +1,12 @@
 // main/key-event.ts
-import { app, globalShortcut, BrowserWindow } from 'electron';
+import { app, globalShortcut, BrowserWindow, ipcMain } from 'electron';
 
 const FN_KEYS = Array.from({ length: 12 }, (_, i) => `F${i + 1}` as const);
 type FnKey = typeof FN_KEYS[number];
 
 const CHANNEL = 'shortcut';
 
-export function KeyEvent() {
+export function KeyEvent(mainWindow?: BrowserWindow) {
     let registered = false;
 
     const broadcast = (key: string, origin: 'global' | 'before-input') =>
@@ -17,11 +17,17 @@ export function KeyEvent() {
     // Daftarkan global F1..F12 hanya saat ada window fokus
     const registerGlobals = () => {
         if (registered || !app.isReady()) return false;
+        customEventsDefaults(mainWindow);
         registered = FN_KEYS.map(k => globalShortcut.register(k, () => broadcast(k, 'global'))).every(Boolean);
         return registered;
     };
 
-    const unregisterGlobals = () => (globalShortcut.unregisterAll(), registered = false);
+    const unregisterGlobals = () => {
+        globalShortcut.unregisterAll();
+        ipcMain.removeAllListeners(`key.window.fullscreen`);
+        ipcMain.removeAllListeners('key.window.dev.mode')
+        registered = false
+    };
 
     // Blok default Chromium (F5/F11/F12, Ctrl/Cmd+R/I, F10 menu focus) → teruskan ke renderer
     const preventBrowserDefaults = (win: BrowserWindow) =>
@@ -37,7 +43,21 @@ export function KeyEvent() {
             shouldBlock ? (event.preventDefault(), broadcast(input.key, 'before-input')) : null;
         });
 
-    app.on('browser-window-created', (_e, win) => preventBrowserDefaults(win));
+    const customEventsDefaults = (win: BrowserWindow) => {
+        ipcMain.on('key.window.fullscreen', (event) => {
+            if (event.sender.id !== win.webContents.id) return;
+            win.setFullScreen(!win.isFullScreen());
+        });
+        ipcMain.on('key.window.dev.mode', (event) => {
+            if (event.sender.id !== win.webContents.id) return;
+            (!win.webContents.isDevToolsOpened()) ? win.webContents.openDevTools() : win?.webContents?.closeDevTools();
+        });
+    };
+
+    app.on('browser-window-created', (_e, win) => {
+
+        preventBrowserDefaults(win);
+    });
     app.on('browser-window-focus', registerGlobals);
     app.on('browser-window-blur', unregisterGlobals);
     app.on('will-quit', unregisterGlobals);

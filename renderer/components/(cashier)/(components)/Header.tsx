@@ -71,6 +71,12 @@ export default function Header({branchName = 'Main Branch', registerName = 'REG-
             case "F12" :
                 setGodMode((state) => (!state));
                 break;
+            case "F7" :
+                window?.ipc?.send?.(`key.window.fullscreen`, true);
+                break;
+            case "F8" :
+                window?.ipc?.send?.(`key.window.dev.mode`, true);
+                break;
         }
     }, [seq]);
 

@@ -150,6 +150,9 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
     const [lockedItemsKey, setLockedItemsKey] = useState<string | null>(null)       // kunci daftar item
     const [lockedTxId, setLockedTxId] = useState<string | null>(null)               // kunci txId
     const lockRef = useRef(false)
+    const openNonce = useRef<number>(0)     // penanda sesi open
+    const createdOnce = useRef(false)       // sudah create bill di sesi ini?
+
 
     const disabled = isClosed || items.length === 0 || paid === itemQty
     const tooltip = `Buat Tagihan (${isSplitMode ? 'Split' : 'Keseluruhan'}) — ${items.length} item`
@@ -157,13 +160,20 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
 
     const handleOpen = () => {
         if (isClosed || items.length === 0) return
-        // kunci snapshot saat ini
-        setLockedItemsKey(items.join('|'))      // gunakan string stabil agar efek tidak kepicu lagi
-        setLockedTxId(txId)
+
+        // ==== sesi baru: reset dan lock snapshot ====
+        openNonce.current = Date.now()
+        createdOnce.current = false
+        setTransactionBatchItems([])   // bersihkan data sesi lama
+        setLayoutPaper(<></>)          // kosongkan preview lama
+
+        setLockedItemsKey(items.join('|'))  // snapshot ID item saat ini
+        setLockedTxId(txId)                 // snapshot tx saat ini
         lockRef.current = true
 
         setOpen(true)
     }
+
     const handleClose = () => {
         setOpen(false)
         setLockedItemsKey(null)
@@ -171,15 +181,18 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
         lockRef.current = false
     }
 
+
     // ====== Fetch items sekali dengan key terkunci (tidak terganggu prop items/transaction) ======
     useEffect(() => {
         if (!open) return
         if (!lockedItemsKey) return
 
-        window?.api?.invoke?.('api.transaction.batch.item:read.all', {ids: lockedItemsKey.split('|')})
+        const myNonce = openNonce.current
+
+        window?.api?.invoke?.('api.transaction.batch.item:read.all', { ids: lockedItemsKey.split('|') })
             .then((res: any) => {
-                // jangan hapus preview yang sudah ada (biar gak “kedip”)
                 if (!lockRef.current) return
+                if (myNonce !== openNonce.current) return  // hasil dari sesi lama → skip
                 setTransactionBatchItems(res?.data ?? [])
             })
             .catch((error: any) => {
@@ -188,7 +201,6 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
                 const e = normalizeIpcError(error)
                 setLayoutPaper(<ErrorDataLayout {...e} />)
             })
-        // HANYA tergantung lock, bukan props items/transaction
     }, [open, lockedItemsKey])
 
     // ====== Create bill + tampilkan preview, sekali saja untuk batch yang sudah terkunci ======
@@ -196,64 +208,52 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
         if (!open) return
         if (transactionBatchItems.length === 0) return
         if (!lockedTxId) return
+        if (createdOnce.current) return   // sudah pernah create di sesi ini
+
+        const myNonce = openNonce.current
+        createdOnce.current = true        // kunci agar create hanya sekali
 
         const arrayRefactor = transactionBatchItems.map((it: any) => {
-            const {id, ...rest} = it
-            return {
-                ...rest, transactionItem: {
-                    id,
-                    reference: {id: Session.id}
-                }
-            }
+            const { id, ...rest } = it
+            return { ...rest, transactionItem: { id, reference: { id: Session.id } } }
         })
 
         const payload = {
-            reference: {id: Session.id},
+            reference: { id: Session.id },
             branch: Session.branches,
-            transaction: {id: lockedTxId},
+            transaction: { id: lockedTxId },
             number: Date.now(),
             items: arrayRefactor,
-            paid: {
-                status: false,
-            }
+            paid: { status: false }
         }
-
-        // kalau sudah ada preview (BillListItemDetail), jangan recreate
-        const alreadyPreviewing = React.isValidElement(layoutPaper)
-            && (layoutPaper as any)?.type?.name === 'BillListItemDetail'
-
-        if (alreadyPreviewing) return
 
         window?.api?.invoke?.('api.transaction.bills:create', payload)
             .then((result: any) => {
                 if (!lockRef.current) return
-                setLayoutPaper(<BillListItemDetail
-                    billId={result?.data?.id}
-                    onPaySuccess={() => {
-                        bumpReload()
-                        bump('batch')
-                        bump('pay')
-                        clearSelection()
-                    }}
-                />)
-                // penting: reload context TANPA memicu efek modal (karena semua input di-lock + efek tidak tergantung transaction/items)
-                setTimeout(() => {
-                    try {
-                        bumpReload();
-                        // 4) ping global kalau ada listener lain (boleh dipertahankan)
-                        bump('batch');
-                        bump('pay')
-                        clearSelection();
-                    } catch {
-                    }
-                }, 0)
+                if (myNonce !== openNonce.current) return // sesi sudah berganti → skip render
+
+                setLayoutPaper(
+                    <BillListItemDetail
+                        billId={result?.data?.id}
+                        onPaySuccess={() => {
+                            bumpReload()
+                            bump('batch')
+                            bump('pay')
+                            clearSelection()
+                            // tetap terkunci sampai modal ditutup; tidak recreate
+                        }}
+                    />
+                )
+
+                // boleh ping global, tapi TIDAK perlu recreate apa pun
+                bumpReload(); bump('batch'); bump('pay'); clearSelection();
             })
             .catch((error: any) => {
                 if (!lockRef.current) return
                 const e = normalizeIpcError(error)
+                console.log(e);
                 setLayoutPaper(<ErrorDataLayout {...e} />)
             })
-        // HANYA tergantung state terkunci
     }, [open, transactionBatchItems, lockedTxId])
 
     const ButtonEl = (
@@ -317,15 +317,10 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
 
             <Dialog
                 open={open}
-                keepMounted            // <-- jaga komponen anak tetap mounted
                 fullWidth
                 maxWidth="xl"
                 fullScreen={fullScreen}
-                onClose={(e, reason) => {
-                    if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
-                    handleClose()
-                }}
-                disableEscapeKeyDown
+                onClose={handleClose}
                 slotProps={{
                     paper: {
                         sx: {

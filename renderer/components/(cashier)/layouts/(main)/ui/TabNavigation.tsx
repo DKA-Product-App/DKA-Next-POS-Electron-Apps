@@ -112,7 +112,7 @@ const TabNavigation: React.FC = React.memo(() => {
                             textAlign: 'left',
                             gap: 0.5,
                             px: 2,
-                            minHeight: 48,
+                            minHeight: 60,
 
                             // fullWidth jika muat; minWidth saat overflow
                             minWidth: isOverflow ? TAB_MIN_WIDTH : 0,

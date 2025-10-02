@@ -27,7 +27,7 @@ export default async function MainWindow(){
         },
     });
     //#######################################################
-    Event();
+    Event(mainWindow);
     //#######################################################
     mainWindow
         .on('show', () => {

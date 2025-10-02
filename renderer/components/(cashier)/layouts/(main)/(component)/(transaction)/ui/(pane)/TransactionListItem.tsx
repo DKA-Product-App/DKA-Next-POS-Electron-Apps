@@ -21,7 +21,7 @@ import ShimmerLoadingTransactionContainer from '../(loading)/ShimmerLoadingTrans
 import { useTransactionEventTrigger } from './context/TransactionEventTriggerContext'
 import { useSession } from '../../../../../../../../contexts/SessionProviderContext'
 import { Transaction } from '../types/api.transaction.type'
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
 import {useFunctionKeyCtx} from "../../../../../../../../contexts/FunctionKeyProviderContext";
 
 // ===== Const =====
@@ -81,6 +81,8 @@ const TransactionListItemNotFound = dynamic(() => import('./(components)/Transac
  * ======== MAIN ===========
  * =======================*/
 const TransactionListItem: React.FC = () => {
+
+    const [IsMounted, setMounted ] = useState(false);
     const { setLayout } = useLayoutManipulatorResizable()
     const { Session } = useSession()
     const { setMenu, remove,  key, seq } = useFunctionKeyCtx()
@@ -106,6 +108,19 @@ const TransactionListItem: React.FC = () => {
         itemRange: [0, 0], batchRange: [0, 0],
     })
     const onFiltersChange = (patch: Partial<Filters>) => setFilters(prev => ({ ...prev, ...patch }))
+
+    useEffect(() => {
+        setMounted(true);
+        return () => {
+            setMounted(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (IsMounted){
+            setLayout(p => ({ ...p, right: <TransactionListItemNotFound /> }))
+        }
+    }, [IsMounted]);
 
     const refetch = () => {
         setFetchError(null)

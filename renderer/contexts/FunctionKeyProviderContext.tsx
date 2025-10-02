@@ -32,7 +32,6 @@ const ALLOWED = new Set(Array.from({ length: 12 }, (_, i) => `F${i + 1}` as FnKe
 
 const DEFAULT_MENU: Shortcut[] = [
     { key: 'F7', label: 'Layar Penuh' },
-    { key: 'F8', label: 'Dev Mode' },
 ]
 
 const sortMenu = (arr: Shortcut[]) =>

@@ -92,7 +92,7 @@ const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ tr
                             const totalLabel = rupiah(it.sub_total || it.price || 0)
 
                             return (
-                                <Grid key={it.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
+                                <Grid key={it.id} size={{ xs: 12, sm: 6, md: 3, lg: 2.2 }}>
                                     <RightContainerBatchDetailRow
                                         item={it}
                                         totalLabel={totalLabel}

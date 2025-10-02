@@ -326,8 +326,12 @@ export const TransactionListItemRow: React.FC<{
                             <Typography variant="h6" fontWeight={900} noWrap sx={{ letterSpacing: 0.2, lineHeight: 1.2, fontFeatureSettings: '"tnum" 1, "lnum" 1' }}>
                                 # {o.invoice}
                             </Typography>
-                            <Chip size="small" color="info" label={o.order_type?.name ?? '-'} variant="filled" />
-                            <Chip size="small" color="info" label={o.table?.code ? `${o.table.code}` : 'No table'} variant="filled" />
+                            <Chip size="small" color="secondary" label={o.order_type?.name ?? '-'} variant="outlined" />
+                            {
+                                o.table && (
+                                    <Chip size="small" color="primary" label={o.table?.code ? `${o.table.code} - ${o.table.floor.code}` : 'No table'} variant="outlined" />
+                                )
+                            }
                         </Stack>
                         <Typography
                             variant="subtitle1"

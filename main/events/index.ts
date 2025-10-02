@@ -3,8 +3,8 @@ import KeyEvent from "./key";
 import TimeEvent from "./time";
 
 
-export function Event() {
-    KeyEvent();
+export function Event(mainWindow?: BrowserWindow) {
+    KeyEvent(mainWindow);
     TimeEvent();
 }
 
