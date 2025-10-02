@@ -13,7 +13,7 @@ import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded'
 import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded'
 import {useEffect, useState} from "react";
 import dynamic from "next/dynamic";
-import { useFunctionKey } from '../../../contexts/FunctionKeyProviderContext'
+import { useFunctionKeyCtx } from '../../../contexts/FunctionKeyProviderContext'
 
 type HeaderProps = {
     appName?: string
@@ -76,7 +76,7 @@ export default function Header({
                                }: HeaderProps) {
     const router = useRouter()
     const pathname = usePathname()
-    const { key, seq } = useFunctionKey()
+    const { key, seq } = useFunctionKeyCtx()
 
     const [isGodMode, setGodMode] = useState(false);
 

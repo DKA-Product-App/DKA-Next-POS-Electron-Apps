@@ -34,7 +34,7 @@ import {
     CartesianGrid,
 } from 'recharts';
 import { useEffect } from 'react';
-import { useFunctionKey } from '../../../../../contexts/FunctionKeyProviderContext';
+import { useFunctionKeyCtx } from '../../../../../contexts/FunctionKeyProviderContext';
 
 // Perfect Scrollbar
 import PerfectScrollbar from 'react-perfect-scrollbar';
@@ -75,7 +75,7 @@ export default function Overview() {
 
     // Hanya 2 mode: sample80 <-> sample50
     const [mode, setMode] = React.useState<Mode>('sample80');
-    const { key, seq } = useFunctionKey();
+    const { key, seq } = useFunctionKeyCtx();
 
     useEffect(() => {
         if (key === 'F12') {

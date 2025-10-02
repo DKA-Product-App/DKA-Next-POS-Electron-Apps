@@ -18,7 +18,7 @@ const SelectMenuAndVariant = dynamic(() => import('./ui/(pane)/SelectMenuAndVari
 export default function SelectProduct({ onSubmit } : { onSubmit?: (item: CartItem[]) => void }) {
 
     return (
-        <CartProvider initialTaxRate={0.11}>
+        <CartProvider>
             <ResizableGrid
                 left={<SelectMenuAndVariant />}
                 right={<PreviewSelectCheckout onSubmit={onSubmit} />}
