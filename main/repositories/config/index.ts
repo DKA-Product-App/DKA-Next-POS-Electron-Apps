@@ -10,7 +10,7 @@ export class ConfigRepository {
 
     constructor() {
         this._Connector = new Connector({
-            name: "base_configs_local.db",
+            name: "configs.db",
             key: "@Thedarkangels2010",
         });
     }

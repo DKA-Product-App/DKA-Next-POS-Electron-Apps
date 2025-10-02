@@ -133,7 +133,7 @@ const TransactionListItem: React.FC = () => {
         if (!startAt || !endAt) return
         const payload = {
             startAt: `${startAt}:00${TZ_OFFSET}`, endAt: `${endAt}:59${TZ_OFFSET}`,
-            reference: Session.id
+            reference: Session?.id ?? undefined
         }
 
         setIsFetching(true)
@@ -160,7 +160,7 @@ const TransactionListItem: React.FC = () => {
         const payload = {
             startAt: `${startAt}:00${TZ_OFFSET}`,
             endAt: `${endAt}:59${TZ_OFFSET}`,
-            reference: Session.id
+            reference: Session?.id ?? undefined
         }
 
         setIsFetching(true)
