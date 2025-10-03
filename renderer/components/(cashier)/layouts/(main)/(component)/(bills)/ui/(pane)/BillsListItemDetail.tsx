@@ -321,7 +321,7 @@ const BillListItemDetail: React.FC<{ billId: string, onPaySuccess?: () => void }
             .then(({ data }) => {
                 onPaySuccess?.();
                 setBill(data);
-                onPrintHandle();
+                onPrintHandle({});
             })
             .catch(console.error)
     }
@@ -336,30 +336,35 @@ const BillListItemDetail: React.FC<{ billId: string, onPaySuccess?: () => void }
                setPrinterList([])
            })
     },[])
-    const onPrintHandle = () => {
+    const onPrintHandle = ({ enableNotify = false } : { enableNotify?: boolean}) => {
         if (!selectedPrinter) return
         window.api.invoke('api.transaction.bills:print', {
             bill: bill.id,
             printer: selectedPrinter.id
         })
             .then((res) => {
-                setSwalProps({
-                    show: true,
-                    icon: "success",
-                    theme: mode,
-                    title: 'Successfully Sending Printer',
-                    text: `${res.msg}`,
-                });
+                if (enableNotify) {
+                    setSwalProps({
+                        show: true,
+                        icon: "success",
+                        theme: mode,
+                        title: 'Successfully Sending Printer',
+                        text: `${res.msg}`,
+                    });
+                }
+
             })
             .catch((error) => {
                 console.error(error);
-                setSwalProps({
-                    show: true,
-                    icon: "error",
-                    theme: mode,
-                    title: 'Gagal Mencetak Otomatis',
-                    text: `${error?.msg ?? 'Gagal Mencetak. Printer Offline / Error.'}`,
-                });
+                if (enableNotify) {
+                    setSwalProps({
+                        show: true,
+                        icon: "error",
+                        theme: mode,
+                        title: 'Gagal Mencetak Otomatis',
+                        text: `${error?.msg ?? 'Gagal Mencetak. Printer Offline / Error.'}`,
+                    });
+                }
             })
     }
 
@@ -575,7 +580,9 @@ const BillListItemDetail: React.FC<{ billId: string, onPaySuccess?: () => void }
                         {/*// 3) Split button (title menampilkan printer terpilih)*/}
                         <ButtonGroup variant="outlined" color={isPaid ? 'success' : 'warning'} sx={{ borderRadius: 2, overflow: 'hidden' }}>
                             <Button
-                                onClick={onPrintHandle}
+                                onClick={() => {
+                                    onPrintHandle({ enableNotify : true })
+                                }}
                                 startIcon={<PrintRounded sx={{ fontSize: 36 }} />}
                                 sx={{ textTransform: 'none', fontWeight: 800, fontSize: { xs: 14, md: 15 }, py: 1.1, px: 2.2 }}
                                 title={`${printLabel}${selectedPrinter ? ` · ${selectedPrinter.name}` : ''}`}

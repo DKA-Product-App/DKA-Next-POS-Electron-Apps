@@ -211,23 +211,23 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
             printer: selectedPrinter.id
         })
             .then((res) => {
-                setSwalProps({
+                /*setSwalProps({
                     show: true,
                     icon: "success",
                     theme: themes.mode,
                     title: 'Successfully Sending Printer',
                     text: `${res.msg}`,
-                });
+                });*/
             })
             .catch((error) => {
                 console.error(error);
-                setSwalProps({
+                /*setSwalProps({
                     show: true,
                     icon: "error",
                     theme: themes.mode,
                     title: 'Gagal Mencetak Otomatis',
                     text: `${error?.msg ?? 'Gagal Mencetak. Printer Offline / Error.'}`,
-                });
+                });*/
             })
     }
 

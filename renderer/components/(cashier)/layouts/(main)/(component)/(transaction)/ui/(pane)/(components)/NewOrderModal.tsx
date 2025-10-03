@@ -162,24 +162,24 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
             // @ts-ignore
             return window.api.invoke('api.transaction:print', payload)
                 .then((res: any) => {
-                    setSwalProps({
+                    /*setSwalProps({
                         show: true,
                         icon: "success",
                         theme: mode,
                         title: 'Successfully Sending Printer',
                         text: `${res.msg}`,
-                    });
+                    });*/
                     console.log({ ok: true, id: b.id })
                     return { ok: true, id: b.id }
                 })
                 .catch((err: any) => {
-                    setSwalProps({
+                    /*setSwalProps({
                         show: true,
                         icon: "error",
                         theme: mode,
                         title: 'Gagal Mencetak Otomatis',
                         text: `${err?.msg ?? 'Gagal Mencetak. Printer Offline / Error.'}`,
-                    });
+                    });*/
                     console.error({ ok: false, id: b.id })
                     return { ok: false, id: b.id }
                 })
