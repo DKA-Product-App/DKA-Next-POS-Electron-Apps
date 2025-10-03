@@ -19,20 +19,15 @@ module.exports = {
       config.plugins.push(
           new WebpackObfuscator(
               {
-                compact: true,
-                controlFlowFlattening: true,
-                controlFlowFlatteningThreshold: 0.75,
-                deadCodeInjection: true,
-                deadCodeInjectionThreshold: 0.4,
-                stringArray: true,
-                stringArrayThreshold: 0.85,
-                stringArrayEncoding: ['base64'],
-                splitStrings: true,
-                splitStringsChunkLength: 6,
-                transformObjectKeys: true,
-                unicodeEscapeSequence: true,
-                selfDefending: true,
-                debugProtection: false, // true bisa bikin lambat
+                  compact: true,
+                  simplify: true,
+                  stringArray: true,
+                  stringArrayThreshold: 0.3,
+                  stringArrayRotate: true,
+                  numbersToExpressions: false,
+                  controlFlowFlattening: false,
+                  deadCodeInjection: false,
+                  unicodeEscapeSequence: true,
               },
               // exclude file inti webpack/chunks biar nggak rusak
               [
