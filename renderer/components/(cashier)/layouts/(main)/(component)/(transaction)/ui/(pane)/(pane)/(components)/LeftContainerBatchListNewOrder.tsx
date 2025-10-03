@@ -13,6 +13,7 @@ import LightModeRounded from '@mui/icons-material/LightModeRounded'
 import FullscreenRounded from '@mui/icons-material/FullscreenRounded'
 import FullscreenExitRounded from '@mui/icons-material/FullscreenExitRounded'
 import dynamic from 'next/dynamic'
+import SweetAlert2, {SweetAlert2Props} from 'react-sweetalert2';
 import { useTx } from '../../context/TransactionContext'
 import { useDiningMode } from '../../../../context/DiningModeContext'
 import { CartItem } from '../../../../../../../(select-product)/context/CartContext'
@@ -20,9 +21,9 @@ import { useTheme } from '@mui/material/styles'
 import { useThemeCharger } from '../../../../../../../../../../contexts/ThemeCharger'
 import {useTransactionEventTrigger} from "../../context/TransactionEventTriggerContext";
 import {useSession} from "../../../../../../../../../../contexts/SessionProviderContext";
-import {Transaction, TransactionBatches } from "../../../types/api.transaction.type";
+import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../../types/api.transaction.type";
 import {AxiosResponse} from "axios";
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
 import {useFunctionKeyCtx} from "../../../../../../../../../../contexts/FunctionKeyProviderContext";
 
 const Billing = dynamic(() => import('../../../../../../../(select-product)'), { ssr: true })
@@ -31,10 +32,55 @@ const rupiah = (n: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
         .format(typeof n === 'string' ? parseFloat(n) : n)
 
+/* ===== Printer grouping ===== */
+type PrinterBucket = { id: string; name: string; description: string; items: TransactionBatchesItems[] }
+function groupItemsByPrinter(items: TransactionBatchesItems[]): PrinterBucket[] {
+    const map = new Map<string, PrinterBucket>()
+    items.forEach(it => {
+        const cats: any[] = Array.isArray((it as any)?.product?.category) ? (it as any).product.category : []
+        const seen = new Set<string>()
+        cats.forEach(c => {
+            const printers: any[] = Array.isArray(c?.printer) ? c.printer : []
+            printers.forEach(p => {
+                const pid = String(p?.id ?? '')
+                if (!pid || seen.has(pid)) return
+                seen.add(pid)
+                const name = String(p?.name ?? pid)
+                const description = String(p?.description ?? pid)
+                const bucket = map.get(pid) ?? { id: pid, name, description, items: [] }
+                bucket.items.push(it)
+                map.set(pid, bucket)
+            })
+        })
+    })
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
+}
+
+const isApprovedVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved === true
+const isPendingVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved !== true
+/* ===== Merge helpers (UI only) ===== */
+type MergedItem = { sample: TransactionBatchesItems; qty: number; hasPending: boolean }
+const keyOf = (it: TransactionBatchesItems) => `${it.product?.id ?? ''}::${it.variant?.id ?? it.product?.id ?? ''}`
+
+function mergeItemsByVariant(items: TransactionBatchesItems[]): MergedItem[] {
+    const rec = items.reduce((acc, it) => {
+        const key = keyOf(it)
+        const cur = acc[key]
+        const q = Number(it.qty ?? 0)
+        const pending = isPendingVoid(it)
+        acc[key] = cur
+            ? { sample: cur.sample, qty: cur.qty + q, hasPending: cur.hasPending || pending }
+            : { sample: it, qty: q, hasPending: pending }
+        return acc
+    }, {} as Record<string, MergedItem>)
+    return Object.values(rec)
+}
+
 const LeftContainerBatchListNewOrder: React.FC<{ transactionId: string }> = ({ transactionId }) => {
     const { txId, grandTotal, setGrandTotal, selectedBatchId, setSelectedBatchId, reloadKey, clearSelection, bumpReload } = useTx();
     const { bump } = useTransactionEventTrigger()
     const { key, seq } = useFunctionKeyCtx()
+    const [swalProps, setSwalProps] = useState<SweetAlert2Props>({});
     const { setDefaultValue, setDisableOtherDefault } = useDiningMode();
     const { Session } = useSession();
     const [ transaction, setTransaction] = React.useState<undefined | Transaction>(undefined)
@@ -96,6 +142,43 @@ const LeftContainerBatchListNewOrder: React.FC<{ transactionId: string }> = ({ t
     const openDialog = () => { setOpen(true) }
     const closeDialog = () => setOpen(false)
 
+    // ⬇️ hide items yang approved void, tampilkan normal + pending
+    const buckets = (batch : TransactionBatches) => React.useMemo(() => {
+        const visible = (batch.items || []).filter(it => !isApprovedVoid(it))
+        return groupItemsByPrinter(visible)
+    }, [batch.items])
+    const handlePrintAll = (batch : TransactionBatches) => {
+        const bucketsToPrint = buckets(batch).filter(b => (b.items?.length ?? 0) > 0)
+        if (!bucketsToPrint.length) return
+
+        const tasks = bucketsToPrint.map((b) => {
+            const itemIds = b.items.map(it => String(it.id))
+            const payload = { printer: b.id, batch: batch.id, invoice: batch.transaction.invoice, itemIds, merge_variant: true }
+            // @ts-ignore
+            return window.api.invoke('api.transaction.batch:print', payload)
+                .then((res: any) =>  {
+                    setSwalProps({
+                        show: true,
+                        timer: 1500,
+                        title: 'Successfully Sending Printer',
+                        text: `${res.msg}`,
+                    });
+                    return { ok: true, id: b.id }
+                })
+                .catch((err: any) => {
+                    setSwalProps({
+                        show: true,
+                        timer: 1500,
+                        title: 'Gagal Mencetak Otomatis',
+                        text: `${err?.msg ?? 'Gagal Mencetak. Printer Offline / Error.'}`,
+                    });
+                    return { ok: false, id: b.id }
+                })
+        })
+
+        Promise.all(tasks).then(() => null);
+    }
+
     const submitNewBatchTransaction = (item: CartItem[]) => {
         const itemRefactor = item.map((i) => ({
             ...i.variant,
@@ -120,7 +203,7 @@ const LeftContainerBatchListNewOrder: React.FC<{ transactionId: string }> = ({ t
                 bump('batch')
                 bump('pay')
                 clearSelection()
-                clearSelection();
+                handlePrintAll(data)
                 // 5) tutup dialog — layout di belakang tetap stay
                 closeDialog()
             })
@@ -231,6 +314,7 @@ const LeftContainerBatchListNewOrder: React.FC<{ transactionId: string }> = ({ t
                     </Box>
                 </DialogContent>
             </Dialog>
+            <SweetAlert2 {...swalProps} />
         </>
     )
 }
