@@ -18,93 +18,11 @@ import PendingActionsRounded from '@mui/icons-material/PendingActionsRounded' //
 import LockRounded from '@mui/icons-material/LockRounded'               // closed
 
 import { TransactionBatchesItems } from "../../../types/api.transaction.type";
+import {ImgWithSkeleton, OverlayTone} from "../../../../../../../../../../utils/ImageProcessingIPC";
 
 const MotionPaper = motion(Paper)
 const GRADIENT = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
 
-/* === util kecil untuk image === */
-const toUploadUrl = (s?: string) =>
-    !s ? undefined : /^(uploads|http|https):\/\//i.test(s) ? s : `uploads:///${s.replace(/^\/+/, '')}`
-
-const defaultUploadsLoader: ImageLoader = ({ src }) => {
-    if (src?.startsWith('uploads:///')) {
-        const base = process.env.NEXT_PUBLIC_UPLOADS_BASE_URL || ''
-        const path = src.replace('uploads:///', '').replace(/^\/+/, '')
-        return base ? `${base.replace(/\/+$/, '')}/${path}` : `/${path}`
-    }
-    return src
-}
-
-const ph = (name?: string, img?: string) =>
-    toUploadUrl(img) ?? `https://placehold.co/600x400/png?text=${encodeURIComponent(name || 'Item')}`
-
-/** === ImgWithSkeleton + overlay tint/gray === */
-type OverlayTone = 'success' | 'warning' | 'error' | null
-const ImgWithSkeleton: React.FC<{
-    src: string; alt: string; loader?: ImageLoader;
-    grayscale?: boolean;
-    overlayTone?: OverlayTone;  // hijau/kuning/merah
-    overlayGray?: boolean;      // untuk closed
-}> = ({ src, alt, loader, grayscale, overlayTone, overlayGray }) => {
-    const [loaded, setLoaded] = React.useState(false)
-    const [err, setErr] = React.useState(false)
-    const finalSrc = err ? 'https://placehold.co/600x400/png?text=No%20Image' : src
-
-    return (
-        <Box sx={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', bgcolor: 'action.hover', overflow: 'hidden' }}>
-            {!loaded && <Skeleton variant="rectangular" sx={{ position: 'absolute', inset: 0 }} />}
-
-            <Image
-                loader={loader}
-                src={finalSrc}
-                alt={alt}
-                fill
-                unoptimized
-                sizes="(max-width: 600px) 50vw, (max-width: 1200px) 25vw, 200px"
-                onLoad={() => setLoaded(true)}
-                onError={() => { setErr(true); setLoaded(true) }}
-                style={{
-                    objectFit: 'cover',
-                    opacity: loaded ? 1 : 0,
-                    transition: 'opacity .2s ease',
-                    filter: grayscale ? 'grayscale(1) saturate(0) brightness(0.9)' : 'none',
-                }}
-            />
-
-            {/* Soft gradient shading */}
-            <Box sx={{
-                position: 'absolute', inset: 0, pointerEvents: 'none',
-                background: (t) => `linear-gradient(to bottom, ${t.palette.action.hover}00 0%, ${t.palette.action.hover}40 70%, ${t.palette.action.hover}66 100%)`
-            }} />
-
-            {/* GRAY overlay khusus CLOSED */}
-            {overlayGray && (
-                <Box
-                    sx={(t) => ({
-                        position: 'absolute', inset: 0, pointerEvents: 'none',
-                        backgroundColor: alpha(t.palette.text.primary, t.palette.mode === 'dark' ? 0.38 : 0.28),
-                    })}
-                />
-            )}
-
-            {/* COLOR TINT overlay (jika bukan closed) — lebih tebal */}
-            {!overlayGray && overlayTone && (
-                <Box
-                    sx={(t) => {
-                        const col = (t.palette as any)[overlayTone].main
-                        const a = t.palette.mode === 'dark'
-                            ? (overlayTone === 'error' ? 0.46 : overlayTone === 'warning' ? 0.40 : 0.36)
-                            : (overlayTone === 'error' ? 0.34 : overlayTone === 'warning' ? 0.30 : 0.26)
-                        return {
-                            position: 'absolute', inset: 0, pointerEvents: 'none',
-                            backgroundColor: alpha(col, a),
-                        }
-                    }}
-                />
-            )}
-        </Box>
-    )
-}
 
 /** IconBadge — “chip” bulat: bg hitam (light) / putih (dark) */
 type Tone = 'default' | 'primary' | 'success' | 'info' | 'warning' | 'error'
@@ -159,7 +77,7 @@ type Props = {
     onToggle: (it: TransactionBatchesItems) => void
 }
 
-const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPriceLabel, uploadsLoader = defaultUploadsLoader, selected, disabled, isClosed, isPendingVoid, isApprovedVoid, isPendingPaid, isPaid, onToggle }) => {
+const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPriceLabel, selected, disabled, isClosed, isPendingVoid, isApprovedVoid, isPendingPaid, isPaid, onToggle }) => {
     const hasNote = Boolean(item.note?.trim()?.length)
 
     /** Gambar rules:
@@ -198,8 +116,7 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPr
             <Box sx={{ position: 'relative' }}>
                 {/* Gambar + overlay sesuai aturan */}
                 <ImgWithSkeleton
-                    loader={uploadsLoader}
-                    src={ph(item.product?.name, item.product?.image)}
+                    path={item.product?.image ?? null}
                     alt={item.product?.name || 'Item'}
                     grayscale={imgGray}
                     overlayTone={overlayTone}

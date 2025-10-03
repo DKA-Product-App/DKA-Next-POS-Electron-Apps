@@ -25,6 +25,7 @@ import {
     TransactionBillTransactionItem
 } from '../../types/transaction.bill.type'
 import { useEffect, useMemo, useRef, useState } from "react"
+import { ImgWithSkeleton } from '../../../../../../../../utils/ImageProcessingIPC'
 
 /* ================================= THEME ACCENTS ================================= */
 const PURPLE_GRAD = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
@@ -48,44 +49,6 @@ const statusChip = (bill?: TransactionBill) => {
 
 const first = <T,>(a?: T[] | T | null): T | undefined =>
     Array.isArray(a) ? a[0] : (a as T | undefined)
-
-/* ------------ Image helpers ------------- */
-const uploadsLoader: ImageLoader = ({ src }) => {
-    if (src?.startsWith('uploads:///')) {
-        const base = process.env.NEXT_PUBLIC_UPLOADS_BASE_URL || ''
-        const path = src.replace('uploads:///', '').replace(/^\/+/, '')
-        return base ? `${base.replace(/\/+$/, '')}/${path}` : `/${path}`
-    }
-    return src
-}
-const toUploadUrl = (s?: string) =>
-    (!s ? undefined : /^(uploads|http|https):\/\//i.test(s) ? s : `uploads:///${s.replace(/^\/+/, '')}`)
-
-const ph = (name?: string, img?: string) =>
-    toUploadUrl(img) ?? `https://placehold.co/600x400/png?text=${encodeURIComponent(name || 'Item')}`
-
-const ImgWithSkeleton: React.FC<{ src: string; alt: string; loader?: ImageLoader; radius?: number }> = ({ src, alt, loader, radius = 8 }) => {
-    const [loaded, setLoaded] = useState(false)
-    const [err, setErr] = useState(false)
-    const finalSrc = err ? 'https://placehold.co/600x400/png?text=No%20Image' : src
-    return (
-        <Box sx={{ position: 'relative', width: '100%', aspectRatio: '1 / 1', bgcolor: 'action.hover', overflow: 'hidden', borderRadius: radius / 2 }}>
-            {!loaded && <Skeleton variant="rectangular" sx={{ position: 'absolute', inset: 0 }} />}
-            <Image
-                loader={loader}
-                src={finalSrc}
-                alt={alt}
-                fill
-                unoptimized
-                sizes="64px"
-                onLoad={() => setLoaded(true)}
-                onError={() => { setErr(true); setLoaded(true) }}
-                style={{ objectFit: 'cover', opacity: loaded ? 1 : 0, transition: 'opacity .2s ease' }}
-            />
-            <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: (t) => `linear-gradient(to bottom, ${t.palette.action.hover}00 0%, ${t.palette.action.hover}40 70%, ${t.palette.action.hover}66 100%)` }} />
-        </Box>
-    )
-}
 
 /* ================================= DATA DERIVERS ================================= */
 const getInvoice = (b?: TransactionBill) => b?.transaction?.invoice ?? String(b?.number ?? '')
@@ -382,7 +345,6 @@ const BillListItemDetail: React.FC<{ billId: string, onPaySuccess?: () => void }
                         <Box sx={{ px: { xs: 2, md: 2.5 }, pb: 2 }}>
                             <Stack spacing={1}>
                                 {items.map((it, idx) => {
-                                    const imgSrc = ph(it.product?.name ?? '', it.product?.image ?? '')
                                     return (
                                         <Paper key={it.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', position: 'relative', '&::before': { content: '""', position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: ACCENT } }}>
                                             <ButtonBase disabled={isPaid} sx={{ width: '100%', display: 'grid', alignItems: 'stretch', textAlign: 'left', gridTemplateColumns: { xs: ITEM_COLS.xs, md: ITEM_COLS.md }, p: 0, '&:hover': { backgroundColor: 'action.hover' } }}>
@@ -393,7 +355,7 @@ const BillListItemDetail: React.FC<{ billId: string, onPaySuccess?: () => void }
                                                 {/* Produk */}
                                                 <Box sx={{ ...colCell(true), px: 1.25, py: 1.1, display: 'flex', alignItems: 'flex-start', gap: 1.25 }}>
                                                     <Box sx={{ width: 56, flexShrink: 0 }}>
-                                                        <ImgWithSkeleton loader={uploadsLoader} src={imgSrc} alt={it.product?.name ?? ''} radius={8} />
+                                                        <ImgWithSkeleton path={it.product?.image ?? null} alt={it.product?.name ?? ''} />
                                                     </Box>
                                                     <Box sx={{ minWidth: 0 }}>
                                                         <Typography variant="body1" fontWeight={900} noWrap title={it.product?.name ?? ''}>{it.product?.name ?? ''}</Typography>

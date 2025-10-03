@@ -23,7 +23,7 @@ export function KeyEvent(mainWindow?: BrowserWindow) {
     };
 
     const unregisterGlobals = () => {
-        globalShortcut.unregisterAll();
+        globalShortcut  .unregisterAll();
         ipcMain.removeAllListeners(`key.window.fullscreen`);
         ipcMain.removeAllListeners('key.window.dev.mode')
         registered = false

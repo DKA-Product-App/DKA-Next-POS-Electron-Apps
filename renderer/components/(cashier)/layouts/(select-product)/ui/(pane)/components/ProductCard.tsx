@@ -1,36 +1,26 @@
 'use client'
 
-import React, { FC } from 'react'
-import Image, { ImageLoader } from 'next/image'
-import { Box, Button, Chip, MenuItem, Paper, Select, Typography } from '@mui/material'
+import * as React from 'react'
+import Image from 'next/image'
+import { Box, Button, Chip, MenuItem, Paper, Select, Typography, Skeleton } from '@mui/material'
 import LocalOfferRoundedIcon from '@mui/icons-material/LocalOfferRounded'
 import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
-import Skeleton from '@mui/material/Skeleton'
 import { motion } from 'framer-motion'
 
+// ==== TYPES (sesuaikan dengan project-mu) ====
 import type { Products } from '../../../types/products.type'
 import type { ProductsVariants } from '../../../types/products.variants.type'
 import { ProductDetailModal, DetailProductModalHandle, type ProductWithVariants } from './modals/ProductDetailModal'
+import {ImgWithSkeleton} from "../../../../../../../utils/ImageProcessingIPC";
 
-export type ProductCardProps = {
-    product: ProductWithVariants
-    variantId?: string
-    onSelectVariant?: (productId: string, variantId?: string) => void
-    onAdd?: (product: Products, variant?: ProductsVariants) => void
-    uploadsLoader?: ImageLoader
-    gradient?: string
-}
 
+
+// =============================================================
+// UTILITIES
+// =============================================================
 const GRADIENT_DEFAULT = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
-
-// + bikin MotionPaper (tipis doang)
-const MotionPaper = motion(Paper)
-
-const rupiah = (n: number) =>
-    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n)
-const toUploadUrl = (s?: string | null) => (!s ? undefined : /^(uploads|http|https):\/\//i.test(s) ? s : `uploads:///${s.replace(/^\/+/, '')}`)
-const placeholderOf = (p: Products) => toUploadUrl(p.image) ?? `https://placehold.co/600x400/png?text=${encodeURIComponent(p.name)}`
+const rupiah = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n)
 
 /** drag-to-scroll (kategori) */
 function useHorizontalDragScroll<T extends HTMLElement>() {
@@ -58,38 +48,20 @@ function useHorizontalDragScroll<T extends HTMLElement>() {
     return { ref, onPointerDown, onPointerMove, onPointerUp: end, onPointerLeave: end }
 }
 
-const ImgWithSkeleton: FC<{ src: string; alt: string; priority?: boolean; loader?: ImageLoader }> = ({ src, alt, priority, loader }) => {
-    const [loaded, setLoaded] = React.useState(false)
-    const [err, setErr] = React.useState(false)
-    const finalSrc = err ? 'https://placehold.co/600x400/png?text=No%20Image' : src
-
-    return (
-        <Box sx={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', bgcolor: 'action.hover', overflow: 'hidden' }}>
-            {!loaded && <Skeleton variant="rectangular" sx={{ position: 'absolute', inset: 0 }} />}
-            <Image
-                loader={loader}
-                src={finalSrc}
-                alt={alt}
-                fill
-                unoptimized
-                loading={priority ? 'eager' : 'lazy'}
-                sizes="(max-width: 600px) 50vw, (max-width: 1200px) 25vw, 200px"
-                onLoad={() => setLoaded(true)}
-                onError={() => { setErr(true); setLoaded(true) }}
-                style={{ objectFit: 'cover', opacity: loaded ? 1 : 0, transition: 'opacity .2s ease' }}
-            />
-            <Box
-                sx={{
-                    position: 'absolute', inset: 0, pointerEvents: 'none',
-                    background: (t) =>
-                        `linear-gradient(to bottom, ${t.palette.action.hover}00 0%, ${t.palette.action.hover}40 70%, ${t.palette.action.hover}66 100%)`,
-                }}
-            />
-        </Box>
-    )
+// =============================================================
+// PRODUCT CARD
+// =============================================================
+export type ProductCardProps = {
+    product: ProductWithVariants
+    variantId?: string
+    onSelectVariant?: (productId: string, variantId?: string) => void
+    onAdd?: (product: Products, variant?: ProductsVariants) => void
+    gradient?: string
 }
 
-const ProductCard: FC<ProductCardProps> = ({ product: p, variantId, onSelectVariant, onAdd, uploadsLoader, gradient = GRADIENT_DEFAULT }) => {
+const MotionPaper = motion(Paper)
+
+const ProductCard: React.FC<ProductCardProps> = ({ product: p, variantId, onSelectVariant, onAdd, gradient = GRADIENT_DEFAULT }) => {
     const hasVariants = Array.isArray(p.variants) && p.variants.length > 0
     const selectedVarId = variantId ?? p.variants?.[0]?.id
     const selectedVar = p.variants?.find(v => String(v.id) === String(selectedVarId))
@@ -143,7 +115,7 @@ const ProductCard: FC<ProductCardProps> = ({ product: p, variantId, onSelectVari
                     onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), modalRef.current?.open()) : null}
                     sx={{ outline: 'none' }}
                 >
-                    <ImgWithSkeleton src={placeholderOf(p)} alt={p.name} loader={uploadsLoader} />
+                    <ImgWithSkeleton path={p.image ?? null} alt={p.name} />
                 </Box>
 
                 <Chip
@@ -198,7 +170,7 @@ const ProductCard: FC<ProductCardProps> = ({ product: p, variantId, onSelectVari
                     }}
                 >
                     <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, whiteSpace: 'nowrap', minWidth: '100%' }}>
-                        {cats.length ? (
+                        {Array.isArray(cats) && cats.length ? (
                             cats.map((c) => (
                                 <Chip
                                     key={String(c.id ?? c.name)}
@@ -257,7 +229,7 @@ const ProductCard: FC<ProductCardProps> = ({ product: p, variantId, onSelectVari
                     size="small"
                     variant="contained"
                     endIcon={<AddRoundedIcon />}
-                    color={"info"}
+                    color={'info'}
                     sx={{ mt: 1, textTransform: 'none', fontWeight: 800, borderRadius: 1.5, boxShadow: 'none', background: gradient, '&:hover': { boxShadow: 3 } }}
                     onClick={() => onAdd?.(p, hasVariants ? selectedVar : undefined)}
                 >
@@ -274,7 +246,6 @@ const ProductCard: FC<ProductCardProps> = ({ product: p, variantId, onSelectVari
                 variantId={selectedVarId ? String(selectedVarId) : undefined}
                 onSelectVariant={onSelectVariant}
                 onAdd={onAdd}
-                uploadsLoader={uploadsLoader}
                 gradient={gradient}
             />
         </MotionPaper>

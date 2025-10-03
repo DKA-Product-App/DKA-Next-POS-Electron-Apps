@@ -48,6 +48,50 @@ export function Product(mainWindow ?: BrowserWindow) {
                 });
         });
     });
+
+    mainWindow?.webContents?.ipc?.handle?.("api.product:read.image", (_event, args) => {
+        const toPath = compile(`/uploads/products/:name`);
+        return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
+            return ApiRequestInstance({
+                url: toPath(args),
+                method: "GET",
+                responseType: 'arraybuffer'
+            })
+                .then(({ data }) => {
+                    return resolve(Buffer.from(data).toString('base64'));
+                })
+                .catch((err) => {
+                    if (err && err.response)
+                        return reject({
+                            status: false,
+                            code: err.response.status ? err.response.status : 0,
+                            msg: (err.response.data && (err.response.data.message || err.response.data.msg)) || err.response.statusText || "Terjadi kesalahan",
+                            data: err.response.data ? err.response.data : null,
+                            error: { ...err, detail: { errno: err.errno, syscall: err.syscall, address: err.address, port: err.port } },
+                            meta: { ...err.response.config },
+                        });
+
+                    //
+                    switch (err && err.code) {
+                        case "ENOTFOUND":
+                            return reject({ status: false, code: 530, msg: "Host tidak ditemukan", error: err });
+                        case "ECONNREFUSED":
+                            return reject({ status: false, code: 530, msg: "Koneksi ditolak oleh server", error: err });
+                        case "ETIMEDOUT":
+                        case "ECONNABORTED":
+                            return reject({ status: false, code: 530, msg: "Waktu koneksi habis", error: err });
+                        default:
+                            return reject({
+                                status: false,
+                                code: 530,
+                                msg: typeof err.message === "string" && err.message.indexOf("Network Error") !== -1 ? "Jaringan/offline atau server tidak dapat dijangkau" : "Gagal menghubungi server",
+                                error: err,
+                            });
+                    }
+                });
+        });
+    });
     // READ ALL
     mainWindow?.webContents?.ipc?.handle?.("api.product:read.all", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/product`);

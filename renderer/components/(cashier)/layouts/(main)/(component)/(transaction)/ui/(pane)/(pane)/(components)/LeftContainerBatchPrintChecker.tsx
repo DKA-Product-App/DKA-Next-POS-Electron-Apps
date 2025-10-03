@@ -18,51 +18,10 @@ import Image, { ImageLoader } from 'next/image'
 import Skeleton from '@mui/material/Skeleton'
 import { NoteAltRounded } from '@mui/icons-material'
 import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../../types/api.transaction.type";
+import {ImgWithSkeleton} from "../../../../../../../../../../utils/ImageProcessingIPC";
 
 const PURPLE_GRAD = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
 const ACCENT = 'linear-gradient(90deg, #7C3AED, #6366F1 45%, #8B5CF6)'
-
-/* ===== IMG helpers ===== */
-const uploadsLoader: ImageLoader = ({ src }) => {
-    if (src?.startsWith('uploads:///')) {
-        const base = process.env.NEXT_PUBLIC_UPLOADS_BASE_URL || ''
-        const path = src.replace('uploads:///', '').replace(/^\/+/, '')
-        return base ? `${base.replace(/\/+$/, '')}/${path}` : `/${path}`
-    }
-    return src
-}
-const toUploadUrl = (s?: string) =>
-    (!s ? undefined : /^(uploads|http|https):\/\//i.test(s) ? s : `uploads:///${s.replace(/^\/+/, '')}`)
-const ph = (name?: string, img?: string) =>
-    toUploadUrl(img) ?? `https://placehold.co/600x400/png?text=${encodeURIComponent(name || 'Item')}`
-
-const ImgWithSkeleton: React.FC<{ src: string; alt: string; loader?: ImageLoader }> = ({ src, alt, loader }) => {
-    const [loaded, setLoaded] = React.useState(false)
-    const [err, setErr] = React.useState(false)
-    const finalSrc = err ? 'https://placehold.co/600x400/png?text=No%20Image' : src
-    return (
-        <Box sx={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', bgcolor: 'action.hover', overflow: 'hidden', borderRadius: 1 }}>
-            {!loaded && <Skeleton variant="rectangular" sx={{ position: 'absolute', inset: 0 }} />}
-            <Image
-                loader={loader}
-                src={finalSrc}
-                alt={alt}
-                fill
-                unoptimized
-                sizes="96px"
-                onLoad={() => setLoaded(true)}
-                onError={() => { setErr(true); setLoaded(true) }}
-                style={{ objectFit: 'cover', opacity: loaded ? 1 : 0, transition: 'opacity .2s ease' }}
-            />
-            <Box
-                sx={{
-                    position: 'absolute', inset: 0, pointerEvents: 'none',
-                    background: (t) => `linear-gradient(to bottom, ${t.palette.action.hover}00 0%, ${t.palette.action.hover}40 70%, ${t.palette.action.hover}66 100%)`
-                }}
-            />
-        </Box>
-    )
-}
 
 /* ===== Void helpers ===== */
 const isApprovedVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved === true
@@ -239,7 +198,6 @@ const LeftContainerBatchPrintChecker: React.FC<Props> = ({ transaction, batch })
                                                     <Stack spacing={1.25} sx={{ px: 1.25, py: 1.25 }}>
                                                         {mergeItemsByVariant(b.items).map(({ sample: it, qty, hasPending }) => {
                                                             const cat = categoriesForPrinter(it, b.id)
-                                                            const imgSrc = ph(it.product?.name, it.product?.image)
                                                             return (
                                                                 <MotionItem
                                                                     key={`${it.product?.id ?? ''}-${it.variant?.id ?? 'novar'}`}
@@ -265,7 +223,7 @@ const LeftContainerBatchPrintChecker: React.FC<Props> = ({ transaction, batch })
                                                                 >
                                                                     {/* Thumb */}
                                                                     <Box sx={{ width: 84, flexShrink: 0 }}>
-                                                                        <ImgWithSkeleton loader={uploadsLoader} src={imgSrc} alt={it.product?.name || 'item'} />
+                                                                        <ImgWithSkeleton path={it.product?.image ?? null} alt={it.product?.name ?? ''} />
                                                                     </Box>
 
                                                                     {/* Info */}

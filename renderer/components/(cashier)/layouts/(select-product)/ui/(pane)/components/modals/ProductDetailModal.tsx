@@ -15,6 +15,7 @@ import 'react-perfect-scrollbar/dist/css/styles.css'
 import type { Products } from '../../../../types/products.type'
 import type { ProductsVariants } from '../../../../types/products.variants.type'
 import type { Category } from '../../../../types/product.categories.type'
+import {ImgWithSkeleton} from "../../../../../../../../utils/ImageProcessingIPC";
 
 export type DetailProductModalHandle = { open: () => void; close: () => void }
 
@@ -40,33 +41,6 @@ export type DetailProductModalProps = {
 
 const GRADIENT_DEFAULT = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
 const rupiah = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n)
-const toUploadUrl = (s?: string | null) => (!s ? undefined : /^(uploads|http|https):\/\//i.test(s) ? s : `uploads:///${s.replace(/^\/+/, '')}`)
-const placeholderOf = (p: Products) => toUploadUrl(p.image) ?? `https://placehold.co/600x400/png?text=${encodeURIComponent(p.name)}`
-
-const ImgWithSkeleton: React.FC<{ src: string; alt: string; priority?: boolean; loader?: ImageLoader }> = ({ src, alt, priority, loader }) => {
-    const [loaded, setLoaded] = useState(false)
-    const [err, setErr] = useState(false)
-    const finalSrc = err ? 'https://placehold.co/600x400/png?text=No%20Image' : src
-
-    return (
-        <Box sx={{ position: 'relative', width: '100%', aspectRatio: '5 / 3', bgcolor: 'action.hover', overflow: 'hidden' }}>
-            {!loaded && <Skeleton variant="rectangular" sx={{ position: 'absolute', inset: 0 }} />}
-            <Image
-                loader={loader}
-                src={finalSrc}
-                alt={alt}
-                fill
-                unoptimized
-                loading={priority ? 'eager' : 'lazy'}
-                sizes="(max-width: 600px) 90vw, (max-width: 1200px) 60vw, 600px"
-                onLoad={() => setLoaded(true)}
-                onError={() => { setErr(true); setLoaded(true) }}
-                style={{ objectFit: 'cover', opacity: loaded ? 1 : 0, transition: 'opacity .2s ease' }}
-            />
-        </Box>
-    )
-}
-
 export const ProductDetailModal = forwardRef<DetailProductModalHandle, DetailProductModalProps>(function DetailProductModal(
     { product: p, variantId, onSelectVariant, onAdd, uploadsLoader, gradient = GRADIENT_DEFAULT, decorShadowOpacity },
     ref
@@ -143,8 +117,7 @@ export const ProductDetailModal = forwardRef<DetailProductModalHandle, DetailPro
                     <Box sx={{ p: 0 }}>
                         {/* HERO IMAGE + HARGA */}
                         <Box sx={{ position: 'relative', overflow: 'hidden' }}>
-                            <ImgWithSkeleton src={placeholderOf(p)} alt={p.name} loader={uploadsLoader} />
-
+                            <ImgWithSkeleton path={p?.image ?? null} alt={p?.name ?? ''} />
                             <Box
                                 sx={{
                                     position: 'absolute',

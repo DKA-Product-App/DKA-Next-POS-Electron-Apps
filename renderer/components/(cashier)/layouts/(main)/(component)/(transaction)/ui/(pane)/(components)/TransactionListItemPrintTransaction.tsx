@@ -19,6 +19,7 @@ import { useEffect, useState } from 'react'
 import { NoteAltRounded } from '@mui/icons-material'
 import PendingActionsRounded from '@mui/icons-material/PendingActionsRounded'
 import {Transaction, TransactionBatchesItems} from "../../types/api.transaction.type";
+import {ImgWithSkeleton} from "../../../../../../../../../utils/ImageProcessingIPC";
 
 /* ===== Types (selaraskan dengan project kamu) ===== */
 export type Name = { first_name: string; last_name?: string }
@@ -33,48 +34,6 @@ export type Item = {
     void?: { void_time: string; is_approved: boolean } | null;   // ⬅️ tambahkan void
 }
 export type Batch = { id: string; batch: number; items: Item[] }
-
-/* ====== IMG helpers ====== */
-const uploadsLoader: ImageLoader = ({ src }) => {
-    if (src?.startsWith('uploads:///')) {
-        const base = process.env.NEXT_PUBLIC_UPLOADS_BASE_URL || ''
-        const path = src.replace('uploads:///', '').replace(/^\/+/, '')
-        return base ? `${base.replace(/\/+$/, '')}/${path}` : `/${path}`
-    }
-    return src
-}
-const toUploadUrl = (s?: string) =>
-    (!s ? undefined : /^(uploads|http|https):\/\//i.test(s) ? s : `uploads:///${s.replace(/^\/+/, '')}`)
-const ph = (name?: string, img?: string) =>
-    toUploadUrl(img) ?? `https://placehold.co/600x400/png?text=${encodeURIComponent(name || 'Item')}`
-
-const ImgWithSkeleton: React.FC<{ src: string; alt: string; loader?: ImageLoader }> = ({ src, alt, loader }) => {
-    const [loaded, setLoaded] = React.useState(false)
-    const [err, setErr] = React.useState(false)
-    const finalSrc = err ? 'https://placehold.co/600x400/png?text=No%20Image' : src
-    return (
-        <Box sx={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', bgcolor: 'action.hover', overflow: 'hidden', borderRadius: 1 }}>
-            {!loaded && <Skeleton variant="rectangular" sx={{ position: 'absolute', inset: 0 }} />}
-            <Image
-                loader={loader}
-                src={finalSrc}
-                alt={alt}
-                fill
-                unoptimized
-                sizes="96px"
-                onLoad={() => setLoaded(true)}
-                onError={() => { setErr(true); setLoaded(true) }}
-                style={{ objectFit: 'cover', opacity: loaded ? 1 : 0, transition: 'opacity .2s ease' }}
-            />
-            <Box
-                sx={{
-                    position: 'absolute', inset: 0, pointerEvents: 'none',
-                    background: (t) => `linear-gradient(to bottom, ${t.palette.action.hover}00 0%, ${t.palette.action.hover}40 70%, ${t.palette.action.hover}66 100%)`
-                }}
-            />
-        </Box>
-    )
-}
 
 /* ===== Void helpers ===== */
 const isApprovedVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved === true
@@ -277,7 +236,6 @@ const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx
                                                     <Stack spacing={1.25} sx={{ px: 1.25, py: 1.25 }}>
                                                         {mergeItemsByVariant(b.items).map(({ sample: it, qty, hasPending }) => {
                                                             const cat = categoriesForPrinter(it, b.id)
-                                                            const imgSrc = ph(it.product?.name, it.product?.image)
                                                             return (
                                                                 <Stack
                                                                     key={`${it.product?.id ?? ''}-${it.variant?.id ?? 'novar'}`}
@@ -310,7 +268,7 @@ const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx
                                                                 >
                                                                     {/* Thumb */}
                                                                     <Box sx={{ width: 80, flexShrink: 0 }}>
-                                                                        <ImgWithSkeleton loader={uploadsLoader} src={imgSrc} alt={it.product?.name || 'item'} />
+                                                                        <ImgWithSkeleton path={it.product?.image ?? null} alt={it.product?.name ?? ''} />
                                                                     </Box>
 
                                                                     {/* Info */}
