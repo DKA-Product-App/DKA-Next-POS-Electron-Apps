@@ -1,6 +1,6 @@
 import { BrowserWindow } from "electron";
 import { compile } from "path-to-regexp";
-import { ApiRequestInstance } from "../../../functions/api/api.request.instance";
+import {getApi} from "../../../functions/api/api.request.instance";
 import { ApiConfig } from "../../../config/api.config";
 
 export function ApiConfigDataPaymentMethod(mainWindow?: BrowserWindow) {
@@ -9,6 +9,7 @@ export function ApiConfigDataPaymentMethod(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.payment.method:create", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/payment_method`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "POST",
@@ -52,6 +53,7 @@ export function ApiConfigDataPaymentMethod(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.payment.method:read.all", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/payment_method`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "GET",
@@ -96,6 +98,7 @@ export function ApiConfigDataPaymentMethod(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.payment.method:read.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/payment_method/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "GET",
@@ -138,6 +141,7 @@ export function ApiConfigDataPaymentMethod(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.payment.method:update.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/payment_method/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "PUT",
@@ -181,6 +185,7 @@ export function ApiConfigDataPaymentMethod(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.payment.method:delete.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/payment_method/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "DELETE",

@@ -1,7 +1,7 @@
 import {BrowserWindow} from "electron";
 import { compile } from "path-to-regexp";
 import { ApiConfig } from "../../config/api.config";
-import { ApiRequestInstance } from "../../functions/api/api.request.instance";
+import {getApi} from "../../functions/api/api.request.instance";
 
 export function ProductCategory(mainWindow ?: BrowserWindow) {
     // CREATE
@@ -9,6 +9,7 @@ export function ProductCategory(mainWindow ?: BrowserWindow) {
 
         const toPath = compile(`/v${ApiConfig.version}/resources/product/category`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "POST",
@@ -51,6 +52,7 @@ export function ProductCategory(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.product.category:read.all", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/product/category`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "GET",
@@ -94,6 +96,7 @@ export function ProductCategory(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.product.category:read.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/product/category/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "GET",
@@ -135,6 +138,7 @@ export function ProductCategory(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.product.category:update.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/product/category/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "PUT",
@@ -177,6 +181,7 @@ export function ProductCategory(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.product.category:delete.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/product/category/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "DELETE",

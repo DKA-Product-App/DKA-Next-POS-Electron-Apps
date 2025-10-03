@@ -2,7 +2,7 @@ import {BrowserWindow} from "electron";
 import { compile } from "path-to-regexp";
 import qs from "qs";
 import { ApiConfig } from "../../config/api.config";
-import { ApiRequestInstance } from "../../functions/api/api.request.instance";
+import { getApi } from "../../functions/api/api.request.instance";
 
 export function TransactionBatchItem(mainWindow ?: BrowserWindow) {
     // CREATE
@@ -10,6 +10,7 @@ export function TransactionBatchItem(mainWindow ?: BrowserWindow) {
 
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "POST",
@@ -48,6 +49,7 @@ export function TransactionBatchItem(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:read.all", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "GET",
@@ -87,6 +89,7 @@ export function TransactionBatchItem(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:read.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "GET",
@@ -124,6 +127,7 @@ export function TransactionBatchItem(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:update.one", (_event, { params, data }) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(params),
                 method: "PATCH",
@@ -163,6 +167,7 @@ export function TransactionBatchItem(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:update.many", (_event, { query, data }) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "PATCH",
@@ -202,6 +207,7 @@ export function TransactionBatchItem(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item:delete.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "DELETE",

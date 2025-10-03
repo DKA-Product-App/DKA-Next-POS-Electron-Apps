@@ -1,6 +1,6 @@
 import { BrowserWindow } from "electron";
 import { compile } from "path-to-regexp";
-import { ApiRequestInstance } from "../../../functions/api/api.request.instance";
+import {getApi} from "../../../functions/api/api.request.instance";
 import { ApiConfig } from "../../../config/api.config";
 
 export function ApiConfigDataFloors(mainWindow?: BrowserWindow) {
@@ -9,6 +9,7 @@ export function ApiConfigDataFloors(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.floors:create", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/floors`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "POST",
@@ -47,6 +48,7 @@ export function ApiConfigDataFloors(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.floors:read.all", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/floors`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "GET",
@@ -85,6 +87,7 @@ export function ApiConfigDataFloors(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.floors:read.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/floors/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "GET",
@@ -122,6 +125,7 @@ export function ApiConfigDataFloors(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.floors:update.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/floors/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "PUT",
@@ -160,6 +164,7 @@ export function ApiConfigDataFloors(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.floors:delete.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/floors/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "DELETE",

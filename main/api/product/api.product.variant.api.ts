@@ -1,7 +1,7 @@
 import {BrowserWindow} from "electron";
 import { compile } from "path-to-regexp";
 import { ApiConfig } from "../../config/api.config";
-import { ApiRequestInstance } from "../../functions/api/api.request.instance";
+import {getApi} from "../../functions/api/api.request.instance";
 
 export function ProductVariant(mainWindow ?: BrowserWindow) {
     // CREATE
@@ -9,6 +9,7 @@ export function ProductVariant(mainWindow ?: BrowserWindow) {
 
         const toPath = compile(`/v${ApiConfig.version}/resources/product/variant`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "POST",
@@ -51,6 +52,7 @@ export function ProductVariant(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.product.variant:read.all", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/product/variant`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "GET",
@@ -94,6 +96,7 @@ export function ProductVariant(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.product.variant:read.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/product/variant/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "GET",
@@ -135,6 +138,7 @@ export function ProductVariant(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.product.variant:update.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/product/variant/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "PUT",
@@ -177,6 +181,7 @@ export function ProductVariant(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.product.variant:delete.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/product/variant/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "DELETE",

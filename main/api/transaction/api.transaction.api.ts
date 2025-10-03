@@ -1,7 +1,7 @@
 import {BrowserWindow} from "electron";
 import { compile } from "path-to-regexp";
 import { ApiConfig } from "../../config/api.config";
-import { ApiRequestInstance } from "../../functions/api/api.request.instance";
+import {getApi} from "../../functions/api/api.request.instance";
 
 let lastCtrl: AbortController | null = null;
 
@@ -11,6 +11,7 @@ export function Transaction(mainWindow ?: BrowserWindow) {
 
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "POST",
@@ -52,6 +53,7 @@ export function Transaction(mainWindow ?: BrowserWindow) {
         const ctrl = new AbortController();
         lastCtrl = ctrl;
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "GET",
@@ -91,6 +93,7 @@ export function Transaction(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.transaction:read.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "GET",
@@ -128,6 +131,7 @@ export function Transaction(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.transaction:update.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "PUT",
@@ -166,6 +170,7 @@ export function Transaction(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.transaction:delete.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "DELETE",
@@ -203,6 +208,7 @@ export function Transaction(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.transaction:print", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/print`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "GET",

@@ -1,6 +1,6 @@
 import { BrowserWindow } from "electron";
 import { compile } from "path-to-regexp";
-import { ApiRequestInstance } from "../../../functions/api/api.request.instance";
+import { getApi } from "../../../functions/api/api.request.instance";
 import { ApiConfig } from "../../../config/api.config";
 
 export function ApiConfigDataOrderType(mainWindow?: BrowserWindow) {
@@ -10,6 +10,7 @@ export function ApiConfigDataOrderType(mainWindow?: BrowserWindow) {
 
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/order_type`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "POST",
@@ -48,6 +49,7 @@ export function ApiConfigDataOrderType(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.order.type:read.all", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/order_type`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "GET",
@@ -86,6 +88,7 @@ export function ApiConfigDataOrderType(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.order.type:read.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/order_type/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "GET",
@@ -128,6 +131,7 @@ export function ApiConfigDataOrderType(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.order.type:update.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/order_type/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "PUT",
@@ -171,6 +175,7 @@ export function ApiConfigDataOrderType(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.order.type:delete.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/order_type/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "DELETE",

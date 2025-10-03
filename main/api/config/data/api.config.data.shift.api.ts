@@ -1,6 +1,6 @@
 import { BrowserWindow } from "electron";
 import { compile } from "path-to-regexp";
-import { ApiRequestInstance } from "../../../functions/api/api.request.instance";
+import {getApi} from "../../../functions/api/api.request.instance";
 import { ApiConfig } from "../../../config/api.config";
 
 export function ApiConfigDataShift(mainWindow?: BrowserWindow) {
@@ -10,6 +10,7 @@ export function ApiConfigDataShift(mainWindow?: BrowserWindow) {
 
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/shift`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "POST",
@@ -48,6 +49,7 @@ export function ApiConfigDataShift(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.shift:read.all", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/shift`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "GET",
@@ -86,6 +88,7 @@ export function ApiConfigDataShift(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.shift:read.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/shift/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "GET",
@@ -128,6 +131,7 @@ export function ApiConfigDataShift(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.shift:update.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/shift/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "PUT",
@@ -171,6 +175,7 @@ export function ApiConfigDataShift(mainWindow?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.config.data.shift:delete.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/shift/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "DELETE",

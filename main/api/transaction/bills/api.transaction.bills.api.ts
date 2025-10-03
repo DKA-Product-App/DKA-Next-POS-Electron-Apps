@@ -1,13 +1,14 @@
 import {BrowserWindow} from "electron";
 import { compile } from "path-to-regexp";
 import { ApiConfig } from "../../../config/api.config";
-import { ApiRequestInstance } from "../../../functions/api/api.request.instance";
+import { getApi } from "../../../functions/api/api.request.instance";
 
 export function TransactionBills(mainWindow ?: BrowserWindow) {
     // CREATE
     mainWindow?.webContents?.ipc?.handle?.("api.transaction.bills:create", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/bill`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "POST",
@@ -46,6 +47,7 @@ export function TransactionBills(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.transaction.bills:read.all", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/bill`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(),
                 method: "GET",
@@ -84,6 +86,7 @@ export function TransactionBills(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.transaction.bills:read.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/bill/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "GET",
@@ -121,6 +124,7 @@ export function TransactionBills(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.transaction.bills:update.one", (_event, { params, data }) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/bill/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(params),
                 method: "PATCH",
@@ -159,6 +163,7 @@ export function TransactionBills(mainWindow ?: BrowserWindow) {
     mainWindow?.webContents?.ipc?.handle?.("api.transaction.bills:delete.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/bill/:id`);
         return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
                 method: "DELETE",
