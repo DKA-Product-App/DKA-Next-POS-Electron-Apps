@@ -24,6 +24,10 @@ import {useTabNavigationHandlerContext} from '../../../context/TabNavigationHand
 import {useTransactionEventTrigger} from "../context/TransactionEventTriggerContext";
 import {useSession} from "../../../../../../../../../contexts/SessionProviderContext";
 import {Transaction} from "../../types/api.transaction.type";
+import {AxiosResponse} from "axios";
+import {TransactionBill, TransactionBillPrinterDevice} from "../../../../(bills)/types/transaction.bill.type";
+import SweetAlert2, {SweetAlert2Props} from "react-sweetalert2";
+import TransactionBills from "../../../../../../../../../../main/api/transaction/bills/api.transaction.bills.api";
 
 const BillListItemDetail = dynamic(
     () => import('./../../../../(bills)/ui/(pane)/BillsListItemDetail'),
@@ -123,12 +127,15 @@ const getPendingActive = (o?: Transaction) => {
 };
 
 export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan', variant = 'contained', transaction }: Props) {
+    const themes = useThemeCharger()
+
     const { txId, bumpReload, clearSelection, setReloadKey } = useTx()
     const {bump} = useTransactionEventTrigger()
     const isClosed = Boolean(transaction?.time_closed);
 
     const {Session} = useSession();
 
+    const [swalProps, setSwalProps] = useState<SweetAlert2Props>({});
 
     const itemQty = totalItems(transaction);
     const { active, pending, paid } = getPendingActive(transaction);
@@ -137,7 +144,6 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
     const [fullScreen, setFullScreen] = useState(false)
     const theme = useTheme()
     const isDark = (theme.palette as any)?.mode === 'dark' || (theme.palette as any)?.colorScheme === 'dark'
-    const {toggleMode} = useThemeCharger()
 
     const isSplitMode = mode === 'split'
     const baseIcon = isSplitMode ? <CallSplitRounded sx={{fontSize: 36}}/> : <ReceiptLongRounded sx={{fontSize: 36}}/>
@@ -152,6 +158,11 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
     const lockRef = useRef(false)
     const openNonce = useRef<number>(0)     // penanda sesi open
     const createdOnce = useRef(false)       // sudah create bill di sesi ini?
+
+    //================
+    // 2) State: langsung simpan objek printer
+    const [PrinterList, setPrinterList] = React.useState<TransactionBillPrinterDevice[]>([])
+    const [selectedPrinter, setSelectedPrinter] = React.useState<TransactionBillPrinterDevice | null>(null)
 
 
     const disabled = isClosed || items.length === 0 || paid === itemQty
@@ -181,6 +192,44 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
         lockRef.current = false
     }
 
+
+    React.useEffect(() => {
+        window?.api.invoke?.<any, AxiosResponse<TransactionBillPrinterDevice[]>>("api.config.device.printer:read.all", {})
+            .then(async ({ data }) => {
+                if (selectedPrinter === null) setSelectedPrinter(data?.[0]);
+                setPrinterList(data);
+            })
+            .catch((error) => {
+                setPrinterList([])
+            })
+    },[])
+
+    const onPrintHandle = (bill: TransactionBill) => {
+        if (!selectedPrinter) return
+        window.api.invoke('api.transaction.bills:print', {
+            bill: bill?.id ?? undefined,
+            printer: selectedPrinter.id
+        })
+            .then((res) => {
+                setSwalProps({
+                    show: true,
+                    icon: "success",
+                    theme: themes.mode,
+                    title: 'Successfully Sending Printer',
+                    text: `${res.msg}`,
+                });
+            })
+            .catch((error) => {
+                console.error(error);
+                setSwalProps({
+                    show: true,
+                    icon: "error",
+                    theme: themes.mode,
+                    title: 'Gagal Mencetak Otomatis',
+                    text: `${error?.msg ?? 'Gagal Mencetak. Printer Offline / Error.'}`,
+                });
+            })
+    }
 
     // ====== Fetch items sekali dengan key terkunci (tidak terganggu prop items/transaction) ======
     useEffect(() => {
@@ -227,11 +276,11 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
             paid: { status: false }
         }
 
-        window?.api?.invoke?.('api.transaction.bills:create', payload)
-            .then((result: any) => {
+        window?.api?.invoke?.<any, AxiosResponse<TransactionBill>>('api.transaction.bills:create', payload)
+            .then((result) => {
                 if (!lockRef.current) return
                 if (myNonce !== openNonce.current) return // sesi sudah berganti → skip render
-
+                onPrintHandle(result?.data);
                 setLayoutPaper(
                     <BillListItemDetail
                         billId={result?.data?.id}
@@ -344,7 +393,7 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
                             {fullScreen ? <FullscreenExitRounded fontSize="small"/> :
                                 <FullscreenRounded fontSize="small"/>}
                         </IconButton>
-                        <IconButton size="small" onClick={() => toggleMode()}
+                        <IconButton size="small" onClick={() => themes.toggleMode()}
                                     aria-label={isDark ? 'Ganti ke tema terang' : 'Ganti ke tema gelap'}>
                             {isDark ? <DarkModeRounded fontSize="small"/> : <LightModeRounded fontSize="small"/>}
                         </IconButton>
@@ -360,6 +409,7 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
                     </Box>
                 </DialogContent>
             </Dialog>
+            <SweetAlert2 {...swalProps} />
         </>
     )
 }

@@ -34,7 +34,6 @@ export interface TransactionBill {
     reference?: TransactionBillReferenceUser
     branch?: TransactionBillBranch[]
     transaction?: TransactionBillTransaction
-    payment_method?: Maybe<TransactionBillPaymentMethod>
     items?: TransactionBillItem[]
 }
 

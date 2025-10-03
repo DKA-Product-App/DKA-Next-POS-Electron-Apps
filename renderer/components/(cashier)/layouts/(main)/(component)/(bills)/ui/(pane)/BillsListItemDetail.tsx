@@ -4,7 +4,13 @@
 import * as React from 'react'
 import {
     Box, Paper, Stack, Typography, Chip, Button, TextField, InputAdornment,
-    ButtonBase, Divider, Tooltip
+    ButtonBase, Divider, Tooltip,
+    ButtonGroup,
+    Popper,
+    ListItemButton,
+    ListItemIcon, ListItemText,
+    List,
+    ClickAwayListener
 } from '@mui/material'
 import PrintRounded from '@mui/icons-material/PrintRounded'
 import RequestQuoteRounded from '@mui/icons-material/RequestQuoteRounded'
@@ -21,11 +27,15 @@ import Image, { ImageLoader } from 'next/image'
 import Skeleton from '@mui/material/Skeleton'
 import {
     ApiResponseTransactionBill,
-    TransactionBill, TransactionBillPaymentMethod, TransactionBills,
+    TransactionBill, TransactionBillPaymentMethod, TransactionBillPrinterDevice, TransactionBills,
     TransactionBillTransactionItem
 } from '../../types/transaction.bill.type'
 import { useEffect, useMemo, useRef, useState } from "react"
 import { ImgWithSkeleton } from '../../../../../../../../utils/ImageProcessingIPC'
+import {CheckRounded, ExpandLessRounded } from '@mui/icons-material'
+import {AxiosResponse} from "axios";
+import SweetAlert2, {SweetAlert2Props} from "react-sweetalert2";
+import {useThemeCharger} from "../../../../../../../../contexts/ThemeCharger";
 
 /* ================================= THEME ACCENTS ================================= */
 const PURPLE_GRAD = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
@@ -186,7 +196,7 @@ type TenderMode = 'idle' | 'entry' | 'ready'
 
 const BillListItemDetail: React.FC<{ billId: string, onPaySuccess?: () => void }> = ({ billId, onPaySuccess }) => {
     const [bill, setBill] = useState<TransactionBill | undefined>(undefined)
-
+    const { mode, toggleMode } = useThemeCharger()
     // ==== ⛓️ DERIVED FROM `bill` (selalu up-to-date) ====
     const isPaid = useMemo(() => !!bill?.paid?.status, [bill])
     const st = useMemo(() => statusChip(bill), [bill])
@@ -203,6 +213,8 @@ const BillListItemDetail: React.FC<{ billId: string, onPaySuccess?: () => void }
     const itemsCount = items.length
     const qtyTotal = useMemo(() => items.reduce((a, it) => a + Number(it.qty ?? 0), 0), [items])
 
+    const [swalProps, setSwalProps] = useState<SweetAlert2Props>({});
+
     /* ---------------- PAYMENT STATE ---------------- */
     const [method, setMethod] = useState<TransactionBillPaymentMethod | null>(null)
     const [needTender, setNeedTender] = useState<boolean>(false)
@@ -213,6 +225,16 @@ const BillListItemDetail: React.FC<{ billId: string, onPaySuccess?: () => void }
     const cash = cashStr === '' ? 0 : Number(cashStr.replaceAll('.', '').replaceAll(',', ''))
     const change = Math.max(0, cash - grandTotal)
     const cashRef = useRef<HTMLInputElement>(null)
+
+    // 2) State: langsung simpan objek printer
+    const [printerMenuOpen, setPrinterMenuOpen] = React.useState(false)
+    const [PrinterList, setPrinterList] = React.useState<TransactionBillPrinterDevice[]>([])
+    const [selectedPrinter, setSelectedPrinter] = React.useState<TransactionBillPrinterDevice | null>(null)
+    const arrowRef = React.useRef<HTMLButtonElement | null>(null)
+
+    const togglePrinterMenu = () => setPrinterMenuOpen(v => !v)
+    const closePrinterMenu = () => setPrinterMenuOpen(false)
+
 
     // initial fetch bill
     useEffect(() => {
@@ -296,228 +318,304 @@ const BillListItemDetail: React.FC<{ billId: string, onPaySuccess?: () => void }
                 // @ts-ignore
                 window.api.invoke('api.transaction.bills:read.one', { id: billId })
             )
-            .then(({ data }) => { onPaySuccess?.(); setBill(data) })
+            .then(({ data }) => {
+                onPaySuccess?.();
+                setBill(data);
+                onPrintHandle();
+            })
             .catch(console.error)
     }
 
-    return (
-        <Box sx={{ height: '100%', width: '100%' }}>
-            <Paper elevation={0} sx={{ height: '100%', width: '100%', border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper', borderRadius: 0, display: 'flex', flexDirection: 'column' }}>
-                {/* ===== Header ===== */}
-                <Box sx={{ p: { xs: 2, md: 2.5 }, borderBottom: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1.5}>
-                        <Stack spacing={0.75} minWidth={0}>
-                            <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
-                                <RequestQuoteRounded sx={{ fontSize: { xs: 18, md: 20 } }} />
-                                <Typography variant="h5" fontWeight={900} noWrap sx={{ letterSpacing: 0.2 }}>
-                                    #{' '}{bill?.number}
-                                </Typography>
-                                <Chip size="small" color={st.color} label={st.label} sx={{ borderRadius: 0, fontSize: { xs: 12, md: 13 } }} />
-                                <Chip size="small" variant="outlined" label={`${itemsCount} item${itemsCount === 1 ? '' : 's'} • ${qtyTotal} qty`} sx={{ borderRadius: 0, fontSize: { xs: 12, md: 13 } }} />
-                            </Stack>
+    React.useEffect(() => {
+       window?.api.invoke?.<any, AxiosResponse<TransactionBillPrinterDevice[]>>("api.config.device.printer:read.all", {})
+           .then(async ({ data }) => {
+               if (selectedPrinter === null) setSelectedPrinter(data[0]);
+               setPrinterList(data);
+           })
+           .catch((error) => {
+               setPrinterList([])
+           })
+    },[])
+    const onPrintHandle = () => {
+        if (!selectedPrinter) return
+        window.api.invoke('api.transaction.bills:print', {
+            bill: bill.id,
+            printer: selectedPrinter.id
+        })
+            .then((res) => {
+                setSwalProps({
+                    show: true,
+                    icon: "success",
+                    theme: mode,
+                    title: 'Successfully Sending Printer',
+                    text: `${res.msg}`,
+                });
+            })
+            .catch((error) => {
+                console.error(error);
+                setSwalProps({
+                    show: true,
+                    icon: "error",
+                    theme: mode,
+                    title: 'Gagal Mencetak Otomatis',
+                    text: `${error?.msg ?? 'Gagal Mencetak. Printer Offline / Error.'}`,
+                });
+            })
+    }
 
-                            <Stack direction="row" spacing={2} flexWrap="wrap" sx={{ color: 'text.secondary' }}>
-                                <Stack direction="row" spacing={0.75} alignItems="center">
-                                    <AccessTimeRounded sx={{ fontSize: 18 }} />
-                                    <Typography variant="body1">
-                                        {isPaid ? `Paid — ${fmtTimeShort(getPaidAt(bill))}` : `Issued — ${fmtTimeShort(getIssuedAt(bill))}`}
+
+    return (
+        <>
+            <Box sx={{ height: '100%', width: '100%' }}>
+                <Paper elevation={0} sx={{ height: '100%', width: '100%', border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper', borderRadius: 0, display: 'flex', flexDirection: 'column' }}>
+                    {/* ===== Header ===== */}
+                    <Box sx={{ p: { xs: 2, md: 2.5 }, borderBottom: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={1.5}>
+                            <Stack spacing={0.75} minWidth={0}>
+                                <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
+                                    <RequestQuoteRounded sx={{ fontSize: { xs: 18, md: 20 } }} />
+                                    <Typography variant="h5" fontWeight={900} noWrap sx={{ letterSpacing: 0.2 }}>
+                                        #{' '}{bill?.number}
                                     </Typography>
+                                    <Chip size="small" color={st.color} label={st.label} sx={{ borderRadius: 0, fontSize: { xs: 12, md: 13 } }} />
+                                    <Chip size="small" variant="outlined" label={`${itemsCount} item${itemsCount === 1 ? '' : 's'} • ${qtyTotal} qty`} sx={{ borderRadius: 0, fontSize: { xs: 12, md: 13 } }} />
                                 </Stack>
-                                <Typography variant="body1">Ref — {ref ?? '—'}</Typography>
+
+                                <Stack direction="row" spacing={2} flexWrap="wrap" sx={{ color: 'text.secondary' }}>
+                                    <Stack direction="row" spacing={0.75} alignItems="center">
+                                        <AccessTimeRounded sx={{ fontSize: 18 }} />
+                                        <Typography variant="body1">
+                                            {isPaid ? `Paid — ${fmtTimeShort(getPaidAt(bill))}` : `Issued — ${fmtTimeShort(getIssuedAt(bill))}`}
+                                        </Typography>
+                                    </Stack>
+                                    <Typography variant="body1">Ref — {ref ?? '—'}</Typography>
+                                </Stack>
                             </Stack>
                         </Stack>
-                    </Stack>
-                </Box>
-
-                {/* ===== Items header ===== */}
-                <Box sx={{ px: { xs: 2, md: 2.5 }, pt: 1, pb: 1, flexShrink: 0 }}>
-                    <Box sx={(t) => ({ display: 'grid', gridTemplateColumns: { xs: ITEM_COLS.xs, md: ITEM_COLS.md }, gap: 0, border: '1px solid', borderColor: 'divider', bgcolor: t.palette.action.hover })}>
-                        <Box sx={{ ...colCell(false), px: 1.25, py: 1 }}><Typography variant="body2" fontWeight={900} textAlign="center">#</Typography></Box>
-                        <Box sx={{ ...colCell(true), px: 1.25, py: 1 }}><Typography variant="body2" fontWeight={900}>Produk</Typography></Box>
-                        <Box sx={{ ...colCell(true), px: 1.25, py: 1 }}><Typography variant="body2" fontWeight={900} textAlign="right">Qty</Typography></Box>
-                        <Box sx={{ ...colCell(true), px: 1.25, py: 1 }}><Typography variant="body2" fontWeight={900} textAlign="right">Subtotal</Typography></Box>
                     </Box>
-                </Box>
 
-                {/* ===== Items (scroll) ===== */}
-                <Box sx={{ flex: 1, minHeight: 0 }}>
-                    <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false }}>
-                        <Box sx={{ px: { xs: 2, md: 2.5 }, pb: 2 }}>
-                            <Stack spacing={1}>
-                                {items.map((it, idx) => {
-                                    return (
-                                        <Paper key={it.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', position: 'relative', '&::before': { content: '""', position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: ACCENT } }}>
-                                            <ButtonBase disabled={isPaid} sx={{ width: '100%', display: 'grid', alignItems: 'stretch', textAlign: 'left', gridTemplateColumns: { xs: ITEM_COLS.xs, md: ITEM_COLS.md }, p: 0, '&:hover': { backgroundColor: 'action.hover' } }}>
-                                                {/* # */}
-                                                <Box sx={{ ...colCell(false), px: 1.25, py: 1.1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                    <Chip size="small" label={idx + 1} sx={{ fontWeight: 800, background: PURPLE_GRAD, color: '#fff' }} />
-                                                </Box>
-                                                {/* Produk */}
-                                                <Box sx={{ ...colCell(true), px: 1.25, py: 1.1, display: 'flex', alignItems: 'flex-start', gap: 1.25 }}>
-                                                    <Box sx={{ width: 56, flexShrink: 0 }}>
-                                                        <ImgWithSkeleton path={it.product?.image ?? null} alt={it.product?.name ?? ''} />
-                                                    </Box>
-                                                    <Box sx={{ minWidth: 0 }}>
-                                                        <Typography variant="body1" fontWeight={900} noWrap title={it.product?.name ?? ''}>{it.product?.name ?? ''}</Typography>
-                                                        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 0.25, minWidth: 0, flexWrap: 'wrap' }}>
-                                                            {it.product?.category && (
-                                                                <Typography variant="caption" sx={(t) => ({ px: 0.75, py: 0.25, border: '1px solid', borderColor: 'divider', bgcolor: t.palette.action.hover, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .3 })} noWrap title={first(it.product?.category)?.name ?? ''}>{first(it.product?.category)?.name ?? ''}</Typography>
-                                                            )}
-                                                            {it.variant && (<><Typography variant="caption" color="text.disabled">•</Typography><Typography variant="caption" color="text.secondary" noWrap title={it.variant.name}>{it.variant.name}</Typography></>)}
-                                                        </Stack>
-                                                        {it.note && <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.25 }} title={it.note}>{it.note}</Typography>}
-                                                    </Box>
-                                                </Box>
-                                                {/* Qty */}
-                                                <Box sx={{ ...colCell(true), px: 1.25, py: 1.1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                                    <Typography variant="body1">{it.qty}</Typography>
-                                                </Box>
-                                                {/* Subtotal */}
-                                                <Box sx={{ ...colCell(true), px: 1.25, py: 1.1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                                    <Typography variant="body1" fontWeight={900}>{fmtIDR(it.sub_total)}</Typography>
-                                                </Box>
-                                            </ButtonBase>
-                                        </Paper>
-                                    )
-                                })}
-                            </Stack>
-                        </Box>
-                    </PerfectScrollbar>
-                </Box>
-
-                {/* ===== Bottom: Payment + Totals/Tender ===== */}
-                <Box sx={{ px: 2.5, py: 1.5, borderTop: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 560px' }, gap: 2, alignItems: 'start' }}>
-                        {/* LEFT: Methods */}
-                        <Box sx={{ minWidth: 0 }}>
-                            <Typography variant="subtitle1" fontWeight={900} sx={{ mb: 1 }}>Pilih Pembayaran</Typography>
-                            <PaymentMethodsPicker
-                                disabled={isPaid}
-                                selectedId={method?.id || undefined}
-                                onSelect={(m) => setMethod(m)}
-                            />
-                            {isPaid && <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>Bill sudah dibayar — metode dikunci mengikuti data server.</Typography>}
-                        </Box>
-
-                        {/* RIGHT: Card */}
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <Paper variant="outlined" sx={{ width: 700, maxWidth: '100%', p: 1.25, borderRadius: 2, position: 'relative', '&::before': { content: '""', position: 'absolute', inset: 0, pointerEvents: 'none', boxShadow: '0 0 0 1px rgba(124,58,237,.35), 0 10px 28px rgba(0,0,0,.06)' } }}>
-                                {/* Tender (ENTRY) */}
-                                {!isPaid && !!method?.need_tender && tenderMode === 'entry' && (
-                                    <>
-                                        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                                            <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75 }}>
-                                                Masukkan Nilai Uang Pelanggan
-                                            </Typography>
-
-                                            <Box
-                                                sx={{
-                                                    p: 1.25,
-                                                    border: '1px dashed',
-                                                    borderColor: 'divider',
-                                                    borderRadius: 2,
-                                                    bgcolor: 'action.hover',
-                                                    flex: 1,
-                                                    display: 'flex',
-                                                    alignItems: 'center'
-                                                }}
-                                            >
-                                                <TextField
-                                                    inputRef={cashRef}
-                                                    label="Uang Diterima"
-                                                    value={cashStr}
-                                                    onChange={(e) => setCashStr(e.target.value.replace(/[^\d.,]/g, ''))}
-                                                    onKeyDown={onCashKeyDown}
-                                                    inputMode="numeric"
-                                                    placeholder="contoh: 100000"
-                                                    variant="outlined"
-                                                    fullWidth
-                                                    InputProps={{ startAdornment: <InputAdornment position="start">Rp</InputAdornment> }}
-                                                    helperText={!!cash ? (cash < grandTotal ? `Kurang ${fmtIDR(grandTotal - cash)}` : 'Uang cukup • tekan Enter') : 'Masukkan nominal tunai'}
-                                                    FormHelperTextProps={{ sx: { fontWeight: 700 } }}
-                                                />
-                                            </Box>
-
-                                            {/* Footer: minus merah kalau kurang */}
-                                            <Box sx={{ mt: 'auto' }}>
-                                                <Divider sx={{ my: 1.25 }} />
-                                                <Stack direction="row" alignItems="center">
-                                                    <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>
-                                                        {(cash - grandTotal) < 0 ? 'Kekurangan' : 'Kembalian'}
-                                                    </Typography>
-                                                    <Typography
-                                                        variant="h5"
-                                                        fontWeight={900}
-                                                        sx={{ color: (t) => (cash - grandTotal < 0 ? t.palette.error.main : t.palette.success.main) }}
-                                                    >
-                                                        {(cash - grandTotal) < 0
-                                                            ? `- ${fmtIDR(Math.max(0, grandTotal - cash))}`
-                                                            : fmtIDR(Math.max(0, cash - grandTotal))}
-                                                    </Typography>
-                                                </Stack>
-                                            </Box>
-                                        </Box>
-                                    </>
-                                )}
-
-                                {/* Totals (IDLE/READY/Non-tender/Paid) */}
-                                {showTotals && (
-                                    <>
-                                        <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
-                                            <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Subtotal</Typography>
-                                            <Typography variant="h6" fontWeight={900}>{fmtIDR(itemsSubtotal)}</Typography>
-                                        </Stack>
-                                        <Divider />
-                                        <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
-                                            <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Pajak (10%)</Typography>
-                                            <Typography variant="h6" fontWeight={900}>{fmtIDR(tax)}</Typography>
-                                        </Stack>
-                                        <Divider sx={{ my: 1 }} />
-                                        <Stack direction="row" alignItems="center" sx={{ py: 0.75, px: 1, background: (t) => t.palette.mode === 'dark' ? '#3db108' : GRAND_GRAD }}>
-                                            <Typography variant="h6" sx={{ flex: 1, color: '#fff' }} fontWeight={900}>Grand Total</Typography>
-                                            <Typography variant="h4" fontWeight={900} sx={{ color: '#fff' }}>{fmtIDR(grandTotal)}</Typography>
-                                        </Stack>
-                                        {!isPaid && !!method?.need_tender && tenderMode === 'ready' && (
-                                            <>
-                                                <Divider sx={{ my: 1.25 }} />
-                                                <Stack direction="row" alignItems="center">
-                                                    <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Kembalian</Typography>
-                                                    <Typography variant="h5" fontWeight={900}>{fmtIDR(Math.max(0, change))}</Typography>
-                                                </Stack>
-                                            </>
-                                        )}
-                                    </>
-                                )}
-                            </Paper>
+                    {/* ===== Items header ===== */}
+                    <Box sx={{ px: { xs: 2, md: 2.5 }, pt: 1, pb: 1, flexShrink: 0 }}>
+                        <Box sx={(t) => ({ display: 'grid', gridTemplateColumns: { xs: ITEM_COLS.xs, md: ITEM_COLS.md }, gap: 0, border: '1px solid', borderColor: 'divider', bgcolor: t.palette.action.hover })}>
+                            <Box sx={{ ...colCell(false), px: 1.25, py: 1 }}><Typography variant="body2" fontWeight={900} textAlign="center">#</Typography></Box>
+                            <Box sx={{ ...colCell(true), px: 1.25, py: 1 }}><Typography variant="body2" fontWeight={900}>Produk</Typography></Box>
+                            <Box sx={{ ...colCell(true), px: 1.25, py: 1 }}><Typography variant="body2" fontWeight={900} textAlign="right">Qty</Typography></Box>
+                            <Box sx={{ ...colCell(true), px: 1.25, py: 1 }}><Typography variant="body2" fontWeight={900} textAlign="right">Subtotal</Typography></Box>
                         </Box>
                     </Box>
-                </Box>
 
-                {/* ===== Footer ===== */}
-                <Box sx={{ p: { xs: 2, md: 2.5 }, borderTop: '1px solid', borderColor: 'divider', display: 'flex', gap: 1.25, justifyContent: 'flex-end', flexShrink: 0 }}>
-                    <Button
-                        variant="contained"
-                        color="success"
-                        disabled={!canPay}
-                        startIcon={<AttachMoneyRounded sx={{ fontSize: 36 }} />}
-                        onClick={onPay}
-                        sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, fontSize: { xs: 14, md: 15 }, py: 1.1, px: 2.2 }}
-                        title={isPaid ? 'Sudah dibayar' : (method?.need_tender ? (tenderMode === 'ready' ? 'Bayar sekarang' : 'Masukkan & konfirmasi nominal (Enter)') : (method ? 'Bayar sekarang' : 'Pilih metode'))}
-                    >
-                        Bayar
-                    </Button>
+                    {/* ===== Items (scroll) ===== */}
+                    <Box sx={{ flex: 1, minHeight: 0 }}>
+                        <PerfectScrollbar options={{ suppressScrollX: true, wheelPropagation: false }}>
+                            <Box sx={{ px: { xs: 2, md: 2.5 }, pb: 2 }}>
+                                <Stack spacing={1}>
+                                    {items.map((it, idx) => {
+                                        return (
+                                            <Paper key={it.id} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', position: 'relative', '&::before': { content: '""', position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: ACCENT } }}>
+                                                <ButtonBase disabled={isPaid} sx={{ width: '100%', display: 'grid', alignItems: 'stretch', textAlign: 'left', gridTemplateColumns: { xs: ITEM_COLS.xs, md: ITEM_COLS.md }, p: 0, '&:hover': { backgroundColor: 'action.hover' } }}>
+                                                    {/* # */}
+                                                    <Box sx={{ ...colCell(false), px: 1.25, py: 1.1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <Chip size="small" label={idx + 1} sx={{ fontWeight: 800, background: PURPLE_GRAD, color: '#fff' }} />
+                                                    </Box>
+                                                    {/* Produk */}
+                                                    <Box sx={{ ...colCell(true), px: 1.25, py: 1.1, display: 'flex', alignItems: 'flex-start', gap: 1.25 }}>
+                                                        <Box sx={{ width: 56, flexShrink: 0 }}>
+                                                            <ImgWithSkeleton path={it.product?.image ?? null} alt={it.product?.name ?? ''} />
+                                                        </Box>
+                                                        <Box sx={{ minWidth: 0 }}>
+                                                            <Typography variant="body1" fontWeight={900} noWrap title={it.product?.name ?? ''}>{it.product?.name ?? ''}</Typography>
+                                                            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 0.25, minWidth: 0, flexWrap: 'wrap' }}>
+                                                                {it.product?.category && (
+                                                                    <Typography variant="caption" sx={(t) => ({ px: 0.75, py: 0.25, border: '1px solid', borderColor: 'divider', bgcolor: t.palette.action.hover, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .3 })} noWrap title={first(it.product?.category)?.name ?? ''}>{first(it.product?.category)?.name ?? ''}</Typography>
+                                                                )}
+                                                                {it.variant && (<><Typography variant="caption" color="text.disabled">•</Typography><Typography variant="caption" color="text.secondary" noWrap title={it.variant.name}>{it.variant.name}</Typography></>)}
+                                                            </Stack>
+                                                            {it.note && <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.25 }} title={it.note}>{it.note}</Typography>}
+                                                        </Box>
+                                                    </Box>
+                                                    {/* Qty */}
+                                                    <Box sx={{ ...colCell(true), px: 1.25, py: 1.1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                                        <Typography variant="body1">{it.qty}</Typography>
+                                                    </Box>
+                                                    {/* Subtotal */}
+                                                    <Box sx={{ ...colCell(true), px: 1.25, py: 1.1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                                        <Typography variant="body1" fontWeight={900}>{fmtIDR(it.sub_total)}</Typography>
+                                                    </Box>
+                                                </ButtonBase>
+                                            </Paper>
+                                        )
+                                    })}
+                                </Stack>
+                            </Box>
+                        </PerfectScrollbar>
+                    </Box>
 
-                    <Button
-                        variant="outlined"
-                        color={(isPaid) ? 'success' : 'warning'}
-                        startIcon={<PrintRounded sx={{ fontSize: 36 }} />}
-                        sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, fontSize: { xs: 14, md: 15 }, py: 1.1, px: 2.2 }}
-                    >
-                        {printLabel}
-                    </Button>
-                </Box>
-            </Paper>
-        </Box>
+                    {/* ===== Bottom: Payment + Totals/Tender ===== */}
+                    <Box sx={{ px: 2.5, py: 1.5, borderTop: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 560px' }, gap: 2, alignItems: 'start' }}>
+                            {/* LEFT: Methods */}
+                            <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="subtitle1" fontWeight={900} sx={{ mb: 1 }}>Pilih Pembayaran</Typography>
+                                <PaymentMethodsPicker
+                                    disabled={isPaid}
+                                    selectedId={method?.id || undefined}
+                                    onSelect={(m) => setMethod(m)}
+                                />
+                                {isPaid && <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>Bill sudah dibayar — metode dikunci mengikuti data server.</Typography>}
+                            </Box>
+
+                            {/* RIGHT: Card */}
+                            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                <Paper variant="outlined" sx={{ width: 700, maxWidth: '100%', p: 1.25, borderRadius: 2, position: 'relative', '&::before': { content: '""', position: 'absolute', inset: 0, pointerEvents: 'none', boxShadow: '0 0 0 1px rgba(124,58,237,.35), 0 10px 28px rgba(0,0,0,.06)' } }}>
+                                    {/* Tender (ENTRY) */}
+                                    {!isPaid && !!method?.need_tender && tenderMode === 'entry' && (
+                                        <>
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                                                <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75 }}>
+                                                    Masukkan Nilai Uang Pelanggan
+                                                </Typography>
+
+                                                <Box
+                                                    sx={{
+                                                        p: 1.25,
+                                                        border: '1px dashed',
+                                                        borderColor: 'divider',
+                                                        borderRadius: 2,
+                                                        bgcolor: 'action.hover',
+                                                        flex: 1,
+                                                        display: 'flex',
+                                                        alignItems: 'center'
+                                                    }}
+                                                >
+                                                    <TextField
+                                                        inputRef={cashRef}
+                                                        label="Uang Diterima"
+                                                        value={cashStr}
+                                                        onChange={(e) => setCashStr(e.target.value.replace(/[^\d.,]/g, ''))}
+                                                        onKeyDown={onCashKeyDown}
+                                                        inputMode="numeric"
+                                                        placeholder="contoh: 100000"
+                                                        variant="outlined"
+                                                        fullWidth
+                                                        InputProps={{ startAdornment: <InputAdornment position="start">Rp</InputAdornment> }}
+                                                        helperText={!!cash ? (cash < grandTotal ? `Kurang ${fmtIDR(grandTotal - cash)}` : 'Uang cukup • tekan Enter') : 'Masukkan nominal tunai'}
+                                                        FormHelperTextProps={{ sx: { fontWeight: 700 } }}
+                                                    />
+                                                </Box>
+
+                                                {/* Footer: minus merah kalau kurang */}
+                                                <Box sx={{ mt: 'auto' }}>
+                                                    <Divider sx={{ my: 1.25 }} />
+                                                    <Stack direction="row" alignItems="center">
+                                                        <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>
+                                                            {(cash - grandTotal) < 0 ? 'Kekurangan' : 'Kembalian'}
+                                                        </Typography>
+                                                        <Typography
+                                                            variant="h5"
+                                                            fontWeight={900}
+                                                            sx={{ color: (t) => (cash - grandTotal < 0 ? t.palette.error.main : t.palette.success.main) }}
+                                                        >
+                                                            {(cash - grandTotal) < 0
+                                                                ? `- ${fmtIDR(Math.max(0, grandTotal - cash))}`
+                                                                : fmtIDR(Math.max(0, cash - grandTotal))}
+                                                        </Typography>
+                                                    </Stack>
+                                                </Box>
+                                            </Box>
+                                        </>
+                                    )}
+
+                                    {/* Totals (IDLE/READY/Non-tender/Paid) */}
+                                    {showTotals && (
+                                        <>
+                                            <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
+                                                <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Subtotal</Typography>
+                                                <Typography variant="h6" fontWeight={900}>{fmtIDR(itemsSubtotal)}</Typography>
+                                            </Stack>
+                                            <Divider />
+                                            <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
+                                                <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Pajak (10%)</Typography>
+                                                <Typography variant="h6" fontWeight={900}>{fmtIDR(tax)}</Typography>
+                                            </Stack>
+                                            <Divider sx={{ my: 1 }} />
+                                            <Stack direction="row" alignItems="center" sx={{ py: 0.75, px: 1, background: (t) => t.palette.mode === 'dark' ? '#3db108' : GRAND_GRAD }}>
+                                                <Typography variant="h6" sx={{ flex: 1, color: '#fff' }} fontWeight={900}>Grand Total</Typography>
+                                                <Typography variant="h4" fontWeight={900} sx={{ color: '#fff' }}>{fmtIDR(grandTotal)}</Typography>
+                                            </Stack>
+                                            {!isPaid && !!method?.need_tender && tenderMode === 'ready' && (
+                                                <>
+                                                    <Divider sx={{ my: 1.25 }} />
+                                                    <Stack direction="row" alignItems="center">
+                                                        <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Kembalian</Typography>
+                                                        <Typography variant="h5" fontWeight={900}>{fmtIDR(Math.max(0, change))}</Typography>
+                                                    </Stack>
+                                                </>
+                                            )}
+                                        </>
+                                    )}
+                                </Paper>
+                            </Box>
+                        </Box>
+                    </Box>
+
+                    {/* ===== Footer ===== */}
+                    <Box sx={{ p: { xs: 2, md: 2.5 }, borderTop: '1px solid', borderColor: 'divider', display: 'flex', gap: 1.25, justifyContent: 'flex-end', flexShrink: 0 }}>
+                        <Button
+                            variant="contained"
+                            color="success"
+                            disabled={!canPay}
+                            startIcon={<AttachMoneyRounded sx={{ fontSize: 36 }} />}
+                            onClick={onPay}
+                            sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, fontSize: { xs: 14, md: 15 }, py: 1.1, px: 2.2 }}
+                            title={isPaid ? 'Sudah dibayar' : (method?.need_tender ? (tenderMode === 'ready' ? 'Bayar sekarang' : 'Masukkan & konfirmasi nominal (Enter)') : (method ? 'Bayar sekarang' : 'Pilih metode'))}
+                        >
+                            Bayar
+                        </Button>
+
+                        {/*// 3) Split button (title menampilkan printer terpilih)*/}
+                        <ButtonGroup variant="outlined" color={isPaid ? 'success' : 'warning'} sx={{ borderRadius: 2, overflow: 'hidden' }}>
+                            <Button
+                                onClick={onPrintHandle}
+                                startIcon={<PrintRounded sx={{ fontSize: 36 }} />}
+                                sx={{ textTransform: 'none', fontWeight: 800, fontSize: { xs: 14, md: 15 }, py: 1.1, px: 2.2 }}
+                                title={`${printLabel}${selectedPrinter ? ` · ${selectedPrinter.name}` : ''}`}
+                            >
+                                {printLabel}
+                            </Button>
+                            <Button ref={arrowRef} onClick={togglePrinterMenu} aria-label="Pilih printer" sx={{ px: 1.25, minWidth: 0 }}>
+                                <ExpandLessRounded sx={{ fontSize: 22 }} />
+                            </Button>
+                        </ButtonGroup>
+                    </Box>
+                </Paper>
+
+            </Box>
+            {/*// 4) Popper menu: klik = setSelectedPrinter(printer) + tutup menu*/}
+            <Popper open={printerMenuOpen} anchorEl={arrowRef.current} placement="top-end" style={{ zIndex: 1300 }}>
+                <ClickAwayListener onClickAway={closePrinterMenu}>
+                    <Paper variant="outlined" sx={{ mt: 1, minWidth: 280, borderRadius: 2, overflow: 'hidden' }}>
+                        <List dense disablePadding>
+                            {PrinterList.map(p => (
+                                <ListItemButton
+                                    key={p.id}
+                                    onClick={() => { setSelectedPrinter(p); closePrinterMenu() }}
+                                >
+                                    <ListItemIcon sx={{ minWidth: 32 }}>
+                                        {p.id === selectedPrinter?.id ? <CheckRounded fontSize="small" /> : null}
+                                    </ListItemIcon>
+                                    <ListItemText
+                                        primary={p.name}
+                                        secondary={[p.name.toUpperCase(), p.description, p.options.ip_address].filter(Boolean).join(' • ')}
+                                        primaryTypographyProps={{ fontWeight: 800 }}
+                                    />
+                                </ListItemButton>
+                            ))}
+                        </List>
+                    </Paper>
+                </ClickAwayListener>
+            </Popper>
+            <SweetAlert2 {...swalProps} />
+        </>
     )
 }
 
