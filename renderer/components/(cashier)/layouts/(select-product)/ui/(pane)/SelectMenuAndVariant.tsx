@@ -292,7 +292,6 @@ export const SelectMenuAndVariant: FC = () => {
                                             setOpenVariant(s => ({ ...s, [String(pid)]: String(vid) }))
                                         }
                                         onAdd={(prod: Products, variant?: ProductsVariants) => add(prod, variant)}
-                                        uploadsLoader={({ src }) => src}
                                         gradient={GRADIENT}
                                     />
                                 ))
