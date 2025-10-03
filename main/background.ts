@@ -22,9 +22,8 @@ if (!process.stdout || !process.stdout.isTTY) {
     console.info = () => {}
     console.warn = () => {}
     // arahkan error ke file (biar tetap ada jejak)
-    const e = (...args: any[]) => log.error(...args)
     // @ts-ignore
-    console.error = e
+    console.error = (...args: any[]) => log.error(...args)
 }
 (async () => {
     const gotTheLock = app.requestSingleInstanceLock()
