@@ -21,8 +21,8 @@ import ShimmerLoadingTransactionContainer from '../(loading)/ShimmerLoadingTrans
 import { useTransactionEventTrigger } from './context/TransactionEventTriggerContext'
 import { useSession } from '../../../../../../../../contexts/SessionProviderContext'
 import { Transaction } from '../types/api.transaction.type'
-import {useEffect, useState} from "react";
-import {useFunctionKeyCtx} from "../../../../../../../../contexts/FunctionKeyProviderContext";
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { useFunctionKeyCtx } from '../../../../../../../../contexts/FunctionKeyProviderContext'
 
 // ===== Const =====
 const TZ_OFFSET = '+08:00' // Asia/Makassar
@@ -81,46 +81,49 @@ const TransactionListItemNotFound = dynamic(() => import('./(components)/Transac
  * ======== MAIN ===========
  * =======================*/
 const TransactionListItem: React.FC = () => {
-
-    const [IsMounted, setMounted ] = useState(false);
+    const [isMounted, setMounted] = useState(false)
     const { setLayout } = useLayoutManipulatorResizable()
     const { Session } = useSession()
-    const { setMenu, remove,  key, seq } = useFunctionKeyCtx()
-    const [transaction, setTransaction] = React.useState<Array<Transaction>>([])
+    const { setMenu, remove } = useFunctionKeyCtx()
+
+    const [transaction, setTransaction] = useState<Array<Transaction>>([])
 
     // ✅ Pisah state: single vs multi
-    const [singleSelectedId, setSingleSelectedId] = React.useState<string>()
-    const [multiSelectedIds, setMultiSelectedIds] = React.useState<Set<string>>(new Set())
+    const [singleSelectedId, setSingleSelectedId] = useState<string>()
+    const [multiSelectedIds, setMultiSelectedIds] = useState<Set<string>>(new Set())
 
     // 🔑 Refresh key dari tombol "Coba lagi" atau event lain
-    const [reloadKey, setReloadKey] = React.useState(0)
+    const [reloadKey, setReloadKey] = useState(0)
 
     const { token, reason } = useTransactionEventTrigger()
-    const lastReasonRef = React.useRef<string | null>(null)
+    const lastReasonRef = useRef<string | null>(null)
 
     // ⏳ & ❌ State untuk fetch
-    const [isFetching, setIsFetching] = React.useState(false)
-    const [fetchError, setFetchError] = React.useState<string | null>(null)
+    const [isFetching, setIsFetching] = useState(false)
+    const [fetchError, setFetchError] = useState<string | null>(null)
 
-    const [filters, setFilters] = React.useState<Filters>({
+    const [filters, setFilters] = useState<Filters>({
         query: '', status: 'all', shiftName: 'all', cashierName: 'all',
         startAt: '', endAt: '',
         itemRange: [0, 0], batchRange: [0, 0],
     })
-    const onFiltersChange = (patch: Partial<Filters>) => setFilters(prev => ({ ...prev, ...patch }))
+    const onFiltersChange = useCallback((patch: Partial<Filters>) => {
+        setFilters(prev => ({ ...prev, ...patch }))
+    }, [])
 
     useEffect(() => {
-        setMounted(true);
-        return () => {
-            setMounted(false);
-        }
-    }, []);
+        setMounted(true)
+        return () => setMounted(false)
+    }, [])
 
     useEffect(() => {
-        if (IsMounted){
-            setLayout(p => ({ ...p, right: <TransactionListItemNotFound /> }))
+        if (isMounted) {
+            // ⬇️ jadwalkan update layout agar tidak terjadi saat render/hydration
+            queueMicrotask(() => {
+                setLayout(p => ({ ...p, right: <TransactionListItemNotFound /> }))
+            })
         }
-    }, [IsMounted]);
+    }, [isMounted, setLayout])
 
     const refetch = () => {
         setFetchError(null)
@@ -128,7 +131,7 @@ const TransactionListItem: React.FC = () => {
     }
 
     // === Soft refetch (tanpa menyentuh reloadKey) ===
-    const softRefetch = React.useCallback(async () => {
+    const softRefetch = useCallback(async () => {
         const { startAt, endAt } = filters
         if (!startAt || !endAt) return
         const payload = {
@@ -151,10 +154,10 @@ const TransactionListItem: React.FC = () => {
                 return undefined
             })
             .finally(() => setIsFetching(false))
-    }, [filters, Session?.id, reloadKey])
+    }, [filters, Session?.id])
 
     // === FETCH by date range ===
-    React.useEffect(() => {
+    useEffect(() => {
         const { startAt, endAt } = filters
         if (!startAt || !endAt) return
         const payload = {
@@ -179,13 +182,13 @@ const TransactionListItem: React.FC = () => {
     }, [filters.startAt, filters.endAt, reloadKey, Session?.id])
 
     // Opsi filter
-    const shiftOptions = React.useMemo(() => {
+    const shiftOptions = useMemo(() => {
         const set = new Set<string>()
         transaction.forEach(t => t.shift?.name ? set.add(t.shift.name) : undefined)
         return Array.from(set).sort()
     }, [transaction])
 
-    const cashierOptions = React.useMemo(() => {
+    const cashierOptions = useMemo(() => {
         const set = new Set<string>()
         transaction.forEach(t => {
             const label = t.reference?.name?.first_name ?? t.reference?.username ?? shortId(t.reference?.id)
@@ -195,27 +198,27 @@ const TransactionListItem: React.FC = () => {
     }, [transaction])
 
     // ====== HARD MAX (puncak maksimum selama date-range aktif)
-    const hardMaxItemsRef = React.useRef(0)
-    const hardMaxBatchesRef = React.useRef(0)
+    const hardMaxItemsRef = useRef(0)
+    const hardMaxBatchesRef = useRef(0)
 
     // Nilai max berdasarkan data fetch TERKINI
-    const computedMaxItems = React.useMemo(
+    const computedMaxItems = useMemo(
         () => transaction.length ? Math.max(...transaction.map(totalItems)) : 0,
         [transaction]
     )
-    const computedMaxBatches = React.useMemo(
+    const computedMaxBatches = useMemo(
         () => transaction.length ? Math.max(...transaction.map(totalBatches)) : 0,
         [transaction]
     )
 
     // Update puncak jika ada nilai lebih tinggi
-    React.useEffect(() => {
+    useEffect(() => {
         if (computedMaxItems > hardMaxItemsRef.current) hardMaxItemsRef.current = computedMaxItems
         if (computedMaxBatches > hardMaxBatchesRef.current) hardMaxBatchesRef.current = computedMaxBatches
     }, [computedMaxItems, computedMaxBatches])
 
     // Reset puncak saat ganti rentang tanggal
-    React.useEffect(() => {
+    useEffect(() => {
         hardMaxItemsRef.current = 0
         hardMaxBatchesRef.current = 0
     }, [filters.startAt, filters.endAt])
@@ -225,16 +228,16 @@ const TransactionListItem: React.FC = () => {
     const maxBatches = hardMaxBatchesRef.current
 
     // a) token berubah → refetch tanpa ngapa-ngapain ke filter
-    React.useEffect(() => {
+    useEffect(() => {
         if (!token) return
         lastReasonRef.current = reason ?? null
         setFetchError(null)
-    }, [token, reason, softRefetch])
-
-
+        // kalau perlu langsung refresh ringan:
+        // void softRefetch()
+    }, [token, reason])
 
     // b) kalau reason === 'batch' → set ujung slider ke puncak (bukan computed)
-    React.useEffect(() => {
+    useEffect(() => {
         if (lastReasonRef.current === 'batch') {
             const mi = Math.max(0, hardMaxItemsRef.current)
             const mb = Math.max(0, hardMaxBatchesRef.current)
@@ -244,7 +247,7 @@ const TransactionListItem: React.FC = () => {
     }, [computedMaxItems, computedMaxBatches])
 
     // Jaga range tetap valid thd data terbaru, TANPA menurunkan ujung kanan
-    React.useEffect(() => {
+    useEffect(() => {
         setFilters(prev => {
             const patch: Partial<Filters> = {}
             let changed = false
@@ -275,13 +278,13 @@ const TransactionListItem: React.FC = () => {
     }, [computedMaxItems, computedMaxBatches])
 
     // Urut terbaru
-    const transactions = React.useMemo(
+    const transactions = useMemo(
         () => [...transaction].sort((a, b) => new Date(b.time_created as string).getTime() - new Date(a.time_created as string).getTime()),
         [transaction]
     )
 
     // Apply filter kombo
-    const filtered = React.useMemo(() => {
+    const filtered = useMemo(() => {
         const { query, status, shiftName, cashierName, itemRange, batchRange } = filters
         return transactions
             .filter(o => matchesQuery(o, query))
@@ -302,16 +305,16 @@ const TransactionListItem: React.FC = () => {
     }, [transactions, filters])
 
     // ====== Selection Helpers ======
-    const txById = React.useMemo(() => new Map(filtered.map(t => [t.id, t] as const)), [filtered])
-    const selectedTxs = React.useMemo(
+    const txById = useMemo(() => new Map(filtered.map(t => [t.id, t] as const)), [filtered])
+    const selectedTxs = useMemo(
         () => Array.from(multiSelectedIds).map(id => txById.get(id)).filter(Boolean) as Transaction[],
         [multiSelectedIds, txById]
     )
-    const hasClosed = React.useMemo(() => selectedTxs.some(t => Boolean(t.time_closed)), [selectedTxs])
+    const hasClosed = useMemo(() => selectedTxs.some(t => Boolean(t.time_closed)), [selectedTxs])
     const selectedCount = multiSelectedIds.size
 
     // Sinkronisasi selection terhadap filtered TANPA remount right pane
-    React.useEffect(() => {
+    useEffect(() => {
         // bersihkan multi yang tak lagi ada di list, dan EXCLUDE yang sudah closed
         setMultiSelectedIds(prev => {
             const idsInList = new Set(filtered.filter(t => !t.time_closed).map(t => t.id))
@@ -324,39 +327,45 @@ const TransactionListItem: React.FC = () => {
             const stillExists = filtered.some(t => t.id === singleSelectedId)
             if (!stillExists) {
                 setSingleSelectedId(undefined)
-                setLayout(prev => ({ ...prev, right: <TransactionListItemNotFound /> }))
+                queueMicrotask(() => {
+                    setLayout(prev => ({ ...prev, right: <TransactionListItemNotFound /> }))
+                })
             }
         }
     }, [filtered, singleSelectedId, setLayout])
 
-    React.useEffect(() => {
-        softRefetch();
-    }, [token, reason]);
-    // Handler single select via row click (TOGGLE on second click)
+    useEffect(() => {
+        // keep list up-to-date when token/reason change
+        void softRefetch()
+    }, [token, reason, softRefetch])
+
+    // Handler single select via row click (TOGGLE on second click) — jadwalkan setLayout
     const onRowClick = (id: string) => {
-        softRefetch();
+        void softRefetch()
+
         setSingleSelectedId(prev => {
-            if (prev === id) {
-                setLayout(p => ({ ...p, right: <TransactionListItemNotFound /> }))
-                return undefined
-            }
-            setLayout(p => ({ ...p, right: <TransactionContainerItems id={id} transaction={transactions.find((data) => data.id === id)} /> }))
-            // setLayout(p => ({ ...p, right: <TransactionContainer id={id} transaction={transactions.find((data) => data.id === id)}  /> }))
-            return id
+            const next = prev === id ? undefined : id
+
+            // tentukan komponen right pane berdasar "next"
+            queueMicrotask(() => {
+                if (!next) {
+                    setLayout(p => ({ ...p, right: <TransactionListItemNotFound /> }))
+                } else {
+                    const nextTx = transactions.find(t => t.id === id)
+                    setLayout(p => ({ ...p, right: <TransactionContainerItems id={id} transaction={nextTx} /> }))
+                    // Jika ingin gunakan TransactionContainer:
+                    // setLayout(p => ({ ...p, right: <TransactionContainer id={id} transaction={nextTx} /> }))
+                }
+            })
+
+            return next
         })
     }
 
-    React.useEffect(() => {
-        setMenu((prev) => {
-            return [
-                ...prev,
-                { key : "F2", label: `Order baru` }
-            ]
-        })
-        return () => {
-            remove("F2")
-        }
-    }, [])
+    useEffect(() => {
+        setMenu(prev => ([...prev, { key: 'F2', label: 'Order baru' }]))
+        return () => { remove('F2') }
+    }, [setMenu, remove])
 
     // Handler multi-select via checkbox ONLY (guard: cegah add jika closed)
     const onToggleMulti = (id: string, checked: boolean) =>
@@ -480,7 +489,7 @@ const TransactionListItem: React.FC = () => {
             >
                 <Stack direction="row" spacing={1.25} alignItems="center" justifyContent="flex-end" sx={{ flexShrink: 0 }}>
                     {/* pakai softRefetch biar tidak bikin remount */}
-                    <NewOrderModal onCreated={softRefetch}  />
+                    <NewOrderModal onCreated={softRefetch} />
                     <TransactionButtonJoinBillWidget
                         key={`join-${selectedCount}`}
                         selectedIds={Array.from(multiSelectedIds)}

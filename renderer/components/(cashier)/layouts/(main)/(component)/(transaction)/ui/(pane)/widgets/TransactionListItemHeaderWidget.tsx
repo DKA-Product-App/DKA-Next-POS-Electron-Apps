@@ -213,6 +213,7 @@ const TransactionListItemHeaderWidget: React.FC<Props> = ({
                 placeholder="Cari invoice, batch, table…"
                 value={filters.query}
                 fullWidth
+                autoFocus={true}
                 onChange={(e) => onFiltersChange({ query: e.target.value })}
                 sx={{ minWidth: { xs: '100%', sm: 280 } }}
                 InputProps={{
