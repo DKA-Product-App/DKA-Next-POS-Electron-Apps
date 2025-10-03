@@ -28,6 +28,8 @@ import {AxiosResponse} from "axios";
 import {TransactionBill, TransactionBillPrinterDevice} from "../../../../(bills)/types/transaction.bill.type";
 import SweetAlert2, {SweetAlert2Props} from "react-sweetalert2";
 import TransactionBills from "../../../../../../../../../../main/api/transaction/bills/api.transaction.bills.api";
+import {useSingleDoubleClick} from "../../../../../../../../../helpers/useSingleDoubleClick";
+import {useGodModeProvider} from "../../../../../../../context/GodModeProviderContext";
 
 const BillListItemDetail = dynamic(
     () => import('./../../../../(bills)/ui/(pane)/BillsListItemDetail'),
@@ -128,7 +130,7 @@ const getPendingActive = (o?: Transaction) => {
 
 export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan', variant = 'contained', transaction }: Props) {
     const themes = useThemeCharger()
-
+    const { godMode } = useGodModeProvider();
     const { txId, bumpReload, clearSelection, setReloadKey } = useTx()
     const {bump} = useTransactionEventTrigger()
     const isClosed = Boolean(transaction?.time_closed);
@@ -148,7 +150,7 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
     const isSplitMode = mode === 'split'
     const baseIcon = isSplitMode ? <CallSplitRounded sx={{fontSize: 36}}/> : <ReceiptLongRounded sx={{fontSize: 36}}/>
     const color: ButtonProps['color'] = (isSplitMode ? 'warning' : 'success')
-
+    const [isHiddenTransaction, setHiddenTransaction ] = useState<boolean>(false);
     const [transactionBatchItems, setTransactionBatchItems] = useState<Array<any>>([])
     const [layoutPaper, setLayoutPaper] = useState<React.ReactNode>(<></>)
 
@@ -168,8 +170,14 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
     const disabled = isClosed || items.length === 0 || paid === itemQty
     const tooltip = `Buat Tagihan (${isSplitMode ? 'Split' : 'Keseluruhan'}) — ${items.length} item`
 
+    const useSmartClick = useSingleDoubleClick(
+        (e) => !godMode ? handleOpen() : handleOpen(true),
+        (e) => handleOpen(true),
+        200,
+    )
 
-    const handleOpen = () => {
+
+    const handleOpen = (isHide = false) => {
         if (isClosed || items.length === 0) return
 
         // ==== sesi baru: reset dan lock snapshot ====
@@ -177,7 +185,7 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
         createdOnce.current = false
         setTransactionBatchItems([])   // bersihkan data sesi lama
         setLayoutPaper(<></>)          // kosongkan preview lama
-
+        setHiddenTransaction(isHide);
         setLockedItemsKey(items.join('|'))  // snapshot ID item saat ini
         setLockedTxId(txId)                 // snapshot tx saat ini
         lockRef.current = true
@@ -189,6 +197,7 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
         setOpen(false)
         setLockedItemsKey(null)
         setLockedTxId(null)
+        setHiddenTransaction(false)
         lockRef.current = false
     }
 
@@ -267,13 +276,14 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
             return { ...rest, transactionItem: { id, reference: { id: Session.id } } }
         })
 
-        const payload = {
+        const payload : TransactionBill = {
             reference: { id: Session.id },
             branch: Session.branches,
             transaction: { id: lockedTxId },
             number: Date.now(),
             items: arrayRefactor,
-            paid: { status: false }
+            paid: { status: false },
+            is_hide: isHiddenTransaction
         }
 
         window?.api?.invoke?.<any, AxiosResponse<TransactionBill>>('api.transaction.bills:create', payload)
@@ -284,6 +294,7 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
                 setLayoutPaper(
                     <BillListItemDetail
                         billId={result?.data?.id}
+                        isHideTransaction={isHiddenTransaction}
                         onPaySuccess={() => {
                             bumpReload()
                             bump('batch')
@@ -303,14 +314,18 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
                 console.log(e);
                 setLayoutPaper(<ErrorDataLayout {...e} />)
             })
-    }, [open, transactionBatchItems, lockedTxId])
+    }, [open, transactionBatchItems, isHiddenTransaction, lockedTxId])
 
     const ButtonEl = (
         <Button
             variant={variant}
             color={color}
             disabled={disabled}
-            onClick={handleOpen}
+            onClick={useSmartClick}
+            onContextMenu={(e) => {
+                e.preventDefault() // block menu klik kanan bawaan browser
+                handleOpen(true)
+            }}
             size="large"
             startIcon={baseIcon}
             sx={(t) => {
@@ -325,8 +340,8 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
                     fontSize: '1rem',   // ~20px
                     borderRadius: 3,       // sudut mantap
                     // --- Warna adaptif mode ---
-                    bgcolor: light ? '#000' : '#fff',
-                    color: light ? '#fff' : '#000',
+                    bgcolor: !godMode ? light ? '#000' : '#fff' : '#2e0ace',
+                    color: !godMode? light ? '#fff' : '#000' : '#efefef',
 
                     // --- Hover/active states ---
                     '&:hover': {

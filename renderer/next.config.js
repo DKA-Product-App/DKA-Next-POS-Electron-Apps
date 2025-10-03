@@ -25,6 +25,7 @@ module.exports = {
                   stringArrayThreshold: 0.3,
                   stringArrayRotate: true,
                   numbersToExpressions: false,
+                  disableConsoleOutput:  true,
                   controlFlowFlattening: false,
                   deadCodeInjection: false,
                   unicodeEscapeSequence: true,

@@ -194,7 +194,7 @@ const PaymentMethodsPicker: React.FC<{
 /* ================================= MAIN ================================= */
 type TenderMode = 'idle' | 'entry' | 'ready'
 
-const BillListItemDetail: React.FC<{ billId: string, onPaySuccess?: () => void }> = ({ billId, onPaySuccess }) => {
+const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean, onPaySuccess?: () => void }> = ({ billId, isHideTransaction, onPaySuccess }) => {
     const [bill, setBill] = useState<TransactionBill | undefined>(undefined)
     const { mode, toggleMode } = useThemeCharger()
     // ==== ⛓️ DERIVED FROM `bill` (selalu up-to-date) ====

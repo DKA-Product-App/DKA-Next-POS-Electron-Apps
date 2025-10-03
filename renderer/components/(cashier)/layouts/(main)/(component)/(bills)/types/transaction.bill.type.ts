@@ -27,7 +27,7 @@ export interface TransactionBillPaid {
 
 export interface TransactionBill {
     id?: UUID
-    number?: string
+    number?: number
     paid?: TransactionBillPaid
     time_created?: ISODate
     time_updated?: ISODate
@@ -35,6 +35,7 @@ export interface TransactionBill {
     branch?: TransactionBillBranch[]
     transaction?: TransactionBillTransaction
     items?: TransactionBillItem[]
+    is_hide?: boolean;
 }
 
 export interface TransactionBillReferenceUser {

@@ -18,6 +18,7 @@ import BillListItemDetail from './BillsListItemDetail'
 import { ApiResponseTransactionBill, TransactionBill, TransactionBills } from '../../types/transaction.bill.type'
 import { useTabNavigationHandlerContext } from '../../../(transaction)/context/TabNavigationHandlerContext'
 import ShimmerLoading from '../../../../../../../(shared)/(loading)/ShimmerLoading'
+import { useGodModeProvider } from '../../../../../../context/GodModeProviderContext'
 
 /* ====== Dynamic chunks ====== */
 const Shimmer = () => (
@@ -105,7 +106,7 @@ const inDateRange = (iso?: string, startIso?: string, endIso?: string) => {
     return t >= minT && t <= maxT
 }
 
-const buildPayload = (q: string, f: BillFilters) => {
+const buildPayload = (q: string, f: BillFilters, godMode : boolean) => {
     const [startIso, endIso] = normalizeRangeToIsoUtc(f.startAt, f.endAt)
 
     // total range: kirim hanya kalau bukan [0,0]
@@ -124,6 +125,7 @@ const buildPayload = (q: string, f: BillFilters) => {
         sort: { time_created: 'desc' as const },
         startAt: startIso,
         endAt: endIso,
+        is_hide: godMode,
         isPaid: f.paid === 'all' ? undefined : f.paid === 'paid',
         cashierName: f.cashierName === 'all' ? undefined : f.cashierName,
         minTotal,
@@ -135,7 +137,7 @@ const buildPayload = (q: string, f: BillFilters) => {
 const BillsListItem: React.FC = () => {
     const { setLayout } = useLayoutManipulatorResizable()
     const { state } = useTabNavigationHandlerContext()
-
+    const { godMode, setGodMode } = useGodModeProvider();
     const [query, setQuery] = useState('')
     const [activeId, setActiveId] = useState<string | null>(null)
     const [ reloadKey, setReloadKey ] = useState(1);
@@ -166,7 +168,8 @@ const BillsListItem: React.FC = () => {
             return
         }
 
-        const payload = buildPayload(query, filters)
+        const payload = buildPayload(query, filters, godMode)
+        console.log(payload)
         let alive = true
         setIsFetching(true)
         setFetchError(null)
@@ -190,6 +193,7 @@ const BillsListItem: React.FC = () => {
         return () => { alive = false }
     }, [
         query,
+        godMode,
         filters.startAt,
         filters.endAt,
         filters.paid,
