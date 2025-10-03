@@ -14,6 +14,7 @@ import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded'
 import {useEffect, useState} from "react";
 import dynamic from "next/dynamic";
 import { useFunctionKeyCtx } from '../../../contexts/FunctionKeyProviderContext'
+import { useGodModeProvider } from '../context/GodModeProviderContext'
 
 type HeaderProps = {
     appName?: string
@@ -78,7 +79,7 @@ export default function Header({
     const pathname = usePathname()
     const { key, seq } = useFunctionKeyCtx()
 
-    const [isGodMode, setGodMode] = useState(false);
+    const { godMode, setGodMode } = useGodModeProvider();
 
     useEffect(() => {
         switch (key) {
@@ -97,7 +98,7 @@ export default function Header({
                     borderRadius: 999,
                     bgcolor: 'transparent', // track bening
                     '& .MuiLinearProgress-bar': {
-                        background: isGodMode
+                        background: godMode
                             ? 'linear-gradient(90deg, #8B5CF6, #3B82F6)' // GOD MODE
                             : 'linear-gradient(90deg, #EF4444, #F59E0B 40%, #F97316)',            // normal
                     },

@@ -7,6 +7,7 @@ import ShimmerHeaderLoading from "./(components)/(loading)/ShimmerHeaderLoading"
 import ShimmerFooterLoading from "./(components)/(loading)/ShimmerFooterLoading";
 import { FunctionKeyProvider } from "../../contexts/FunctionKeyProviderContext";
 import {ThemeChargerProvider, useThemeCharger} from "../../contexts/ThemeCharger";
+import { GodModeProviderProvider } from "./context/GodModeProviderContext";
 
 const Header = dynamic(() => import('./(components)/Header'), {
     loading: () => <ShimmerHeaderLoading />,
@@ -20,6 +21,7 @@ const Footer = dynamic(() => import('./(components)/Footer'), {
 
 const Body : FC<{ children : React.ReactNode }> = ({ children }) => {
     const { mode, setMode } = useThemeCharger();
+
     return (
         <FunctionKeyProvider>
             <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -44,9 +46,12 @@ const Body : FC<{ children : React.ReactNode }> = ({ children }) => {
 export default function LayoutContainer({ children }) {
     return (
         <ThemeChargerProvider>
-            <Body>
-                { children }
-            </Body>
+            <GodModeProviderProvider>
+                <Body>
+                    { children }
+                </Body>
+            </GodModeProviderProvider>
+
         </ThemeChargerProvider>
     );
 }

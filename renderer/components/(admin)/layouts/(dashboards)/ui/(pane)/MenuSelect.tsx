@@ -44,6 +44,7 @@ import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import KeyboardArrowRightRoundedIcon from '@mui/icons-material/KeyboardArrowRightRounded';
 import CircleRoundedIcon from '@mui/icons-material/CircleRounded';
+import {useGodModeProvider} from "../../../../context/GodModeProviderContext";
 
 // =====================
 // Types
@@ -53,6 +54,7 @@ type MenuItemNode = {
     description: string;
     icon?: React.ReactNode;
     forward?: string;                // jadikan “key” unik
+    hide?: boolean;
     children?: readonly MenuItemNode[];
 };
 
@@ -153,34 +155,38 @@ const SidebarItem: FC<ItemProps> = ({ item, level = 0, pathname, openKeyByLevel,
 
     return (
         <>
-            <Tooltip title={item.description} placement="right" arrow>
-                <ListItemButton
-                    onClick={handleClick}
-                    sx={{
-                        px: 1 + indent,
-                        py: 0.75,
-                        mx: 0.5,
-                        borderRadius: 1,
-                        minHeight: 38,
-                        ...(active && {
-                            bgcolor: 'action.selected',
-                            borderLeft: '3px solid',
-                            borderColor: 'primary.main',
-                        }),
-                    }}
-                >
-                    <ListItemIcon sx={{ minWidth: 34, color: active ? 'primary.main' : 'text.secondary' }}>
-                        {item.icon ?? <CircleRoundedIcon sx={{ fontSize: 10 }} />}
-                    </ListItemIcon>
+            {
+                (!item.hide) ? (
+                    <Tooltip title={item.description} placement="right" arrow>
+                        <ListItemButton
+                            onClick={handleClick}
+                            sx={{
+                                px: 1 + indent,
+                                py: 0.75,
+                                mx: 0.5,
+                                borderRadius: 1,
+                                minHeight: 38,
+                                ...(active && {
+                                    bgcolor: 'action.selected',
+                                    borderLeft: '3px solid',
+                                    borderColor: 'primary.main',
+                                }),
+                            }}
+                        >
+                            <ListItemIcon sx={{ minWidth: 34, color: active ? 'primary.main' : 'text.secondary' }}>
+                                {item.icon ?? <CircleRoundedIcon sx={{ fontSize: 10 }} />}
+                            </ListItemIcon>
 
-                    <ListItemText
-                        primary={<Typography fontWeight={active ? 700 : 600} variant="body2">{item.label}</Typography>}
-                        secondary={<Typography variant="caption" color="text.secondary" noWrap>{item.description}</Typography>}
-                    />
+                            <ListItemText
+                                primary={<Typography fontWeight={active ? 700 : 600} variant="body2">{item.label}</Typography>}
+                                secondary={<Typography variant="caption" color="text.secondary" noWrap>{item.description}</Typography>}
+                            />
 
-                    {hasChildren ? (open ? <ExpandMoreRoundedIcon fontSize="small" /> : <KeyboardArrowRightRoundedIcon fontSize="small" />) : null}
-                </ListItemButton>
-            </Tooltip>
+                            {hasChildren ? (open ? <ExpandMoreRoundedIcon fontSize="small" /> : <KeyboardArrowRightRoundedIcon fontSize="small" />) : null}
+                        </ListItemButton>
+                    </Tooltip>
+                ) : null
+            }
 
             {hasChildren && (
                 <Collapse in={open} unmountOnExit>
@@ -209,6 +215,7 @@ const SidebarItem: FC<ItemProps> = ({ item, level = 0, pathname, openKeyByLevel,
 export const MenuSelect: FC = memo(function MenuSelect() {
     const router = useRouter();
     const pathname = usePathname();
+    const { godMode, setGodMode } = useGodModeProvider();
 
     // Base slug helper
     const DASH = `${ROOT}/dashboards`;
@@ -261,7 +268,7 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                         icon: <ReceiptLongRoundedIcon />,
                         forward: `${OPS}/transactions`,
                         children: [
-                            { label: 'Orders', description: 'Daftar Orders', icon: <ListAltRoundedIcon />, forward: `${OPS}/transactions/orders` },
+                            { label: 'Orders', description: 'Daftar Orders', icon: <ListAltRoundedIcon />, forward: `${OPS}/transactions/orders`, hide: godMode },
                             { label: 'Bills', description: 'Daftar Tagihan (Bills)', icon: <RequestQuoteRoundedIcon />, forward: `${OPS}/transactions/bills` },
                         ],
                     },
@@ -319,7 +326,7 @@ export const MenuSelect: FC = memo(function MenuSelect() {
                 ],
             },
         ],
-        []
+        [godMode]
     );
 
     // ===== Accordion state: satu key per level =====

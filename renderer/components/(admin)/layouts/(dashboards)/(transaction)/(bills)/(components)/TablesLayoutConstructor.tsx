@@ -427,9 +427,6 @@ export function DataTable<T extends Record<string, any>>({
                                         </TableCell>
                                     );
                                 })}
-                                <TableCell align="center" sx={{ width: 60, minWidth: 60 }}>
-                                    Action
-                                </TableCell>
                             </TableRow>
                         </TableHead>
 
@@ -478,9 +475,6 @@ export function DataTable<T extends Record<string, any>>({
                                             </TableCell>
                                         );
                                     })}
-                                    <TableCell align="center" sx={{ width: 60, minWidth: 60 }}>
-                                        {/* Action slot — biarkan kosong, konsumen bisa render di luar jika perlu */}
-                                    </TableCell>
                                 </TableRow>
                             ))}
 

@@ -39,6 +39,7 @@ import { useFunctionKeyCtx } from '../../../../../contexts/FunctionKeyProviderCo
 // Perfect Scrollbar
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
+import {useGodModeProvider} from "../../../context/GodModeProviderContext";
 
 const MotionCard = motion(Card);
 const rupiah = (n: number) =>
@@ -75,13 +76,11 @@ export default function Overview() {
 
     // Hanya 2 mode: sample80 <-> sample50
     const [mode, setMode] = React.useState<Mode>('sample80');
-    const { key, seq } = useFunctionKeyCtx();
+    const { godMode, setGodMode } = useGodModeProvider();
 
     useEffect(() => {
-        if (key === 'F12') {
-            setMode((m) => (m === 'sample80' ? 'sample50' : 'sample80'));
-        }
-    }, [seq, key]);
+        setMode(() => (godMode ? 'sample50' : 'sample80'));
+    }, [godMode]);
 
     // ====== DEFINISI 2 SAMPLE TETAP ======
     // sample80: lastMonth=72jt (naik 11.11%), margin 38%
