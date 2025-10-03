@@ -18,7 +18,7 @@ import DarkModeRounded from '@mui/icons-material/DarkModeRounded'
 import LightModeRounded from '@mui/icons-material/LightModeRounded'
 import CloseRounded from '@mui/icons-material/CloseRounded'
 import {useTheme} from '@mui/material/styles'
-import {useThemeCharger} from '../../../../../../../context/ThemeCharger'
+import {useThemeCharger} from '../../../../../../../../../contexts/ThemeCharger'
 import dynamic from 'next/dynamic'
 import {useTabNavigationHandlerContext} from '../../../context/TabNavigationHandlerContext'
 import {useTransactionEventTrigger} from "../context/TransactionEventTriggerContext";

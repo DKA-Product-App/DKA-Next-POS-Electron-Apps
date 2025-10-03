@@ -17,7 +17,7 @@ import { useTx } from '../../context/TransactionContext'
 import { useDiningMode } from '../../../../context/DiningModeContext'
 import { CartItem } from '../../../../../../../(select-product)/context/CartContext'
 import { useTheme } from '@mui/material/styles'
-import { useThemeCharger } from '../../../../../../../../context/ThemeCharger'
+import { useThemeCharger } from '../../../../../../../../../../contexts/ThemeCharger'
 import {useTransactionEventTrigger} from "../../context/TransactionEventTriggerContext";
 import {useSession} from "../../../../../../../../../../contexts/SessionProviderContext";
 import {Transaction, TransactionBatches } from "../../../types/api.transaction.type";

@@ -14,7 +14,7 @@ import FullscreenRounded from '@mui/icons-material/FullscreenRounded'
 import FullscreenExitRounded from '@mui/icons-material/FullscreenExitRounded'
 import dynamic from 'next/dynamic'
 import { useTheme } from '@mui/material/styles'
-import { useThemeCharger } from '../../../../../../../context/ThemeCharger'
+import { useThemeCharger } from '../../../../../../../../../contexts/ThemeCharger'
 import normalizeIpcError from "../../../../../../../../../helpers/electronMessageErrorEsctration";
 import { useSession } from '../../../../../../../../../contexts/SessionProviderContext'
 import {useFunctionKeyCtx} from "../../../../../../../../../contexts/FunctionKeyProviderContext";

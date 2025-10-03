@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import {
-    Box, Stack, TextField, InputAdornment, IconButton, Popover, MenuItem, Typography, Slider, Tooltip
+    Box, Stack, TextField, MenuItem, Typography, Slider, Tooltip, IconButton, Popover
 } from '@mui/material'
 import TuneRoundedIcon from '@mui/icons-material/TuneRounded'
 import ClearRoundedIcon from '@mui/icons-material/ClearRounded'
@@ -14,21 +14,33 @@ export type BillFilters = {
     startAt: string
     endAt: string
     paid: 'all' | 'paid' | 'unpaid'
-    cashierName: string          // gunakan 'all' untuk semua
-    totalRange: number[]         // [min, max] dalam satuan mata uang (IDR)
+    cashierName: string
+    totalRange: number[]
 }
 
 type Props = {
     value: BillFilters
     onChange: (patch: Partial<BillFilters>) => void
-    cashierOptions: string[]     // sudah unique & sorted di parent (opsional)
-    maxTotal: number             // batas atas total transaksi (untuk slider)
-    filteredCount?: number       // tampilkan hitungan hasil (opsional)
+    cashierOptions: string[]
+    maxTotal: number
+    filteredCount?: number
 }
 
 const TZ = 'Asia/Makassar'
 const DEBOUNCE_MS = 600
+const LS_KEY = 'bill.filters.v2' // snake_case payload
 
+type PersistV2 = {
+    start_at: string
+    end_at: string
+    paid: 'all' | 'paid' | 'unpaid'
+    cashier_name: string
+    total_range: number[]
+}
+
+/* =========================
+ * Helpers
+ * ========================= */
 const toDateTimeLocalString = (y: string, m: string, d: string, hh: string, mm: string) =>
     `${y}-${m}-${d}T${hh}:${mm}`
 
@@ -41,77 +53,227 @@ const partsInTz = (d: Date, tz: string) => {
     return { year: parts.year, month: parts.month, day: parts.day, hour: parts.hour, minute: parts.minute }
 }
 
-const currency = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n)
+const todayRangeInMakassar = () => {
+    const now = new Date()
+    const { year, month, day } = partsInTz(now, TZ)
+    return {
+        start: toDateTimeLocalString(year, month, day, '00', '00'),
+        end: toDateTimeLocalString(year, month, day, '23', '59'),
+    }
+}
 
+const currency = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n)
+const isEqualArray = (a: number[], b: number[]) => a.length === b.length && a.every((v, i) => v === b[i])
+
+const toPersist = (v: BillFilters): PersistV2 => ({
+    start_at: v.startAt,
+    end_at: v.endAt,
+    paid: v.paid,
+    cashier_name: v.cashierName,
+    total_range: v.totalRange,
+})
+const fromPersist = (p: PersistV2): BillFilters => ({
+    startAt: p.start_at,
+    endAt: p.end_at,
+    paid: p.paid,
+    cashierName: p.cashier_name,
+    totalRange: p.total_range,
+})
+
+const readPersist = (): BillFilters | null => {
+    if (typeof window === 'undefined') return null
+    const raw = localStorage.getItem(LS_KEY)
+    if (!raw || !/^\s*\{/.test(raw)) return null
+    try {
+        const p = JSON.parse(raw) as PersistV2
+        if (!Array.isArray(p.total_range) || p.total_range.length !== 2) return null
+        return fromPersist(p)
+    } catch { return null }
+}
+
+const writePersist = (v: BillFilters) => localStorage.setItem(LS_KEY, JSON.stringify(toPersist(v)))
+const removePersist = () => localStorage.removeItem(LS_KEY)
+
+/* =========================
+ * Component
+ * ========================= */
 const BillListItemHeaderWidget: React.FC<Props> = ({ value, onChange, cashierOptions, maxTotal, filteredCount }) => {
     const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null)
     const open = Boolean(anchorEl)
 
-    // ====== Draft state (hindari spam update) ======
+    // Drafts so we can persist immediately without relying on parent echo
     const [draftStartAt, setDraftStartAt] = React.useState(value.startAt)
     const [draftEndAt, setDraftEndAt] = React.useState(value.endAt)
     const [draftTotalRange, setDraftTotalRange] = React.useState<number[]>(value.totalRange)
 
-    // Sinkron saat parent berubah (mis. reset dari luar)
+    // Keep drafts in sync when parent changes (e.g., after hydrate/ reset from outside)
     React.useEffect(() => { setDraftStartAt(value.startAt) }, [value.startAt])
     React.useEffect(() => { setDraftEndAt(value.endAt) }, [value.endAt])
     React.useEffect(() => { setDraftTotalRange(value.totalRange) }, [value.totalRange])
 
-    // Inisialisasi rentang hari ini bila kosong
-    React.useEffect(() => {
-        if (value.startAt && value.endAt) return
-        const now = new Date()
-        const { year, month, day } = partsInTz(now, TZ)
-        const startOfToday = toDateTimeLocalString(year, month, day, '00', '00')
-        const endOfToday = toDateTimeLocalString(year, month, day, '23', '59')
+    // Guards
+    const hydratedRef = React.useRef(false)
+    const resetGuardRef = React.useRef(false)
 
-        setDraftStartAt(startOfToday)
-        setDraftEndAt(endOfToday)
-        onChange({ startAt: startOfToday, endAt: endOfToday })
+    // Build a "snapshot" from the freshest known pieces (value + drafts)
+    const snapshotRef = React.useRef<BillFilters>(value)
+    const buildSnapshot = React.useCallback((): BillFilters => ({
+        startAt: draftStartAt || value.startAt,
+        endAt: draftEndAt || value.endAt,
+        paid: value.paid,
+        cashierName: value.cashierName,
+        totalRange: draftTotalRange.length ? draftTotalRange : value.totalRange,
+    }), [draftStartAt, draftEndAt, draftTotalRange, value])
+    React.useEffect(() => { snapshotRef.current = buildSnapshot() }, [buildSnapshot])
+
+    // Hydrate from LS on mount (no parent changes needed)
+    React.useEffect(() => {
+        const saved = readPersist()
+        if (saved) {
+            // apply to drafts
+            setDraftStartAt(saved.startAt)
+            setDraftEndAt(saved.endAt)
+            setDraftTotalRange(saved.totalRange)
+            // also push to parent (still not modifying parent code)
+            onChange(saved)
+        } else {
+            // default today if parent not set
+            if (!value.startAt || !value.endAt) {
+                const { start, end } = todayRangeInMakassar()
+                setDraftStartAt(start)
+                setDraftEndAt(end)
+                setDraftTotalRange([0, Math.max(0, maxTotal)])
+                onChange({ startAt: start, endAt: end, totalRange: [0, Math.max(0, maxTotal)], paid: 'all', cashierName: 'all' })
+            }
+        }
+        hydratedRef.current = true
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    // Debounce commit waktu
+    // Auto-save on ANY value prop change (for safety), but also we persist on drafts immediately (see below)
     React.useEffect(() => {
-        if (draftStartAt === value.startAt && draftEndAt === value.endAt) return
-        const t = setTimeout(() => onChange({ startAt: draftStartAt, endAt: draftEndAt }), DEBOUNCE_MS)
-        return () => clearTimeout(t)
-    }, [draftStartAt, draftEndAt]) // eslint-disable-line react-hooks/exhaustive-deps
-
-    const commitTimeRange = React.useCallback(() => {
-        if (draftStartAt !== value.startAt || draftEndAt !== value.endAt) {
-            onChange({ startAt: draftStartAt, endAt: draftEndAt })
+        if (!hydratedRef.current || resetGuardRef.current) return
+        const { start, end } = todayRangeInMakassar()
+        const defaultToday: BillFilters = {
+            startAt: start,
+            endAt: end,
+            paid: 'all',
+            cashierName: 'all',
+            totalRange: [0, Math.max(0, maxTotal)],
         }
-    }, [draftStartAt, draftEndAt, value.startAt, value.endAt, onChange])
+        const nowVal: BillFilters = {
+            startAt: value.startAt,
+            endAt: value.endAt,
+            paid: value.paid,
+            cashierName: value.cashierName,
+            totalRange: value.totalRange,
+        }
+        const sameDefault =
+            nowVal.paid === defaultToday.paid &&
+            nowVal.cashierName === defaultToday.cashierName &&
+            nowVal.startAt === defaultToday.startAt &&
+            nowVal.endAt === defaultToday.endAt &&
+            isEqualArray(nowVal.totalRange, defaultToday.totalRange)
 
-    // Jaga range bila maxTotal berubah turun
+        sameDefault ? removePersist() : writePersist(nowVal)
+    }, [value.startAt, value.endAt, value.paid, value.cashierName, value.totalRange, maxTotal])
+
+    // Debounce for time range: persist from DRAFT directly (no need to wait parent echo)
+    React.useEffect(() => {
+        if (!hydratedRef.current || resetGuardRef.current) return
+        // if drafts equal value, parent already persisted
+        if (draftStartAt === value.startAt && draftEndAt === value.endAt) return
+
+        const t = setTimeout(() => {
+            const snap = buildSnapshot()
+            // persist snapshot now
+            const { start, end } = todayRangeInMakassar()
+            const defaultToday: BillFilters = {
+                startAt: start, endAt: end, paid: 'all', cashierName: 'all', totalRange: [0, Math.max(0, maxTotal)],
+            }
+            isEqualArray(snap.totalRange, defaultToday.totalRange)
+            && snap.paid === defaultToday.paid
+            && snap.cashierName === defaultToday.cashierName
+            && snap.startAt === defaultToday.startAt
+            && snap.endAt === defaultToday.endAt
+                ? removePersist()
+                : writePersist(snap)
+
+            // still notify parent
+            onChange({ startAt: draftStartAt, endAt: draftEndAt })
+        }, DEBOUNCE_MS)
+        return () => clearTimeout(t)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [draftStartAt, draftEndAt])
+
+    // Persist from slider DRAFT immediately at commit
+    const handleTotalRangeCommit = (_: Event | React.SyntheticEvent, v: number | number[]) => {
+        const totalRange = v as number[]
+        const snap = { ...buildSnapshot(), totalRange }
+        const { start, end } = todayRangeInMakassar()
+        const defaultToday: BillFilters = {
+            startAt: start, endAt: end, paid: 'all', cashierName: 'all', totalRange: [0, Math.max(0, maxTotal)],
+        }
+        isEqualArray(snap.totalRange, defaultToday.totalRange)
+        && snap.paid === defaultToday.paid
+        && snap.cashierName === defaultToday.cashierName
+        && snap.startAt === defaultToday.startAt
+        && snap.endAt === defaultToday.endAt
+            ? removePersist()
+            : writePersist(snap)
+
+        onChange({ totalRange })
+    }
+
+    // Persist immediately when paid/cashier changes (no parent changes needed)
+    const handlePaidChange = (paid: BillFilters['paid']) => {
+        const snap = { ...buildSnapshot(), paid }
+        writePersist(snap)
+        onChange({ paid })
+    }
+    const handleCashierChange = (cashierName: string) => {
+        const snap = { ...buildSnapshot(), cashierName }
+        writePersist(snap)
+        onChange({ cashierName })
+    }
+
+    // Clamp range kalau maxTotal turun
     React.useEffect(() => {
         setDraftTotalRange(([a, b]) => [Math.max(0, Math.min(a, maxTotal)), Math.max(0, Math.min(b, maxTotal))])
     }, [maxTotal])
+
+    const commitTimeRange = React.useCallback(() => {
+        if (draftStartAt === value.startAt && draftEndAt === value.endAt) return
+        const snap = buildSnapshot()
+        writePersist(snap)
+        onChange({ startAt: draftStartAt, endAt: draftEndAt })
+    }, [buildSnapshot, draftStartAt, draftEndAt, onChange, value.endAt, value.startAt])
 
     const handleOpen = (e: React.MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget)
     const handleClose = () => { commitTimeRange(); setAnchorEl(null) }
 
     const handleReset = () => {
-        const now = new Date()
-        const { year, month, day } = partsInTz(now, TZ)
-        const startOfToday = toDateTimeLocalString(year, month, day, '00', '00')
-        const endOfToday = toDateTimeLocalString(year, month, day, '23', '59')
+        const { start, end } = todayRangeInMakassar()
+        resetGuardRef.current = true
+        removePersist()
 
-        setDraftStartAt(startOfToday)
-        setDraftEndAt(endOfToday)
+        setDraftStartAt(start)
+        setDraftEndAt(end)
         setDraftTotalRange([0, Math.max(0, maxTotal)])
 
         onChange({
-            startAt: startOfToday,
-            endAt: endOfToday,
+            startAt: start,
+            endAt: end,
             paid: 'all',
             cashierName: 'all',
             totalRange: [0, Math.max(0, maxTotal)],
         })
+
+        // lepas guard di tick berikutnya
+        queueMicrotask(() => (resetGuardRef.current = false))
     }
 
-    // ==== UI ====
+    /* ============ UI ============ */
     return (
         <Stack direction="row" alignItems="center" gap={1}>
             <Tooltip title="Filter">
@@ -133,13 +295,8 @@ const BillListItemHeaderWidget: React.FC<Props> = ({ value, onChange, cashierOpt
                 slotProps={{
                     paper: {
                         sx: {
-                            p: 0,
-                            width: 520,
-                            maxWidth: 'calc(100vw - 32px)',
-                            maxHeight: 420,
-                            display: 'grid',
-                            gridTemplateRows: '1fr auto',
-                            overflow: 'hidden',
+                            p: 0, width: 520, maxWidth: 'calc(100vw - 32px)', maxHeight: 420,
+                            display: 'grid', gridTemplateRows: '1fr auto', overflow: 'hidden',
                         }
                     }
                 }}
@@ -180,7 +337,7 @@ const BillListItemHeaderWidget: React.FC<Props> = ({ value, onChange, cashierOpt
                                 <TextField
                                     select size="small" fullWidth
                                     value={value.paid}
-                                    onChange={(e) => onChange({ paid: e.target.value as BillFilters['paid'] })}
+                                    onChange={(e) => handlePaidChange(e.target.value as BillFilters['paid'])}
                                 >
                                     <MenuItem value="all">Semua</MenuItem>
                                     <MenuItem value="unpaid">Belum dibayar</MenuItem>
@@ -194,7 +351,7 @@ const BillListItemHeaderWidget: React.FC<Props> = ({ value, onChange, cashierOpt
                                 <TextField
                                     select size="small" fullWidth
                                     value={value.cashierName}
-                                    onChange={(e) => onChange({ cashierName: e.target.value })}
+                                    onChange={(e) => handleCashierChange(e.target.value)}
                                 >
                                     <MenuItem value="all">Semua</MenuItem>
                                     {cashierOptions.map(n => <MenuItem key={n} value={n}>{n}</MenuItem>)}
@@ -212,7 +369,7 @@ const BillListItemHeaderWidget: React.FC<Props> = ({ value, onChange, cashierOpt
                                 <Slider
                                     value={draftTotalRange}
                                     onChange={(_, v) => setDraftTotalRange(v as number[])}
-                                    onChangeCommitted={(_, v) => onChange({ totalRange: v as number[] })}
+                                    onChangeCommitted={handleTotalRangeCommit}
                                     valueLabelDisplay="auto"
                                     min={0}
                                     max={Math.max(0, maxTotal)}
@@ -221,7 +378,6 @@ const BillListItemHeaderWidget: React.FC<Props> = ({ value, onChange, cashierOpt
                                 />
                             </Box>
 
-                            {/* Counter */}
                             {!!filteredCount && (
                                 <Typography variant="caption" color="text.secondary">{filteredCount} hasil</Typography>
                             )}
@@ -229,7 +385,7 @@ const BillListItemHeaderWidget: React.FC<Props> = ({ value, onChange, cashierOpt
                     </PerfectScrollbar>
                 </Box>
 
-                {/* Footer fixed */}
+                {/* Footer */}
                 <Box sx={{ p: 1.25, borderTop: '1px solid', borderColor: 'divider', display: 'flex', gap: 1, justifyContent: 'space-between' }}>
                     <IconButton size="small" onClick={handleReset} title="Reset filter">
                         <ClearRoundedIcon fontSize="small" />

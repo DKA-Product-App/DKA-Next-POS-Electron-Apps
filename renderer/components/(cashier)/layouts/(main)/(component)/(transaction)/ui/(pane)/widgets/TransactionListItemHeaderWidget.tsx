@@ -32,6 +32,20 @@ type Props = {
 }
 
 const TZ = 'Asia/Makassar'
+const DEBOUNCE_MS = 600
+const LS_KEY = 'tx.filters.v1' // snake_case payload
+
+type PersistShape = {
+    query: string
+    status: 'all' | 'active' | 'selesai'
+    shift_name: string
+    cashier_name: string
+    start_at: string
+    end_at: string
+    item_range: number[]
+    batch_range: number[]
+}
+
 const toDateTimeLocalString = (y: string, m: string, d: string, hh: string, mm: string) =>
     `${y}-${m}-${d}T${hh}:${mm}`
 
@@ -44,7 +58,48 @@ const partsInTz = (d: Date, tz: string) => {
     return { year: parts.year, month: parts.month, day: parts.day, hour: parts.hour, minute: parts.minute }
 }
 
-const DEBOUNCE_MS = 600
+const todayRange = () => {
+    const now = new Date()
+    const { year, month, day } = partsInTz(now, TZ)
+    return {
+        start: toDateTimeLocalString(year, month, day, '00', '00'),
+        end: toDateTimeLocalString(year, month, day, '23', '59'),
+    }
+}
+
+const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
+
+/* ===== LocalStorage helpers (snake_case) ===== */
+const readPersist = (): Partial<Filters> | null => {
+    if (typeof window === 'undefined') return null
+    const raw = localStorage.getItem(LS_KEY)
+    if (!raw || !/^\s*\{/.test(raw)) return null
+    const p = JSON.parse(raw) as Partial<PersistShape>
+    const out: Partial<Filters> = {}
+    typeof p.query === 'string' && (out.query = p.query)
+    ;(p.status === 'all' || p.status === 'active' || p.status === 'selesai') && (out.status = p.status)
+    typeof p.shift_name === 'string' && (out.shiftName = p.shift_name)
+    typeof p.cashier_name === 'string' && (out.cashierName = p.cashier_name)
+    typeof p.start_at === 'string' && (out.startAt = p.start_at)
+    typeof p.end_at === 'string' && (out.endAt = p.end_at)
+    Array.isArray(p.item_range) && p.item_range.length === 2 && p.item_range.every(n => typeof n === 'number') && (out.itemRange = p.item_range)
+    Array.isArray(p.batch_range) && p.batch_range.length === 2 && p.batch_range.every(n => typeof n === 'number') && (out.batchRange = p.batch_range)
+    return out
+}
+
+const writePersist = (v: Filters) => {
+    const payload: PersistShape = {
+        query: v.query,
+        status: v.status,
+        shift_name: v.shiftName,
+        cashier_name: v.cashierName,
+        start_at: v.startAt,
+        end_at: v.endAt,
+        item_range: v.itemRange,
+        batch_range: v.batchRange,
+    }
+    localStorage.setItem(LS_KEY, JSON.stringify(payload))
+}
 
 const TransactionListItemHeaderWidget: React.FC<Props> = ({
                                                               filters, onFiltersChange,
@@ -55,71 +110,100 @@ const TransactionListItemHeaderWidget: React.FC<Props> = ({
     const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null)
     const open = Boolean(anchorEl)
 
-    // ===== DRAFT (hindari spam request) =====
+    // ===== DRAFT (hindari spam request & jadi sumber persist waktu) =====
     const [draftStartAt, setDraftStartAt] = React.useState(filters.startAt)
     const [draftEndAt, setDraftEndAt] = React.useState(filters.endAt)
     const [draftItemRange, setDraftItemRange] = React.useState<number[]>(filters.itemRange)
     const [draftBatchRange, setDraftBatchRange] = React.useState<number[]>(filters.batchRange)
 
-    // Sync draft ketika parent berubah (reset, dsb.)
+    // sync draft ketika parent berubah (mis. reset dari luar)
     React.useEffect(() => { setDraftStartAt(filters.startAt) }, [filters.startAt])
     React.useEffect(() => { setDraftEndAt(filters.endAt) }, [filters.endAt])
     React.useEffect(() => { setDraftItemRange(filters.itemRange) }, [filters.itemRange])
     React.useEffect(() => { setDraftBatchRange(filters.batchRange) }, [filters.batchRange])
 
-    // Init startOfToday/endOfToday bila kosong
+    // guards
+    const hydratedRef = React.useRef(false)
+    const resetGuardRef = React.useRef(false)
+
+    // ===== Hydrate saat mount =====
     React.useEffect(() => {
-        if (filters.startAt && filters.endAt) return
-        const now = new Date()
-        const { year, month, day } = partsInTz(now, TZ)
-        const startOfToday = toDateTimeLocalString(year, month, day, '00', '00')
-        const endOfToday = toDateTimeLocalString(year, month, day, '23', '59')
-        setDraftStartAt(startOfToday)
-        setDraftEndAt(endOfToday)
-        onFiltersChange({ startAt: startOfToday, endAt: endOfToday })
+        const saved = readPersist()
+        if (saved && Object.keys(saved).length) {
+            saved.startAt && setDraftStartAt(saved.startAt)
+            saved.endAt && setDraftEndAt(saved.endAt)
+            saved.itemRange && setDraftItemRange(saved.itemRange)
+            saved.batchRange && setDraftBatchRange(saved.batchRange)
+            onFiltersChange(saved)
+        } else {
+            // default hari ini jika kosong
+            if (!filters.startAt || !filters.endAt) {
+                const { start, end } = todayRange()
+                setDraftStartAt(start)
+                setDraftEndAt(end)
+                onFiltersChange({ startAt: start, endAt: end })
+            }
+        }
+        hydratedRef.current = true
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    // ✅ AUTO-EXPAND range saat max diketahui dan filter masih [0,0]
+    // ===== Auto expand range ketika max diketahui & filter masih [0,0] =====
     React.useEffect(() => {
         const needItems = filters.itemRange[0] === 0 && filters.itemRange[1] === 0 && maxItems > 0
         const needBatches = filters.batchRange[0] === 0 && filters.batchRange[1] === 0 && maxBatches > 0
-
         if (needItems || needBatches) {
             const patch: Partial<Filters> = {}
-            if (needItems) {
-                patch.itemRange = [0, maxItems]
-                setDraftItemRange([0, maxItems])
-            }
-            if (needBatches) {
-                patch.batchRange = [0, maxBatches]
-                setDraftBatchRange([0, maxBatches])
-            }
+            if (needItems) { patch.itemRange = [0, maxItems]; setDraftItemRange([0, maxItems]) }
+            if (needBatches) { patch.batchRange = [0, maxBatches]; setDraftBatchRange([0, maxBatches]) }
             onFiltersChange(patch)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [maxItems, maxBatches])
 
-    // Debounce commit start/end
+    // ===== Debounce commit waktu + persist langsung (pakai draft) =====
     React.useEffect(() => {
+        if (!hydratedRef.current || resetGuardRef.current) return
         if (draftStartAt === filters.startAt && draftEndAt === filters.endAt) return
-        const t = setTimeout(() => onFiltersChange({ startAt: draftStartAt, endAt: draftEndAt }), DEBOUNCE_MS)
+        const t = setTimeout(() => {
+            const next: Filters = {
+                ...filters,
+                startAt: draftStartAt,
+                endAt: draftEndAt,
+            }
+            onFiltersChange({ startAt: draftStartAt, endAt: draftEndAt })
+            writePersist(next)
+        }, DEBOUNCE_MS)
         return () => clearTimeout(t)
-    }, [draftStartAt, draftEndAt]) // eslint-disable-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [draftStartAt, draftEndAt])
 
     const commitTimeRange = React.useCallback(() => {
-        if (draftStartAt !== filters.startAt || draftEndAt !== filters.endAt) {
-            onFiltersChange({ startAt: draftStartAt, endAt: draftEndAt })
-        }
-    }, [draftStartAt, draftEndAt, filters.startAt, filters.endAt, onFiltersChange])
+        if (draftStartAt === filters.startAt && draftEndAt === filters.endAt) return
+        const next: Filters = { ...filters, startAt: draftStartAt, endAt: draftEndAt }
+        onFiltersChange({ startAt: draftStartAt, endAt: draftEndAt })
+        writePersist(next)
+    }, [draftStartAt, draftEndAt, filters, onFiltersChange])
 
-    const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
+    // ===== Clamp draft bila max turun =====
     React.useEffect(() => {
-        // jaga-jaga bila max turun
         setDraftItemRange(([a, b]) => [clamp(a, 0, Math.max(0, maxItems)), clamp(b, 0, Math.max(0, maxItems))])
         setDraftBatchRange(([a, b]) => [clamp(a, 0, Math.max(0, maxBatches)), clamp(b, 0, Math.max(0, maxBatches))])
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [maxItems, maxBatches])
+
+    // ===== Autosave untuk field non-waktu (query/status/shift/kasir/itemRange/batchRange) =====
+    React.useEffect(() => {
+        if (!hydratedRef.current || resetGuardRef.current) return
+        // snapshot: waktu pakai *draft* agar konsisten
+        const next: Filters = {
+            ...filters,
+            startAt: draftStartAt,
+            endAt: draftEndAt,
+        }
+        writePersist(next)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filters.query, filters.status, filters.shiftName, filters.cashierName, filters.itemRange, filters.batchRange])
 
     return (
         <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'stretch', sm: 'center' }} gap={1} sx={{ px: 1.5, pt: 1 }}>
@@ -169,9 +253,9 @@ const TransactionListItemHeaderWidget: React.FC<Props> = ({
                             p: 0,
                             width: 520,
                             maxWidth: 'calc(100vw - 32px)',
-                            maxHeight: 420,                       // <— tinggi popup diperkecil
+                            maxHeight: 420,
                             display: 'grid',
-                            gridTemplateRows: '1fr auto',         // <— baris 1: scroll area, baris 2: footer
+                            gridTemplateRows: '1fr auto',
                             overflow: 'hidden',
                         }
                     }
@@ -293,7 +377,7 @@ const TransactionListItemHeaderWidget: React.FC<Props> = ({
                                 />
                             </Box>
 
-                            {/* Counter (ikut scroll) */}
+                            {/* Counter */}
                             <Typography variant="caption" color="text.secondary">{filteredCount} hasil</Typography>
                         </Stack>
                     </PerfectScrollbar>
@@ -305,14 +389,15 @@ const TransactionListItemHeaderWidget: React.FC<Props> = ({
                         <IconButton
                             size="small"
                             onClick={() => {
-                                const now = new Date()
-                                const { year, month, day } = partsInTz(now, TZ)
-                                const startOfToday = toDateTimeLocalString(year, month, day, '00', '00')
-                                const endOfToday = toDateTimeLocalString(year, month, day, '23', '59')
-                                setDraftStartAt(startOfToday)
-                                setDraftEndAt(endOfToday)
+                                const { start, end } = todayRange()
+                                resetGuardRef.current = true
+                                localStorage.removeItem(LS_KEY)
+
+                                setDraftStartAt(start)
+                                setDraftEndAt(end)
                                 setDraftItemRange([0, Math.max(0, maxItems)])
                                 setDraftBatchRange([0, Math.max(0, maxBatches)])
+
                                 onFiltersChange({
                                     query: '',
                                     status: 'all',
@@ -320,14 +405,17 @@ const TransactionListItemHeaderWidget: React.FC<Props> = ({
                                     cashierName: 'all',
                                     itemRange: [0, Math.max(0, maxItems)],
                                     batchRange: [0, Math.max(0, maxBatches)],
-                                    startAt: startOfToday,
-                                    endAt: endOfToday,
+                                    startAt: start,
+                                    endAt: end,
                                 })
+
+                                queueMicrotask(() => (resetGuardRef.current = false))
                             }}
                             title="Reset filter"
                         >
                             <ClearRoundedIcon fontSize="small" />
                         </IconButton>
+
                         <IconButton
                             size="small"
                             color="primary"
