@@ -38,7 +38,6 @@ if (!process.stdout || !process.stdout.isTTY) {
     app.whenReady()
         .then(() => {
             return Promise.all([
-                registerDataProtocol(),
                 mainWindow()
             ])
         }).catch(() => {
