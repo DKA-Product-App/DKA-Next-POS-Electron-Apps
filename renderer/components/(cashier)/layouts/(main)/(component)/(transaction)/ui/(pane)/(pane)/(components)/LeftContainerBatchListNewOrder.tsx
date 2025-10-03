@@ -37,7 +37,7 @@ type PrinterBucket = { id: string; name: string; description: string; items: Tra
 function groupItemsByPrinter(items: TransactionBatchesItems[]): PrinterBucket[] {
     const map = new Map<string, PrinterBucket>()
     items.forEach(it => {
-        const cats: any[] = Array.isArray((it as any)?.product?.category) ? (it as any).product.category : []
+        const cats: any[] = Array.isArray(it?.product?.category) ? (it as any).product.category : []
         const seen = new Set<string>()
         cats.forEach(c => {
             const printers: any[] = Array.isArray(c?.printer) ? c.printer : []
@@ -91,7 +91,7 @@ const LeftContainerBatchListNewOrder: React.FC<{ transactionId: string }> = ({ t
     // theme stuff
     const muiTheme = useTheme()
     const isDark = (muiTheme.palette as any)?.mode === 'dark' || (muiTheme.palette as any)?.colorScheme === 'dark'
-    const { toggleMode } = useThemeCharger()
+    const { mode, toggleMode } = useThemeCharger()
 
 
     useEffect(() => {
@@ -143,35 +143,39 @@ const LeftContainerBatchListNewOrder: React.FC<{ transactionId: string }> = ({ t
     const closeDialog = () => setOpen(false)
 
     // ⬇️ hide items yang approved void, tampilkan normal + pending
-    const buckets = (batch : TransactionBatches) => React.useMemo(() => {
+    const buckets = (batch : TransactionBatches) => {
         const visible = (batch.items || []).filter(it => !isApprovedVoid(it))
         return groupItemsByPrinter(visible)
-    }, [batch.items])
+    }
     const handlePrintAll = (batch : TransactionBatches) => {
         const bucketsToPrint = buckets(batch).filter(b => (b.items?.length ?? 0) > 0)
         if (!bucketsToPrint.length) return
 
         const tasks = bucketsToPrint.map((b) => {
             const itemIds = b.items.map(it => String(it.id))
-            const payload = { printer: b.id, batch: batch.id, invoice: batch.transaction.invoice, itemIds, merge_variant: true }
+            const payload = { printer: b.id, batch: batch.id, invoice: batch?.transaction?.invoice, itemIds, merge_variant: true }
             // @ts-ignore
             return window.api.invoke('api.transaction.batch:print', payload)
                 .then((res: any) =>  {
                     setSwalProps({
                         show: true,
-                        timer: 1500,
+                        icon: "success",
+                        theme: mode,
                         title: 'Successfully Sending Printer',
                         text: `${res.msg}`,
                     });
+                    console.log({ ok: true, id: b.id })
                     return { ok: true, id: b.id }
                 })
                 .catch((err: any) => {
                     setSwalProps({
                         show: true,
-                        timer: 1500,
+                        icon: "error",
+                        theme: mode,
                         title: 'Gagal Mencetak Otomatis',
                         text: `${err?.msg ?? 'Gagal Mencetak. Printer Offline / Error.'}`,
                     });
+                    console.error({ ok: false, id: b.id })
                     return { ok: false, id: b.id }
                 })
         })
@@ -203,7 +207,7 @@ const LeftContainerBatchListNewOrder: React.FC<{ transactionId: string }> = ({ t
                 bump('batch')
                 bump('pay')
                 clearSelection()
-                handlePrintAll(data)
+                try { handlePrintAll(data)}catch (e){}
                 // 5) tutup dialog — layout di belakang tetap stay
                 closeDialog()
             })

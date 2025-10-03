@@ -18,6 +18,9 @@ import { useThemeCharger } from '../../../../../../../../../contexts/ThemeCharge
 import normalizeIpcError from "../../../../../../../../../helpers/electronMessageErrorEsctration";
 import { useSession } from '../../../../../../../../../contexts/SessionProviderContext'
 import {useFunctionKeyCtx} from "../../../../../../../../../contexts/FunctionKeyProviderContext";
+import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../types/api.transaction.type";
+import SweetAlert2, {SweetAlert2Props} from "react-sweetalert2";
+import {AxiosResponse} from "axios";
 
 // === Dynamically loaded pages ===
 const Billing = dynamic(() => import('../../../../../../(select-product)'), { ssr: false })
@@ -54,11 +57,57 @@ const DiningIntro: React.FC = () => (
     </Box>
 )
 
+/* ===== Void helpers ===== */
+const isApprovedVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved === true
+const isPendingVoid  = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved !== true
+
+/* ===== Grouping helpers ===== */
+type PrinterBucket = { id: string; name: string; description: string; items: TransactionBatchesItems[] }
+
+function categoriesForPrinter(it: TransactionBatchesItems, printerId: string): string {
+    const cats: any[] = Array.isArray(it?.product?.category) ? (it as any).product.category : []
+    const names: string[] = []
+    cats.forEach(c => {
+        const printers: any[] = Array.isArray(c?.printer) ? c.printer : []
+        const hit = printers.some((p: any) => String(p?.id) === printerId)
+        if (hit && c?.name) names.push(String(c.name))
+    })
+    return names.length ? names.join(', ') : ''
+}
+
+function allTxItems(tx: Transaction): TransactionBatchesItems[] {
+    return tx.batches.flatMap(b => Array.isArray(b.items) ? b.items : [])
+}
+
+function groupTxItemsByPrinter(tx: Transaction): PrinterBucket[] {
+    // ⬇️ hide items approved void; tampilkan normal + pending
+    const source = allTxItems(tx).filter(it => !isApprovedVoid(it))
+    const map = new Map<string, PrinterBucket>()
+    source.forEach(it => {
+        const cats: any[] = Array.isArray((it as any)?.product?.category) ? (it as any).product.category : []
+        const seen = new Set<string>()
+        cats.forEach(c => {
+            const printers: any[] = Array.isArray(c?.printer) ? c.printer : []
+            printers.forEach(p => {
+                const pid = String(p?.id ?? '')
+                if (!pid || seen.has(pid)) return
+                seen.add(pid)
+                const name = String(p?.name ?? pid)
+                const description = String(p?.description ?? name)
+                const bucket = map.get(pid) ?? { id: pid, name, description, items: [] }
+                bucket.items.push(it as Item)
+                map.set(pid, bucket)
+            })
+        })
+    })
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
+}
 
 const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
     const [open, setOpen] = useState(false)
     const { Session } = useSession();
-    const { key, seq } = useFunctionKeyCtx()
+    const { key, seq } = useFunctionKeyCtx();
+    const [swalProps, setSwalProps] = useState<SweetAlert2Props>({});
     // wizard data
     const [orderType, setOrderType] = useState<Option | undefined>(undefined)
     const needTable = !!orderType?.required_table_select
@@ -73,7 +122,7 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
     // theme
     const theme = useTheme()
     const isDark = (theme.palette as any)?.mode === 'dark' || (theme.palette as any)?.colorScheme === 'dark'
-    const { toggleMode } = useThemeCharger()
+    const { mode, toggleMode } = useThemeCharger()
 
     /* ---------- open/close ---------- */
     const openDialog = useCallback(() => {
@@ -100,6 +149,45 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
                 break;
         }
     }, [seq]);
+
+    const buckets = (tx: Transaction) => groupTxItemsByPrinter(tx);
+
+    const handlePrintAll = (tx : Transaction) => {
+        const bucketsToPrint = buckets(tx).filter(b => (b.items?.length ?? 0) > 0)
+        if (!bucketsToPrint.length) return
+
+        const tasks = bucketsToPrint.map(b => {
+            const itemIds = b.items.map(it => String((it as any).id))
+            const payload = { printer: b.id, transaction: tx.id, invoice: tx.invoice, itemIds, merge_variant: true }
+            // @ts-ignore
+            return window.api.invoke('api.transaction:print', payload)
+                .then((res: any) => {
+                    setSwalProps({
+                        show: true,
+                        icon: "success",
+                        theme: mode,
+                        title: 'Successfully Sending Printer',
+                        text: `${res.msg}`,
+                    });
+                    console.log({ ok: true, id: b.id })
+                    return { ok: true, id: b.id }
+                })
+                .catch((err: any) => {
+                    setSwalProps({
+                        show: true,
+                        icon: "error",
+                        theme: mode,
+                        title: 'Gagal Mencetak Otomatis',
+                        text: `${err?.msg ?? 'Gagal Mencetak. Printer Offline / Error.'}`,
+                    });
+                    console.error({ ok: false, id: b.id })
+                    return { ok: false, id: b.id }
+                })
+        })
+
+        Promise.all(tasks).then(() => null);
+    }
+
     /* ---------- submit ---------- */
     const submitOrder = useCallback((items: Item[]) => {
         if (!orderType?.id) {
@@ -148,8 +236,13 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
             ],
         }
 
-        window.api?.invoke('api.transaction:create', payload)
-            .then((result) => (console.table(result), onCreated?.(), closeDialog()))
+        window.api?.invoke<any, AxiosResponse<Transaction>>('api.transaction:create', payload)
+            .then(({data}) => {
+                console.table(data)
+                onCreated?.()
+                try { handlePrintAll(data)}catch (e){}
+                closeDialog()
+            })
             .catch((error) => {
                 const e = normalizeIpcError(error);
                 console.log(e);
@@ -342,6 +435,7 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
                     </Box>
                 </Box>
             </Dialog>
+            <SweetAlert2 {...swalProps} />
         </>
     )
 }
