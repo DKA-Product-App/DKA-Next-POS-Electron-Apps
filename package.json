@@ -1,6 +1,6 @@
 {
   "private": true,
-  "name": "@dkapos/cashier",
+  "name": "dka_cashier_pos",
   "description": "DKA POS Application",
   "version": "1.0.0",
   "author": "Yovangga Anandhika <dka.tech.dev@gmail.com>",
@@ -44,6 +44,7 @@
     "autoprefixer": "^10.4.19",
     "electron": "^38.0.0",
     "electron-builder": "^26.0.12",
+    "javascript-obfuscator": "^4.1.1",
     "next": "^14.2.4",
     "nextron": "^9.5.0",
     "postcss": "^8.4.38",
@@ -51,6 +52,7 @@
     "react-dom": "^18.3.1",
     "tailwindcss": "^3.4.3",
     "ts-node": "^10.9.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "webpack-obfuscator": "^3.5.1"
   }
 }

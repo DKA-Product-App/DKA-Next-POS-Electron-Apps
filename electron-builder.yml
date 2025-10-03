@@ -3,10 +3,15 @@ productName: DKA Cashier POS Apps
 copyright: Copyright © 2025 Yovangga Anandhika
 
 # ⬇️ Global options
-compression: normal          # store | normal | maximum
+compression: maximum          # store | normal | maximum
 asar: true                    # biar sumber di-pack ke app.asar
 asarUnpack:
   - "**/*.node"               # kalau ada native addon, auto unpack
+  - "**/*.{dll,exe,so,dylib}"
+  - "node_modules/sharp/**"
+  - "node_modules/sqlite3/**"
+  - "node_modules/@prisma/engines/**"
+  - "node_modules/puppeteer/.local-chromium/**"
 
 directories:
   output: dist
@@ -67,7 +72,8 @@ linux:
   synopsis: "POS App untuk Kasir"
   description: "DKA Cashier POS Apps"
   target:
-    - AppImage
+    #- AppImage
+    - deb
   # Catatan: AppImage sudah pakai squashfs + xz, top-level 'compression'
   # tetap dipakai untuk tahap packing internal, tapi efek akhirnya bisa kecil.
 
