@@ -106,7 +106,7 @@ const inDateRange = (iso?: string, startIso?: string, endIso?: string) => {
     return t >= minT && t <= maxT
 }
 
-const buildPayload = (q: string, f: BillFilters, godMode : boolean) => {
+const buildPayload = (q: string, f: BillFilters, godMode: boolean) => {
     const [startIso, endIso] = normalizeRangeToIsoUtc(f.startAt, f.endAt)
 
     // total range: kirim hanya kalau bukan [0,0]
@@ -133,16 +133,21 @@ const buildPayload = (q: string, f: BillFilters, godMode : boolean) => {
     }
 }
 
+const toKey = (o: unknown) => {
+    try { return JSON.stringify(o) } catch { return String(o) }
+}
+
 /* ====== Component ====== */
 const BillsListItem: React.FC = () => {
     const { setLayout } = useLayoutManipulatorResizable()
     const { state } = useTabNavigationHandlerContext()
-    const { godMode, setGodMode } = useGodModeProvider();
+    const { godMode } = useGodModeProvider()
+
     const [query, setQuery] = useState('')
     const [activeId, setActiveId] = useState<string | null>(null)
-    const [ reloadKey, setReloadKey ] = useState(1);
+    const [reloadKey, setReloadKey] = useState(1)
 
-    // default kosong; widget akan mengisi start/end hari ini di mount
+    // filters default kosong — HeaderWidget yang akan hydrate/persist-in
     const [filters, setFilters] = useState<BillFilters>({
         startAt: '',
         endAt: '',
@@ -155,54 +160,55 @@ const BillsListItem: React.FC = () => {
     const [isFetching, setIsFetching] = useState(false)
     const [fetchError, setFetchError] = useState<string | null>(null)
 
+    // NEW: tunggu sampai widget menyatakan “hydrated”, baru boleh fetch
+    const [filtersReady, setFiltersReady] = useState(false)
+
+    const payload = useMemo(() => buildPayload(query, filters, godMode), [query, filters, godMode])
+    const lastKeyRef = React.useRef<string>('')
+
     // Right pane default
     useLayoutEffect(() => {
         setLayout(prev => ({ ...(prev ?? {}), right: <BillsRightEmpty /> }))
     }, [setLayout])
 
-    // Ambil data (server-side) — refetch saat param penting berubah
+    // Ambil data — dedup by payload key + debounce — skip sebelum filtersReady
     useEffect(() => {
+        if (!filtersReady) return
         if (!window?.api?.invoke) {
             setFetchError('IPC bridge tidak tersedia (window.api.invoke). Pastikan preload expose API.')
             setBills([])
             return
         }
 
-        const payload = buildPayload(query, filters, godMode)
-        console.log(payload)
+        const key = toKey(payload)
+        if (key === lastKeyRef.current) return
+        lastKeyRef.current = key
+
         let alive = true
         setIsFetching(true)
         setFetchError(null)
 
-        window.api.invoke('api.transaction.bills:read.all', payload)
-            .then((result: ApiResponseTransactionBill | { data: TransactionBills } | undefined) => {
-                const arr = Array.isArray((result as ApiResponseTransactionBill)?.data)
-                    ? (result as ApiResponseTransactionBill).data
-                    : (result as any)?.data
-                return alive ? (arr ?? []) : []
-            })
-            .then(arr => arr.map(stripSecrets))
-            .then(arr => alive ? setBills(arr) : undefined)
-            .then(() => alive ? setFetchError(null) : undefined)
-            .catch(err => {
-                alive && setBills([])
-                alive && setFetchError(typeof err?.message === 'string' ? err.message : 'Gagal memuat data')
-            })
-            .finally(() => alive && setIsFetching(false))
+        console.log(payload)
+        const t = setTimeout(() => {
+            window.api.invoke('api.transaction.bills:read.all', payload)
+                .then((result: ApiResponseTransactionBill | { data: TransactionBills } | undefined) => {
+                    const arr = Array.isArray((result as ApiResponseTransactionBill)?.data)
+                        ? (result as ApiResponseTransactionBill).data
+                        : (result as any)?.data
+                    return alive ? (arr ?? []) : []
+                })
+                .then(arr => arr.map(stripSecrets))
+                .then(arr => alive ? setBills(arr) : undefined)
+                .then(() => alive ? setFetchError(null) : undefined)
+                .catch(err => {
+                    alive && setBills([])
+                    alive && setFetchError(typeof err?.message === 'string' ? err.message : 'Gagal memuat data')
+                })
+                .finally(() => alive && setIsFetching(false))
+        }, 50)
 
-        return () => { alive = false }
-    }, [
-        query,
-        godMode,
-        filters.startAt,
-        filters.endAt,
-        filters.paid,
-        filters.cashierName,
-        // totalRange ikut refetch untuk server-side filter
-        filters.totalRange?.[0],
-        filters.totalRange?.[1],
-        reloadKey
-    ])
+        return () => { alive = false; clearTimeout(t) }
+    }, [payload, filtersReady])
 
     // Auto-select dari TabNavigationHandlerContext
     useEffect(() => {
@@ -225,27 +231,13 @@ const BillsListItem: React.FC = () => {
         return totals.length ? Math.max(...totals) : 0
     }, [bills])
 
-    // ⛳️ NEW: selalu paksa range total -> [0, maxTotal]
-    useEffect(() => {
-        setFilters(prev => {
-            const [curMin, curMax] = prev.totalRange ?? [0, 0]
-            const desiredMin = 0
-            const desiredMax = maxTotal
-            // update hanya jika beda supaya nggak loop
-            if (curMin !== desiredMin || curMax !== desiredMax) {
-                return { ...prev, totalRange: [desiredMin, desiredMax] }
-            }
-            return prev
-        })
-    }, [maxTotal])
-
-    // Normalized start/end untuk filter client-side (ISO UTC, dengan swap safeguard)
+    // Normalized start/end untuk filter client-side (ISO UTC)
     const [normStartIso, normEndIso] = useMemo(
         () => normalizeRangeToIsoUtc(filters.startAt, filters.endAt),
         [filters.startAt, filters.endAt]
     )
 
-    // Client-side filter agar UI tetap lincah
+    // Client-side filter
     const filtered = useMemo(() => {
         const s = query.trim().toLowerCase()
         const hit = (v?: string) => (s ? v?.toLowerCase().includes(s) : true)
@@ -260,12 +252,7 @@ const BillsListItem: React.FC = () => {
                 hit(b.transaction?.order_type?.code ?? '') ||
                 hit(b.branch?.[0]?.name ?? '')
 
-            // sumber waktu list: transaction.time_created (yang stabil)
-            const byDate = inDateRange(
-                b.transaction?.time_created,
-                normStartIso,
-                normEndIso
-            )
+            const byDate = inDateRange(b.transaction?.time_created, normStartIso, normEndIso)
 
             const paidFlag = isPaidExtractor(b)
             const byPaid =
@@ -297,9 +284,7 @@ const BillsListItem: React.FC = () => {
             setLayout(p => ({ ...(p ?? {}), right: next ?
                     <BillListItemDetail
                         billId={bill.id}
-                        onPaySuccess={() => {
-                            setReloadKey(k => k + 1)
-                        }}
+                        onPaySuccess={() => setReloadKey(k => k + 1)}
                     /> :
                     <BillsRightEmpty /> }))
             return next
@@ -338,13 +323,14 @@ const BillsListItem: React.FC = () => {
                         />
                     </Box>
 
-                    {/* Filter popover (ngikut UI contohmu) */}
+                    {/* Filter popover */}
                     <BillListItemHeaderWidget
                         value={filters}
-                        onChange={(patch: Partial<BillFilters>) => setFilters(prev => ({ ...prev, ...patch }))}
+                        onChange={(patch) => setFilters(prev => ({ ...prev, ...patch }))}
                         cashierOptions={cashierOptions}
                         maxTotal={maxTotal}
                         filteredCount={filtered.length}
+                        onHydrated={() => setFiltersReady(true)} // <<< NEW
                     />
                 </Stack>
             </Box>

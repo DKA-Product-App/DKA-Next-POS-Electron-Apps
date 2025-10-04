@@ -25,6 +25,7 @@ import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../..
 import {AxiosResponse} from "axios";
 import {useEffect, useState} from "react";
 import {useFunctionKeyCtx} from "../../../../../../../../../../contexts/FunctionKeyProviderContext";
+import {useUserConfig} from "../../../../../../../../../../contexts/UserConfigContext";
 
 const Billing = dynamic(() => import('../../../../../../../(select-product)'), { ssr: true })
 
@@ -79,6 +80,7 @@ function mergeItemsByVariant(items: TransactionBatchesItems[]): MergedItem[] {
 const LeftContainerBatchListNewOrder: React.FC<{ transactionId: string }> = ({ transactionId }) => {
     const { txId, grandTotal, setGrandTotal, selectedBatchId, setSelectedBatchId, reloadKey, clearSelection, bumpReload } = useTx();
     const { bump } = useTransactionEventTrigger()
+    const { set, config } = useUserConfig();
     const { key, seq } = useFunctionKeyCtx()
     const [swalProps, setSwalProps] = useState<SweetAlert2Props>({});
     const { setDefaultValue, setDisableOtherDefault } = useDiningMode();
@@ -207,7 +209,7 @@ const LeftContainerBatchListNewOrder: React.FC<{ transactionId: string }> = ({ t
                 bump('batch')
                 bump('pay')
                 clearSelection()
-                try { handlePrintAll(data)}catch (e){}
+                if (config?.printer?.isPrintAutomatically) handlePrintAll(data);
                 // 5) tutup dialog — layout di belakang tetap stay
                 closeDialog()
             })

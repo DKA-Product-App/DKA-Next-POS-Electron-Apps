@@ -36,6 +36,7 @@ import {CheckRounded, ExpandLessRounded } from '@mui/icons-material'
 import {AxiosResponse} from "axios";
 import SweetAlert2, {SweetAlert2Props} from "react-sweetalert2";
 import {useThemeCharger} from "../../../../../../../../contexts/ThemeCharger";
+import {useUserConfig} from "../../../../../../../../contexts/UserConfigContext";
 
 /* ================================= THEME ACCENTS ================================= */
 const PURPLE_GRAD = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
@@ -197,6 +198,7 @@ type TenderMode = 'idle' | 'entry' | 'ready'
 const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean, onPaySuccess?: () => void }> = ({ billId, isHideTransaction, onPaySuccess }) => {
     const [bill, setBill] = useState<TransactionBill | undefined>(undefined)
     const { mode, toggleMode } = useThemeCharger()
+    const { set, config } = useUserConfig();
     // ==== ⛓️ DERIVED FROM `bill` (selalu up-to-date) ====
     const isPaid = useMemo(() => !!bill?.paid?.status, [bill])
     const st = useMemo(() => statusChip(bill), [bill])
@@ -229,7 +231,6 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
     // 2) State: langsung simpan objek printer
     const [printerMenuOpen, setPrinterMenuOpen] = React.useState(false)
     const [PrinterList, setPrinterList] = React.useState<TransactionBillPrinterDevice[]>([])
-    const [selectedPrinter, setSelectedPrinter] = React.useState<TransactionBillPrinterDevice | null>(null)
     const arrowRef = React.useRef<HTMLButtonElement | null>(null)
 
     const togglePrinterMenu = () => setPrinterMenuOpen(v => !v)
@@ -321,7 +322,7 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
             .then(({ data }) => {
                 onPaySuccess?.();
                 setBill(data);
-                onPrintHandle({});
+                if (config?.printer?.isPrintAutomatically) onPrintHandle({});
             })
             .catch(console.error)
     }
@@ -329,7 +330,7 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
     React.useEffect(() => {
        window?.api.invoke?.<any, AxiosResponse<TransactionBillPrinterDevice[]>>("api.config.device.printer:read.all", {})
            .then(async ({ data }) => {
-               if (selectedPrinter === null) setSelectedPrinter(data[0]);
+               if (config?.printer.defaultPrinter === undefined) set({ printer : { defaultPrinter: data?.[0] }})
                setPrinterList(data);
            })
            .catch((error) => {
@@ -337,10 +338,10 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
            })
     },[])
     const onPrintHandle = ({ enableNotify = false } : { enableNotify?: boolean}) => {
-        if (!selectedPrinter) return
+        if (!config?.printer.defaultPrinter) return
         window.api.invoke('api.transaction.bills:print', {
             bill: bill.id,
-            printer: selectedPrinter.id
+            printer: config?.printer?.defaultPrinter?.id ?? null
         })
             .then((res) => {
                 if (enableNotify) {
@@ -581,11 +582,11 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                         <ButtonGroup variant="outlined" color={isPaid ? 'success' : 'warning'} sx={{ borderRadius: 2, overflow: 'hidden' }}>
                             <Button
                                 onClick={() => {
-                                    onPrintHandle({ enableNotify : true })
+                                    if (config?.printer.isPrintAutomatically) onPrintHandle({ enableNotify : true })
                                 }}
                                 startIcon={<PrintRounded sx={{ fontSize: 36 }} />}
                                 sx={{ textTransform: 'none', fontWeight: 800, fontSize: { xs: 14, md: 15 }, py: 1.1, px: 2.2 }}
-                                title={`${printLabel}${selectedPrinter ? ` · ${selectedPrinter.name}` : ''}`}
+                                title={`${printLabel}${config?.printer?.defaultPrinter ? ` · ${config?.printer?.defaultPrinter?.name} . ${config?.printer?.defaultPrinter?.description}` : ''}`}
                             >
                                 {printLabel}
                             </Button>
@@ -605,10 +606,10 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                             {PrinterList.map(p => (
                                 <ListItemButton
                                     key={p.id}
-                                    onClick={() => { setSelectedPrinter(p); closePrinterMenu() }}
+                                    onClick={() => { set({ printer : { defaultPrinter: p }}); closePrinterMenu() }}
                                 >
                                     <ListItemIcon sx={{ minWidth: 32 }}>
-                                        {p.id === selectedPrinter?.id ? <CheckRounded fontSize="small" /> : null}
+                                        {p.id === config?.printer.defaultPrinter?.id ? <CheckRounded fontSize="small" /> : null}
                                     </ListItemIcon>
                                     <ListItemText
                                         primary={p.name}

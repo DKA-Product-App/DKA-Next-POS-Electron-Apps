@@ -154,32 +154,7 @@ const TransactionListItem: React.FC = () => {
                 return undefined
             })
             .finally(() => setIsFetching(false))
-    }, [filters, Session?.id])
-
-    // === FETCH by date range ===
-    useEffect(() => {
-        const { startAt, endAt } = filters
-        if (!startAt || !endAt) return
-        const payload = {
-            startAt: `${startAt}:00${TZ_OFFSET}`,
-            endAt: `${endAt}:59${TZ_OFFSET}`,
-            reference: Session?.id ?? undefined
-        }
-
-        setIsFetching(true)
-        setFetchError(null)
-        // @ts-ignore (ipc from Electron)
-        window.api.invoke('api.transaction:read.all', payload)
-            .then((result: { data: Transaction[] }) => {
-                setTransaction(result?.data ?? [])
-                setFetchError(null)
-            })
-            .catch((err: any) => {
-                setTransaction([])
-                setFetchError(toErrorMessage(err))
-            })
-            .finally(() => setIsFetching(false))
-    }, [filters.startAt, filters.endAt, reloadKey, Session?.id])
+    }, [filters, reloadKey, Session])
 
     // Opsi filter
     const shiftOptions = useMemo(() => {

@@ -9,6 +9,7 @@ import { LayoutManipulatorResizableProvider } from "../../contexts/LayoutManipul
 import { ThemeChargerProvider, useThemeCharger } from "../../contexts/ThemeCharger";
 import {LayoutManipulatorSingleProvider} from "./layouts/(main)/(component)/(transaction)/context/LayoutManipulatorSingleContext";
 import {GodModeProviderProvider} from "./context/GodModeProviderContext";
+import {UserConfigProvider} from "../../contexts/UserConfigContext";
 
 const Header = dynamic(() => import('./(components)/Header'), { loading: () => <ShimmerHeaderLoading />, ssr: false });
 const Footer = dynamic(() => import('./(components)/Footer'), { loading: () => <ShimmerFooterLoading />, ssr: false });
@@ -39,16 +40,19 @@ function LayoutBody({ children }: { children: React.ReactNode }) {
 
 export default function LayoutContainer({ children }: { children: React.ReactNode }) {
     return (
-        <ThemeChargerProvider>
-            <GodModeProviderProvider>
-                <LayoutManipulatorResizableProvider>
-                    <LayoutManipulatorSingleProvider>
-                        <FunctionKeyProvider>
-                            <LayoutBody>{children}</LayoutBody>
-                        </FunctionKeyProvider>
-                    </LayoutManipulatorSingleProvider>
-                </LayoutManipulatorResizableProvider>
-            </GodModeProviderProvider>
-        </ThemeChargerProvider>
+        <UserConfigProvider>
+            <ThemeChargerProvider>
+                <GodModeProviderProvider>
+                    <LayoutManipulatorResizableProvider>
+                        <LayoutManipulatorSingleProvider>
+                            <FunctionKeyProvider>
+                                <LayoutBody>{children}</LayoutBody>
+                            </FunctionKeyProvider>
+                        </LayoutManipulatorSingleProvider>
+                    </LayoutManipulatorResizableProvider>
+                </GodModeProviderProvider>
+            </ThemeChargerProvider>
+        </UserConfigProvider>
+
     );
 }

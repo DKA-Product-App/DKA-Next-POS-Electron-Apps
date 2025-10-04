@@ -30,6 +30,7 @@ import SweetAlert2, {SweetAlert2Props} from "react-sweetalert2";
 import TransactionBills from "../../../../../../../../../../main/api/transaction/bills/api.transaction.bills.api";
 import {useSingleDoubleClick} from "../../../../../../../../../helpers/useSingleDoubleClick";
 import {useGodModeProvider} from "../../../../../../../context/GodModeProviderContext";
+import {useUserConfig} from "../../../../../../../../../contexts/UserConfigContext";
 
 const BillListItemDetail = dynamic(
     () => import('./../../../../(bills)/ui/(pane)/BillsListItemDetail'),
@@ -134,7 +135,7 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
     const { txId, bumpReload, clearSelection, setReloadKey } = useTx()
     const {bump} = useTransactionEventTrigger()
     const isClosed = Boolean(transaction?.time_closed);
-
+    const { set, config } = useUserConfig();
     const {Session} = useSession();
 
     const [swalProps, setSwalProps] = useState<SweetAlert2Props>({});
@@ -290,7 +291,7 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
             .then((result) => {
                 if (!lockRef.current) return
                 if (myNonce !== openNonce.current) return // sesi sudah berganti → skip render
-                onPrintHandle(result?.data);
+                if (config?.printer?.isPrintAutomatically) onPrintHandle(result?.data);
                 setLayoutPaper(
                     <BillListItemDetail
                         billId={result?.data?.id}
