@@ -124,14 +124,14 @@ export function TransactionBatchItemVoid(mainWindow ?: BrowserWindow) {
         });
     });
     // UPDATE ONE
-    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item.void:update.one", (_event, args) => {
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.batch.item.void:update.one", (_event, { params, data }) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/batch/item/void/:id`);
         return new Promise(async (resolve, reject) => {
             const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
-                url: toPath(args),
-                method: "PUT",
-                data: args,
+                url: toPath(params),
+                method: "PATCH",
+                data: data,
             })
                 .then((response) => {
                     const data = response?.data;
