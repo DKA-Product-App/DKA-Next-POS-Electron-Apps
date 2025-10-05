@@ -21,6 +21,7 @@ import {useFunctionKeyCtx} from "../../../../../../../../../contexts/FunctionKey
 import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../types/api.transaction.type";
 import SweetAlert2, {SweetAlert2Props} from "react-sweetalert2";
 import {AxiosResponse} from "axios";
+import {useUserConfig} from "../../../../../../../../../contexts/UserConfigContext";
 
 // === Dynamically loaded pages ===
 const Billing = dynamic(() => import('../../../../../../(select-product)'), { ssr: false })
@@ -107,6 +108,7 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
     const [open, setOpen] = useState(false)
     const { Session } = useSession();
     const { key, seq } = useFunctionKeyCtx();
+    const { set, config } = useUserConfig();
     const [swalProps, setSwalProps] = useState<SweetAlert2Props>({});
     // wizard data
     const [orderType, setOrderType] = useState<Option | undefined>(undefined)
@@ -240,14 +242,14 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
             .then(({data}) => {
                 console.table(data)
                 onCreated?.()
-                try { handlePrintAll(data)}catch (e){}
+                if (config?.printer?.isPrintAutomatically) handlePrintAll(data)
                 closeDialog()
             })
             .catch((error) => {
                 const e = normalizeIpcError(error);
                 console.log(e);
             })
-    }, [orderType, tableId, onCreated, closeDialog, Session])
+    }, [orderType, tableId, onCreated, closeDialog, Session, config])
 
 
     /* ---------- step actions ---------- */
