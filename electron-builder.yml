@@ -3,7 +3,7 @@ productName: DKA Cashier POS Apps
 copyright: Copyright © 2025 Yovangga Anandhika
 
 # ⬇️ Global options
-compression: maximum          # store | normal | maximum
+compression: normal          # store | normal | maximum
 asar: true                    # biar sumber di-pack ke app.asar
 asarUnpack:
   - "**/*.node"               # kalau ada native addon, auto unpack
