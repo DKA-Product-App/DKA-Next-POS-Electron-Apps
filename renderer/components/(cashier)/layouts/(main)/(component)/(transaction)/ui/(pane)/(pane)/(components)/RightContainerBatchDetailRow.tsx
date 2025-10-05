@@ -20,6 +20,7 @@ import LockRounded from '@mui/icons-material/LockRounded'               // close
 import { TransactionBatchesItems } from "../../../types/api.transaction.type";
 import {ImgWithSkeleton, OverlayTone} from "../../../../../../../../../../utils/ImageProcessingIPC";
 import {useSingleDoubleClick} from "../../../../../../../../../../helpers/useSingleDoubleClick";
+import {useGodModeProvider} from "../../../../../../../../context/GodModeProviderContext";
 
 const MotionPaper = motion(Paper)
 
@@ -83,7 +84,7 @@ const GRADIENT = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)';
 
 const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPriceLabel, selected, selectedGodMode, disabled, isClosed, isPendingVoid, isApprovedVoid, isPendingPaid, isPaid, onToggle, onToggleGod }) => {
     const hasNote = Boolean(item.note?.trim()?.length)
-
+    const { godMode } = useGodModeProvider()
     /** Gambar rules:
      * Closed       : grayscale + GRAY overlay (override apapun)
      * Voided       : grayscale + RED overlay
@@ -114,12 +115,14 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPr
             whileTap={disabled ? undefined : { scale: 0.99 }}
             onClick={(e) => {
                 if (disabled) return
-                onToggle(item)
+                if (godMode) onToggleGod(item);
+                onToggle(item);
             }}
 
             // Right click (klik kanan)
             onContextMenu={(e) => {
                 e.preventDefault()              // blok menu konteks bawaan
+                if (godMode) return;
                 if (disabled) return
                 onToggleGod(item)
             }}
