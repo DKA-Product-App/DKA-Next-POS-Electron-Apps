@@ -25,7 +25,7 @@ import {
 } from './(components)/TablesLayoutConstructor';
 
 /* ========= Types sesuai response ========= */
-type ApiAccountRef = {
+export type ApiAccountRef = {
     id: string;
     name?: { first_name?: string; last_name?: string };
     username?: string;
@@ -34,7 +34,7 @@ type ApiAccountRef = {
     time_updated?: string;
 };
 
-type ApiBranch = {
+export type ApiBranch = {
     id: string;
     name: string;
     address?: string | null;
@@ -45,7 +45,7 @@ type ApiBranch = {
     time_updated?: string;
 };
 
-type ApiPrinter = {
+export type ApiPrinter = {
     id: string;
     name: string;
     description?: string | null;
@@ -61,7 +61,7 @@ type ApiPrinter = {
     status?: boolean;
 };
 
-type ApiCategory = {
+export type ApiCategory = {
     id: string;
     name: string;             // = Category
     description?: string;     // = Description
@@ -74,7 +74,7 @@ type ApiCategory = {
 };
 
 /* ========= Row type untuk tabel ========= */
-type RowCategory = {
+export type RowCategory = {
     id: string;
     category: string;
     description?: string | null;

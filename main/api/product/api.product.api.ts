@@ -179,14 +179,14 @@ export function Product(mainWindow ?: BrowserWindow) {
         });
     });
     // UPDATE ONE
-    mainWindow?.webContents?.ipc?.handle?.("api.product:update.one", (_event, args) => {
+    mainWindow?.webContents?.ipc?.handle?.("api.product:update.one", (_event, { params, data}) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/product/:id`);
         return new Promise(async (resolve, reject) => {
             const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
-                url: toPath(args),
-                method: "PUT",
-                data: args,
+                url: toPath(params),
+                method: "PATCH",
+                data,
             })
                 .then((response) => {
                     return resolve({ ...response.data });

@@ -2,25 +2,20 @@
 
 import * as React from 'react';
 import {
-    Avatar,
-    Box,
-    Button,
-    Chip,
-    Popover,
-    Stack,
-    Typography,
-    List,
-    ListItem,
-    ListItemText,
-    Divider,
+    Avatar, Box, Button, Chip, Popover, Stack, Typography,
+    List, ListItem, ListItemText, Divider, IconButton, Tooltip
 } from '@mui/material';
-import AddRounded from '@mui/icons-material/AddRounded';
+import EditRounded from '@mui/icons-material/EditRounded';
+import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 
 import {
     DataTable,
     Column,
     useNonPassiveWheel,
 } from './(components)/TablesLayoutConstructor';
+import NewProductModal from './(components)/NewProductModal';
+import EditProductModal from './(components)/EditProductModal';
+import DeleteProduct from './(components)/DeleteProduct';
 
 type Variant = { id: string; code: string; name: string; price: string | number };
 type ProductWithVariants = {
@@ -46,9 +41,7 @@ type RowProduct = {
 const toIDR = (v: string | number | null | undefined) => {
     const n = typeof v === 'string' ? Number(v) : v ?? 0;
     return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        maximumFractionDigits: 0,
+        style: 'currency', currency: 'IDR', maximumFractionDigits: 0,
     }).format(Number.isFinite(n) ? (n as number) : 0);
 };
 
@@ -64,19 +57,13 @@ export default function CatalogProducts() {
     const listRef = React.useRef<HTMLDivElement>(null);
     useNonPassiveWheel(listRef);
 
-    const openVariants = (
-        e: React.MouseEvent<HTMLElement>,
-        productName: string,
-        variants: Variant[]
-    ) => {
+    const openVariants = (e: React.MouseEvent<HTMLElement>, productName: string, variants: Variant[]) => {
         setVariantAnchor(e.currentTarget);
         setVariantTitle(productName);
         setVariantList(variants ?? []);
     };
     const closeVariants = () => {
-        setVariantAnchor(null);
-        setVariantTitle('');
-        setVariantList([]);
+        setVariantAnchor(null); setVariantTitle(''); setVariantList([]);
     };
 
     const fetchProducts = React.useCallback(() => {
@@ -133,37 +120,12 @@ export default function CatalogProducts() {
             .finally(() => setLoading(false));
     }, []);
 
-    React.useEffect(() => {
-        fetchProducts();
-    }, [fetchProducts]);
+    React.useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
     const columns: Column<RowProduct>[] = [
-        {
-            key: 'productCell',
-            label: 'PRODUCT',
-            sortable: true,
-            width: 360,
-            minWidth: 240,
-            headerFilter: { type: 'text' },
-        },
-        {
-            key: 'category',
-            label: 'CATEGORY',
-            sortable: true,
-            width: 160,
-            minWidth: 140,
-            headerFilter: { type: 'text' },
-        },
-        {
-            key: 'priceMin',
-            label: 'PRICE (MIN)',
-            sortable: true,
-            align: 'right',
-            width: 160,
-            minWidth: 140,
-            headerFilter: { type: 'text' },
-            render: (r) => toIDR(r.priceMin),
-        },
+        { key: 'productCell', label: 'PRODUCT', sortable: true, width: 360, minWidth: 240, headerFilter: { type: 'text' } },
+        { key: 'category', label: 'CATEGORY', sortable: true, width: 160, minWidth: 140, headerFilter: { type: 'text' } },
+        { key: 'priceMin', label: 'PRICE (MIN)', sortable: true, align: 'right', width: 160, minWidth: 140, headerFilter: { type: 'text' }, render: (r) => toIDR(r.priceMin) },
         {
             key: 'variantsCount',
             label: 'VARIANTS',
@@ -182,25 +144,44 @@ export default function CatalogProducts() {
                 </Button>
             ),
         },
+        {
+            key: 'actions',
+            label: 'ACTIONS',
+            width: 140,
+            minWidth: 120,
+            align: 'center',
+            render: (r) => (
+                <Stack direction="row" spacing={1} justifyContent="center">
+                    <EditProductModal
+                        productId={r.id}
+                        trigger={
+                            <Tooltip title="Edit">
+                                <IconButton size="small" color="primary"><EditRounded fontSize="small" /></IconButton>
+                            </Tooltip>
+                        }
+                        onUpdated={fetchProducts}
+                    />
+                    <DeleteProduct
+                        productId={r.id}
+                        productName={r.productName}
+                        onDeleted={fetchProducts}
+                        trigger={
+                            <Tooltip title="Hapus">
+                                <IconButton size="small" color="error"><DeleteOutlineRounded fontSize="small" /></IconButton>
+                            </Tooltip>
+                        }
+                    />
+                </Stack>
+            )
+        }
     ];
 
     return (
-        <Box
-            sx={{
-                p: 2,
-                display: 'grid',
-                gap: 2,
-                height: '100%',
-                minHeight: 0,
-                gridTemplateRows: 'auto 1fr',
-            }}
-        >
+        <Box sx={{ p: 2, display: 'grid', gap: 2, height: '100%', minHeight: 0, gridTemplateRows: 'auto 1fr' }}>
             {/* Header & CTA */}
             <Stack direction="row" alignItems="center" justifyContent="space-between">
                 <Box>
-                    <Typography variant="overline" color="text.secondary">
-                        Catalog / Daftar Produk
-                    </Typography>
+                    <Typography variant="overline" color="text.secondary">Catalog / Daftar Produk</Typography>
                     {loading ? (
                         <Typography variant="body2" color="text.secondary">Loading…</Typography>
                     ) : error ? (
@@ -209,9 +190,11 @@ export default function CatalogProducts() {
                 </Box>
                 <Stack direction="row" spacing={1}>
                     <Button variant="outlined" onClick={fetchProducts}>Refresh</Button>
-                    <Button variant="contained" startIcon={<AddRounded />} onClick={() => console.log('open modal')}>
-                        Tambah Produk
-                    </Button>
+                    <NewProductModal
+                        triggerLabel="Tambah Produk"
+                        triggerProps={{ color: 'primary' }}
+                        onCreated={fetchProducts}
+                    />
                 </Stack>
             </Stack>
 
@@ -229,60 +212,25 @@ export default function CatalogProducts() {
                 onClose={closeVariants}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
                 transformOrigin={{ vertical: 'top', horizontal: 'center' }}
-                PaperProps={{
-                    sx: {
-                        width: 420,
-                        maxWidth: 'calc(100vw - 32px)',
-                        borderRadius: 2,
-                        overflow: 'hidden',
-                    },
-                }}
+                PaperProps={{ sx: { width: 420, maxWidth: 'calc(100vw - 32px)', borderRadius: 2, overflow: 'hidden' } }}
             >
-                <Box
-                    sx={{
-                        px: 2,
-                        py: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        backgroundColor: (t) => t.palette.background.paper,
-                        borderBottom: (t) => `1px solid ${t.palette.divider}`,
-                    }}
-                >
+                <Box sx={{
+                    px: 2, py: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    backgroundColor: (t) => t.palette.background.paper, borderBottom: (t) => `1px solid ${t.palette.divider}`,
+                }}>
                     <Typography variant="subtitle2">Varian — {variantTitle}</Typography>
                     <Chip size="small" variant="outlined" label={`${variantList.length} item`} sx={{ borderRadius: 2 }} />
                 </Box>
 
-                <Box
-                    ref={listRef}
-                    sx={{
-                        maxHeight: 360,
-                        overflow: 'auto',
-                        p: 1,
-                        pt: 0.5,
-                        minWidth: 320,
-                        touchAction: 'pan-y',
-                        overscrollBehavior: 'contain',
-                    }}
-                >
+                <Box ref={listRef} sx={{ maxHeight: 360, overflow: 'auto', p: 1, pt: 0.5, minWidth: 320, touchAction: 'pan-y', overscrollBehavior: 'contain' }}>
                     {variantList.length === 0 ? (
-                        <Box sx={{ px: 2, py: 3 }}>
-                            <Typography variant="body2" color="text.secondary">Tidak ada varian.</Typography>
-                        </Box>
+                        <Box sx={{ px: 2, py: 3 }}><Typography variant="body2" color="text.secondary">Tidak ada varian.</Typography></Box>
                     ) : (
                         <List dense disablePadding>
-                            <ListItem
-                                disableGutters
-                                sx={{
-                                    px: 1.5,
-                                    py: 0.75,
-                                    position: 'sticky',
-                                    top: 0,
-                                    zIndex: 1,
-                                    backgroundColor: (t) => t.palette.background.paper,
-                                    borderBottom: (t) => `1px solid ${t.palette.divider}`,
-                                }}
-                            >
+                            <ListItem disableGutters sx={{
+                                px: 1.5, py: 0.75, position: 'sticky', top: 0, zIndex: 1,
+                                backgroundColor: (t) => t.palette.background.paper, borderBottom: (t) => `1px solid ${t.palette.divider}`,
+                            }}>
                                 <Typography variant="caption" sx={{ flex: 1, fontWeight: 700, color: 'text.secondary' }}>
                                     Code / Name
                                 </Typography>
@@ -293,22 +241,12 @@ export default function CatalogProducts() {
 
                             {variantList.map((v) => (
                                 <React.Fragment key={v.id}>
-                                    <ListItem
-                                        disableGutters
-                                        sx={{
-                                            px: 1.5,
-                                            py: 0.75,
-                                            gap: 1.5,
-                                            '&:hover': { backgroundColor: (t) => t.palette.action.hover },
-                                        }}
-                                    >
+                                    <ListItem disableGutters sx={{ px: 1.5, py: 0.75, gap: 1.5, '&:hover': { backgroundColor: (t) => t.palette.action.hover } }}>
                                         <ListItemText
                                             primary={
                                                 <Stack direction="row" spacing={1}>
                                                     <Chip size="small" label={v.code} variant="outlined" sx={{ borderRadius: 2 }} />
-                                                    <Typography variant="body2" fontWeight={600} noWrap title={v.name}>
-                                                        {v.name}
-                                                    </Typography>
+                                                    <Typography variant="body2" fontWeight={600} noWrap title={v.name}>{v.name}</Typography>
                                                 </Stack>
                                             }
                                             secondary={null}
