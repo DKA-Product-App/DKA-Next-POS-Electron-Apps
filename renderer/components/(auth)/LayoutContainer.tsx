@@ -1,6 +1,6 @@
 'use client';
 
-import React, {FC} from 'react'
+import React, {FC, useEffect} from 'react'
 import {
     createTheme,
     CssBaseline,
@@ -17,12 +17,25 @@ import dynamic from 'next/dynamic'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 import { ThemeChargerProvider, useThemeCharger } from "../../contexts/ThemeCharger";
+import {FunctionKeyProvider, useFunctionKeyCtx} from "../../contexts/FunctionKeyProviderContext";
 
 const Content = dynamic(() => import('./components/Content'), { ssr: false })
 const FooterStatus = dynamic(() => import('./components/FooterStatus'), { ssr: false })
 
 const Body : FC<{ children : React.ReactNode }> = ({ children }) => {
     const {mode, setMode} = useThemeCharger();
+    const { key, seq } = useFunctionKeyCtx();
+
+    useEffect(() => {
+        switch (key) {
+            case "F7" :
+                window?.ipc?.send?.(`key.window.fullscreen`, true);
+                break;
+            case "F8" :
+                window?.ipc?.send?.(`key.window.dev.mode`, true);
+                break;
+        }
+    }, [seq]);
 
     return (
         <Box
@@ -133,9 +146,11 @@ export function LayoutContainer({ children }) {
 
     return (
         <ThemeChargerProvider>
-            <Body>
-                { children }
-            </Body>
+            <FunctionKeyProvider>
+                <Body>
+                    { children }
+                </Body>
+            </FunctionKeyProvider>
         </ThemeChargerProvider>
     )
 }
