@@ -11,6 +11,7 @@ import { TransactionBatchesItems } from "../../types/api.transaction.type"
 
 /** 🔽 NEW: filter context */
 import { useFilterOrderHeader } from '../context/FilterOrderHeaderContext'
+import {useState} from "react";
 
 const RightContainerBatchDetailRowSkeleton = dynamic(() => import('../../(loading)/RightContainerBatchDetailRowSkeleton'), { ssr: false })
 const RightContainerBatchDetailRow = dynamic(() => import('./(components)/RightContainerBatchDetailRow'), { ssr: false })
@@ -18,7 +19,7 @@ const RightContainerBatchDetailRow = dynamic(() => import('./(components)/RightC
 const rupiah = (n: number | string) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(typeof n === 'string' ? parseFloat(n) : n)
 
 const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ transactionId }) => {
-    const { selectedItemIds, toggleItem, registerItems, reloadKey, selectedBatchId } = useTx()
+    const { selectedItemIds, selectedItemIdsGod, toggleItemGod, toggleItem, registerItems, reloadKey, selectedBatchId } = useTx()
     const [items, setItems] = React.useState<TransactionBatchesItems[]>([])
     const fetchSeqRef = React.useRef(0)
 
@@ -86,6 +87,7 @@ const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ tr
                     ) : (
                         filteredItems.map(it => {
                             const selected = selectedItemIds.has(it.id)
+                            const selectedGodeModeBol = selectedItemIdsGod.has(it.id)
                             const closed = Boolean(it.batch.transaction?.time_closed)
                             const disabled = closed || isPendingVoid(it) || isApprovedVoid(it) || isPendingPaid(it) || isPaid(it)
                             const qtyPriceLabel = `${it.qty} x ${rupiah(it.price)}`
@@ -98,6 +100,7 @@ const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ tr
                                         totalLabel={totalLabel}
                                         qtyPriceLabel={qtyPriceLabel}
                                         selected={selected}
+                                        selectedGodMode={selectedGodeModeBol}
                                         disabled={disabled}
                                         isClosed={closed}
                                         isPendingVoid={isPendingVoid(it)}
@@ -105,6 +108,7 @@ const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ tr
                                         isPendingPaid={isPendingPaid(it)}
                                         isPaid={isPaid(it)}
                                         onToggle={toggleItem}
+                                        onToggleGod={toggleItemGod}
                                     />
                                 </Grid>
                             )

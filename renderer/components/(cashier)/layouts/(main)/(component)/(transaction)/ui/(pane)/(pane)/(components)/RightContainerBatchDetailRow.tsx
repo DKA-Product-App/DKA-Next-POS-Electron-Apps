@@ -19,9 +19,9 @@ import LockRounded from '@mui/icons-material/LockRounded'               // close
 
 import { TransactionBatchesItems } from "../../../types/api.transaction.type";
 import {ImgWithSkeleton, OverlayTone} from "../../../../../../../../../../utils/ImageProcessingIPC";
+import {useSingleDoubleClick} from "../../../../../../../../../../helpers/useSingleDoubleClick";
 
 const MotionPaper = motion(Paper)
-const GRADIENT = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
 
 
 /** IconBadge — “chip” bulat: bg hitam (light) / putih (dark) */
@@ -66,6 +66,7 @@ type Props = {
     uploadsLoader?: ImageLoader
 
     selected: boolean
+    selectedGodMode: boolean;
     disabled: boolean
 
     isClosed?: boolean
@@ -74,10 +75,13 @@ type Props = {
     isPendingPaid?: boolean
     isPaid?: boolean
 
-    onToggle: (it: TransactionBatchesItems) => void
+    onToggle: (it: TransactionBatchesItems) => void;
+    onToggleGod: (it: TransactionBatchesItems) => void
 }
 
-const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPriceLabel, selected, disabled, isClosed, isPendingVoid, isApprovedVoid, isPendingPaid, isPaid, onToggle }) => {
+const GRADIENT = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)';
+
+const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPriceLabel, selected, selectedGodMode, disabled, isClosed, isPendingVoid, isApprovedVoid, isPendingPaid, isPaid, onToggle, onToggleGod }) => {
     const hasNote = Boolean(item.note?.trim()?.length)
 
     /** Gambar rules:
@@ -96,16 +100,33 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPr
                     : isPendingVoid ? 'warning'
                         : null
 
+    const GRADIENT_TRIGGER = (!selectedGodMode) ? 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)' : 'linear-gradient(90deg,rgba(180, 58, 58, 1) 0%, rgba(233, 34, 54, 1) 40%, rgba(253, 29, 29, 1) 50%, rgba(252, 93, 69, 1) 100%)'
+
+    const click = useSingleDoubleClick(
+        () => onToggle(item),
+        () => onToggleGod(item),
+        250
+    );
+
     return (
         <MotionPaper
             variant="outlined"
             whileTap={disabled ? undefined : { scale: 0.99 }}
-            onClick={disabled ? undefined : () => onToggle(item)}
+            onClick={(e) => {
+                if (disabled) return
+                onToggle(item)
+            }}
+
+            // Right click (klik kanan)
+            onContextMenu={(e) => {
+                e.preventDefault()              // blok menu konteks bawaan
+                if (disabled) return
+                onToggleGod(item)
+            }}
             aria-disabled={disabled || undefined}
             sx={{
                 borderRadius: 2, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative',
-                border: '2px solid',
-                borderColor: disabled ? 'divider' : (selected ? 'primary.main' : 'divider'),
+                borderColor: disabled ? 'divider' : 'divider',
                 boxShadow: disabled ? 'none' : (selected ? '0 0 0 3px rgba(99,102,241,.25)' : '0 2px 8px rgba(0,0,0,0.04)'),
                 transition: (t) => t.transitions.create(['box-shadow', 'border-color', 'opacity'], { duration: t.transitions.duration.shorter }),
                 cursor: disabled ? 'not-allowed' : 'pointer',
@@ -243,7 +264,7 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPr
                 </Stack>
             </Box>
 
-            <Box sx={{ height: 3, background: GRADIENT }} />
+            <Box sx={{ height: 3, background: GRADIENT_TRIGGER}} />
         </MotionPaper>
     )
 }

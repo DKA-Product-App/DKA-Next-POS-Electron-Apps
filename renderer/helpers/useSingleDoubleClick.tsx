@@ -7,7 +7,7 @@ type MouseFn = (e: React.MouseEvent<HTMLButtonElement>) => void
 export function useSingleDoubleClick(single?: MouseFn, dbl?: MouseFn, delay = 220) {
     const timer = React.useRef<number | null>(null)
 
-    const handler = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const handler = (e : any) => {
         if (timer.current) {
             window.clearTimeout(timer.current)
             timer.current = null

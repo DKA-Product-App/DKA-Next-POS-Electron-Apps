@@ -20,7 +20,9 @@ type Ctx = {
     selectedBatchId?: string
     setSelectedBatchId: (id?: string) => void
     selectedItemIds: Set<string>
+    selectedItemIdsGod: Set<string>
     toggleItem: (item: TransactionBatchesItems) => void
+    toggleItemGod: (item: TransactionBatchesItems) => void
     clearSelection: () => void
 
     // Items cache per batch → utk hitung total terpilih secara global
@@ -50,6 +52,7 @@ export function TxProvider({ txId, children }: { txId: string; children: React.R
     const [grandTotal, setGrandTotalState] = React.useState(0)
     const [selectedBatchId, setSelectedBatchId] = React.useState<string | undefined>(undefined)
     const [selectedItemIds, setSelectedItemIds] = React.useState<Set<string>>(new Set())
+    const [selectedItemIdsGod, setSelectedItemIdsGod] = React.useState<Set<string>>(new Set())
     const [itemsByBatch, setItemsByBatch] = React.useState<Record<string, Item[]>>({})
     const [reloadKey, setReloadKey] = React.useState(0)
 
@@ -62,6 +65,15 @@ export function TxProvider({ txId, children }: { txId: string; children: React.R
     const toggleItem = (item: Item, batchId?: string) => {
         const key = batchId ? `${batchId}:${item.id}` : item.id
         setSelectedItemIds(prev => {
+            const next = new Set(prev)
+            next.has(key) ? next.delete(key) : next.add(key)
+            return next
+        })
+    }
+
+    const toggleItemGod = (item: Item, batchId?: string) => {
+        const key = batchId ? `${batchId}:${item.id}` : item.id
+        setSelectedItemIdsGod(prev => {
             const next = new Set(prev)
             next.has(key) ? next.delete(key) : next.add(key)
             return next
@@ -85,14 +97,16 @@ export function TxProvider({ txId, children }: { txId: string; children: React.R
         txId,
         grandTotal, setGrandTotal,
         selectedBatchId, setSelectedBatchId,
-        selectedItemIds, toggleItem, clearSelection,
+        selectedItemIds, toggleItem,
+        selectedItemIdsGod, toggleItemGod,
+        clearSelection,
         registerItems, itemsByBatch, selectedTotal,
         reloadKey, bumpReload,
         // NEW: expose setter (dua nama, sama-sama ke setReloadKey state)
         setReloadkey: setReloadKey,
         setReloadKey: setReloadKey,
     }), [
-        txId, grandTotal, selectedBatchId, selectedItemIds, itemsByBatch, selectedTotal, reloadKey
+        txId, grandTotal, selectedBatchId, selectedItemIds, selectedItemIdsGod, toggleItemGod, itemsByBatch, selectedTotal, reloadKey
     ])
 
     return <TxContext.Provider value={value}>{children}</TxContext.Provider>
