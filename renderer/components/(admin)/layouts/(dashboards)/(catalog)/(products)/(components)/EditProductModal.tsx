@@ -161,7 +161,7 @@ export default function EditProductModal({
                 reference: (Session?.id) ? { id: Session?.id } : undefined,
                 code: normalizeCodePattern(v.code.trim()),
                 name: v.name.trim(),
-                price: Number((v.price || '').replace(/[^\d]/g, '')),
+                price: Number((v.price || '').replace(/\D/g, '')),
                 description: v.description?.trim() || undefined,
             })),
         }
