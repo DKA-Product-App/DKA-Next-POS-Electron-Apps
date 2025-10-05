@@ -39,13 +39,23 @@ jobs:
           cd dist
           ls
 
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
+      - name: Publish single Release
+        uses: ncipollo/release-action@v1
         with:
-          name: windows-setup
-          path: dist/*.exe
+          tag: release
+          name: "Development"
+          allowUpdates: true
+          draft: true
+          prerelease: true
+          artifacts: dist/*.exe
+      #- name: Upload Windows artifact
+      #  uses: actions/upload-artifact@v4
+      #  with:
+      #    name: windows-setup
+      #    path: dist/*.exe
 
   release:
+    if: false
     runs-on: ubuntu-latest
     needs: [ windows ]
     steps:
