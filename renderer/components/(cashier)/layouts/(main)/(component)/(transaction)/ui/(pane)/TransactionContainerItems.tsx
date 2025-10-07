@@ -59,78 +59,104 @@ const totalItems = (o: Transaction) =>
 
 const pickBills = (o: Transaction) => Array.isArray(o?.bills) ? o.bills : []
 
-export const getStatusSummary = (o: Transaction) => {
-    const bills = (pickBills(o) ?? []);
-    const allItems = (o?.batches ?? []).flatMap(b => Array.isArray(b?.items) ? b.items : []);
+const getStatusSummary = (o: Transaction) => {
+    const bills = pickBills(o);
+    const allTxItems = (o?.batches ?? []).flatMap(b => b?.items ?? []).filter(Boolean);
 
-    // --- Kumpulan ID item transaksi (stringified), skip null/undefined
-    const allItemIdsSet = new Set(
-        allItems.map(it => it?.id != null ? String(it.id) : undefined).filter(Boolean) as string[]
-    );
+    // ---------- Helper ----------
+    const sid = (v?: unknown) => v != null ? String(v) : "";
+    const notNull = <T,>(x: T | null | undefined): x is T => x != null;
 
-    // --- VOID
-    const voidPendingIdsSet = new Set(
-        allItems
-            .filter(it => it?.void?.is_approved === false)
-            .map(it => it?.id != null ? String(it.id) : undefined)
-            .filter(Boolean) as string[]
-    );
+    // ---------- Kumpulan ID item transaksi ----------
+    const allItemIdsSet = new Set(allTxItems.map(it => sid(it.id)).filter(Boolean));
 
-    const voidApprovedIdsSet = new Set(
-        allItems
-            .filter(it => it?.void?.is_approved === true)
-            .map(it => it?.id != null ? String(it.id) : undefined)
-            .filter(Boolean) as string[]
-    );
-
-    // --- BILLED
-    const billedItemIdsSet = new Set(
-        bills
-            .flatMap(b => Array.isArray(b?.items) ? b.items : [])
-            .map(bi => bi?.productVariant?.id != null ? String(bi.productVariant.id) : undefined)
-            .filter(Boolean) as string[]
-    );
-
-    const paidBillItemIdsSet = new Set(
-        bills
-            .filter(b => b?.paid?.status === true)
-            .flatMap(b => Array.isArray(b?.items) ? b.items : [])
-            .map(bi => bi?.productVariant?.id != null ? String(bi.productVariant.id) : undefined)
-            .filter(Boolean) as string[]
-    );
-
-    const pendingBillItemIdsSet = new Set(
-        bills
-            .filter(b => !b?.paid || b?.paid?.status === false)
-            .flatMap(b => Array.isArray(b?.items) ? b.items : [])
-            .map(bi => bi?.productVariant?.id != null ? String(bi.productVariant.id) : undefined)
-            .filter(Boolean) as string[]
-    );
-
-    // --- Array aman buat filter (hindari TS2802)
-    const allIds = Array.from(allItemIdsSet);
-
-    // Catatan: item yang pending/approved void dikeluarkan dari paid/pending/unpaid
+    // ---------- VOID ----------
+    const voidPendingIdsSet  = new Set(allTxItems.filter(it => it?.void?.is_approved === false).map(it => sid(it.id)).filter(Boolean));
+    const voidApprovedIdsSet = new Set(allTxItems.filter(it => it?.void?.is_approved === true).map(it => sid(it.id)).filter(Boolean));
     const notVoided = (id: string) => !voidPendingIdsSet.has(id) && !voidApprovedIdsSet.has(id);
 
-    const pendingVoidIds = Array.from(voidPendingIdsSet);
-    const voidedIds      = Array.from(voidApprovedIdsSet);
-    const pendingPaidIds = allIds.filter(id => pendingBillItemIdsSet.has(id) && notVoided(id));
-    const paidIds        = allIds.filter(id => paidBillItemIdsSet.has(id)    && notVoided(id));
-    const unpaidIds      = allIds.filter(id => !billedItemIdsSet.has(id)     && notVoided(id));
+    // ---------- Group transaksi per variantId (yang tidak di-void) ----------
+    type TxBucket = { variantId: string; items: { id: string; t: string }[] };
+    const txBucketsMap = allTxItems
+        .map(it => ({ id: sid(it.id), t: it?.time_created ?? "", variantId: sid(it?.variant?.id) }))
+        .filter(r => r.id && r.variantId && notVoided(r.id))
+        .reduce<Map<string, TxBucket>>((acc, r) => {
+            const got = acc.get(r.variantId) ?? { variantId: r.variantId, items: [] };
+            got.items.push({ id: r.id, t: r.t });
+            acc.set(r.variantId, got);
+            return acc;
+        }, new Map());
+
+    // Urutkan item dalam setiap bucket biar alokasi deterministik
+    txBucketsMap.forEach(b => b.items.sort((a, b2) => (a.t || "").localeCompare(b2.t || "") || a.id.localeCompare(b2.id)));
+
+    // ---------- Hitung billed/paid per variant ----------
+    // Catatan: jika TIDAK ada field b.paid/status, treat semua sebagai "pendingPaid"
+    const billAllItems = bills.flatMap(b => (b?.items ?? []).map(it => ({ billPaid: !!b?.paid?.status, it })));
+
+    const countByVariant = billAllItems.reduce<Record<string, { paid: number; billed: number; pending: number }>>((acc, r) => {
+        const variantId = sid(r.it?.productVariant?.id);
+        if (!variantId) return acc;
+
+        const got = acc[variantId] ?? { paid: 0, billed: 0, pending: 0 };
+        got.billed += 1;
+
+        if (r.billPaid) got.paid += 1;
+        else got.pending += 1;
+
+        acc[variantId] = got;
+        return acc;
+    }, {});
+
+    // ---------- Alokasi ke item transaksi ----------
+    const paidIdsSet        = new Set<string>();
+    const pendingPaidIdsSet = new Set<string>();
+    const billedIdsSet      = new Set<string>(); // semua yang masuk bill (paid+pending)
+
+    Array.from(txBucketsMap.values()).forEach(bucket => {
+        const stats = countByVariant[bucket.variantId] ?? { paid: 0, billed: 0, pending: 0 };
+        const { paid, pending, billed } = stats;
+
+        // clamp biar nggak over-assign
+        const n = bucket.items.length;
+        const paidN    = Math.min(paid, n);
+        const pendN    = Math.min(pending, Math.max(0, n - paidN));
+        const billedN  = Math.min(billed, n);
+
+        // assign: paid → pending → sisanya unpaid
+        const paidChunk    = bucket.items.slice(0, paidN);
+        const pendingChunk = bucket.items.slice(paidN, paidN + pendN);
+        const billedChunk  = bucket.items.slice(0, billedN); // total yang dianggap "sudah ditagih"
+
+        paidChunk.forEach(x => paidIdsSet.add(x.id));
+        pendingChunk.forEach(x => pendingPaidIdsSet.add(x.id));
+        billedChunk.forEach(x => billedIdsSet.add(x.id));
+    });
+
+    // ---------- Hasil akhir ----------
+    const allIds       = Array.from(allItemIdsSet);
+    const pendingVoid  = Array.from(voidPendingIdsSet);
+    const voided       = Array.from(voidApprovedIdsSet);
+
+    // keluarkan yang void dari perhitungan bayar
+    const notVoidedIds = allIds.filter(notVoided);
+
+    const paidIds      = notVoidedIds.filter(id => paidIdsSet.has(id));
+    const pendingIds   = notVoidedIds.filter(id => pendingPaidIdsSet.has(id) && !paidIdsSet.has(id));
+    const unpaidIds    = notVoidedIds.filter(id => !billedIdsSet.has(id)); // belum pernah masuk bill sama sekali
 
     return {
         counts: {
-            pendingVoid: pendingVoidIds.length,
-            void: voidedIds.length,
-            pendingPaid: pendingPaidIds.length,
+            pendingVoid: pendingVoid.length,
+            void: voided.length,
+            pendingPaid: pendingIds.length,
             paid: paidIds.length,
             unpaid: unpaidIds.length,
         },
         ids: {
-            pendingVoid: pendingVoidIds,
-            void: voidedIds,
-            pendingPaid: pendingPaidIds,
+            pendingVoid,
+            void: voided,
+            pendingPaid: pendingIds,
             paid: paidIds,
             unpaid: unpaidIds,
         },

@@ -35,6 +35,7 @@ import {useUserConfig} from "../../../../../../../../contexts/UserConfigContext"
 
 /* ================================= THEME ACCENTS ================================= */
 const PURPLE_GRAD = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
+const RED_GRAD = 'linear-gradient(90deg,rgba(180, 58, 58, 1) 0%, rgba(233, 34, 54, 1) 40%, rgba(253, 29, 29, 1) 50%, rgba(252, 93, 69, 1) 100%)';
 const GRAND_GRAD = 'linear-gradient(90deg,rgba(10,224,7,1) 0%, rgba(7,168,61,1) 51%, rgba(44,135,138,1) 100%)'
 const ACCENT = 'linear-gradient(90deg, #7C3AED, #6366F1 45%, #8B5CF6)'
 
@@ -76,6 +77,7 @@ const deriveLineItems = (bill?: TransactionBill) =>
             price: Number((wrap.price ?? 0) as number),
             sub_total: Number((wrap.sub_total ?? 0) as number),
             bill: bill?.bill ?? "# -",
+            status: wrap.status,
             time_created: wrap.time_created,
             time_updated: wrap.time_updated,
             reference: wrap.reference,
@@ -413,7 +415,7 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                                                 <ButtonBase disabled={isPaid} sx={{ width: '100%', display: 'grid', alignItems: 'stretch', textAlign: 'left', gridTemplateColumns: { xs: ITEM_COLS.xs, md: ITEM_COLS.md }, p: 0, '&:hover': { backgroundColor: 'action.hover' } }}>
                                                     {/* # */}
                                                     <Box sx={{ ...colCell(false), px: 1.25, py: 1.1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <Chip size="small" label={idx + 1} sx={{ fontWeight: 800, background: PURPLE_GRAD, color: '#fff' }} />
+                                                        <Chip size="small" label={idx + 1} sx={{ fontWeight: 800, background: (!it.status) ? PURPLE_GRAD : RED_GRAD, color: '#fff' }} />
                                                     </Box>
                                                     {/* Produk */}
                                                     <Box sx={{ ...colCell(true), px: 1.25, py: 1.1, display: 'flex', alignItems: 'flex-start', gap: 1.25 }}>

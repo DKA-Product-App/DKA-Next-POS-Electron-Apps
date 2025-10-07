@@ -136,7 +136,7 @@ export interface TransactionBillItem {
     qty?: number
     price?: number
     sub_total?: number
-    skipabled?: boolean
+    status?: boolean
     time_created?: ISODate
     time_updated?: ISODate
     branch?: TransactionBillBranch[]

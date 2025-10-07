@@ -11,15 +11,19 @@ import { TransactionBatchesItems } from "../../types/api.transaction.type"
 
 /** 🔽 NEW: filter context */
 import { useFilterOrderHeader } from '../context/FilterOrderHeaderContext'
-import {useState} from "react";
+import { useMemo } from "react";
 
 const RightContainerBatchDetailRowSkeleton = dynamic(() => import('../../(loading)/RightContainerBatchDetailRowSkeleton'), { ssr: false })
 const RightContainerBatchDetailRow = dynamic(() => import('./(components)/RightContainerBatchDetailRow'), { ssr: false })
 
 const rupiah = (n: number | string) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(typeof n === 'string' ? parseFloat(n) : n)
 
+/** 🔧 Helper kecil */
+const sid = (v?: unknown) => v != null ? String(v) : ""
+const notNull = <T,>(x: T | null | undefined): x is T => x != null
+
 const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ transactionId }) => {
-    const { selectedItemIds, selectedItemIdsGod, toggleItemGod, toggleItem, registerItems, reloadKey, selectedBatchId } = useTx()
+    const { selectedItemIds, selectedItemIdsGod, toggleItemGod, toggleItem, registerItems, reloadKey } = useTx()
     const [items, setItems] = React.useState<TransactionBatchesItems[]>([])
     const fetchSeqRef = React.useRef(0)
 
@@ -43,36 +47,88 @@ const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ tr
     React.useEffect(() => {
         if (!transactionId) { setItems([]); return }
         setItems([])
-
         const seq = ++fetchSeqRef.current
-        fetchItems(seq);
+        fetchItems(seq)
     }, [transactionId, reloadKey])
 
+    /** =========================================
+     *  STATUS MAP di tingkat TRANSACTION (batches)
+     *  ========================================= */
+    const statusSets = useMemo(() => {
+        // Semua bills dari transaction (ambil dari salah satu item)
+        const bills = items?.[0]?.batch?.transaction?.bills ?? []
+
+        // Item transaksi yang valid (punya variantId) dan tidak di-void
+        const voidPendingIds = new Set(
+            items.filter(it => Boolean(it?.void) && it.void!.is_approved !== true).map(it => sid(it.id)).filter(Boolean)
+        )
+        const voidApprovedIds = new Set(
+            items.filter(it => Boolean(it?.void) && it.void!.is_approved === true).map(it => sid(it.id)).filter(Boolean)
+        )
+        const notVoided = (id: string) => !voidPendingIds.has(id) && !voidApprovedIds.has(id)
+
+        // Bucket per variantId: urut by time_created (deterministik)
+        type BucketItem = { id: string; t: string }
+        const buckets = items
+            .map(it => ({
+                id: sid(it.id),
+                variantId: sid(it?.variant?.id),
+                t: it?.time_created ?? ""
+            }))
+            .filter(r => r.id && r.variantId && notVoided(r.id))
+            .reduce<Record<string, BucketItem[]>>((acc, r) => {
+                (acc[r.variantId] ??= []).push({ id: r.id, t: r.t })
+                return acc
+            }, {})
+
+        Object.values(buckets).forEach(arr => arr.sort((a, b) => (a.t || "").localeCompare(b.t || "") || a.id.localeCompare(b.id)))
+
+        // Hitung billed/paid per variantId dari bill.items
+        // Catatan: jika b.paid?.status TIDAK ada -> treat as pending
+        const billTallies = bills
+            .flatMap(b => (b?.items ?? []).map(bi => ({ variantId: sid(bi?.productVariant?.id), isPaid: !!b?.paid?.status })))
+            .filter(x => x.variantId)
+            .reduce<Record<string, { paid: number; pending: number; billed: number }>>((acc, r) => {
+                const got = acc[r.variantId] ?? { paid: 0, pending: 0, billed: 0 }
+                got.billed += 1
+                r.isPaid ? (got.paid += 1) : (got.pending += 1)
+                acc[r.variantId] = got
+                return acc
+            }, {})
+
+        const paid = new Set<string>()
+        const pending = new Set<string>()
+        const billed = new Set<string>() // total yang pernah masuk bill (paid + pending)
+
+        Object.entries(buckets).forEach(([variantId, arr]) => {
+            const t = billTallies[variantId] ?? { paid: 0, pending: 0, billed: 0 }
+            const n = arr.length
+            const paidN = Math.min(t.paid, n)
+            const pendN = Math.min(t.pending, Math.max(0, n - paidN))
+            const billedN = Math.min(t.billed, n)
+
+            // alokasi deterministik: first paidN -> paid, next pendN -> pending
+            arr.slice(0, paidN).forEach(x => paid.add(x.id))
+            arr.slice(paidN, paidN + pendN).forEach(x => pending.add(x.id))
+            arr.slice(0, billedN).forEach(x => billed.add(x.id))
+        })
+
+        // return juga set void buat dipakai di UI
+        return { paid, pending, billed, voidPendingIds, voidApprovedIds }
+    }, [items])
+
     const hasNote = (it: TransactionBatchesItems) => Boolean(it.note?.trim()?.length)
-    const isPendingVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved !== true
-    const isApprovedVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved === true
+    const isPendingVoid = (it: TransactionBatchesItems) => statusSets.voidPendingIds.has(sid(it.id))
+    const isApprovedVoid = (it: TransactionBatchesItems) => statusSets.voidApprovedIds.has(sid(it.id))
 
-    const isPendingPaid = (it: TransactionBatchesItems) => {
-        const bills = it?.batch?.transaction?.bills ?? []
-        return bills.some((b) =>
-            (b?.paid === null || b?.paid?.status === false) &&
-            (b?.items ?? []).some((bi) => bi?.productVariant?.id === it.id)
-        )
-    }
-
-    const isPaid = (it: TransactionBatchesItems) => {
-        const bills = it?.batch?.transaction?.bills ?? []
-        return bills.some((b) =>
-            (b?.paid?.status === true) &&
-            (b?.items ?? []).some((bi) => bi?.productVariant?.id === it.id)
-        )
-    }
+    /** ✅ FIX: cek paid/pendingPaid pakai hasil alokasi per-variant, bukan nyocokkan ke id item */
+    const isPendingPaid = (it: TransactionBatchesItems) => statusSets.pending.has(sid(it.id))
+    const isPaid        = (it: TransactionBatchesItems) => statusSets.paid.has(sid(it.id))
 
     if (!transactionId) return <Box sx={{ p: 2, color: 'text.secondary' }}>Pilih Transaction untuk melihat detail item…</Box>
 
     // 🔽 NEW: apply filter sebelum render
     const filteredItems = items.filter(matchItem)
-
 
     return (
         <Box sx={{ flex: 1, minHeight: 0, px: 1.5, height: '100%' }}>
@@ -89,7 +145,10 @@ const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ tr
                             const selected = selectedItemIds.has(it.id)
                             const selectedGodeModeBol = selectedItemIdsGod.has(it.id)
                             const closed = Boolean(it.batch.transaction?.time_closed)
+
+                            // ❗️ Disabled jika closed / void / sudah billed (pending atau paid)
                             const disabled = closed || isPendingVoid(it) || isApprovedVoid(it) || isPendingPaid(it) || isPaid(it)
+
                             const qtyPriceLabel = `${it.qty} x ${rupiah(it.price)}`
                             const totalLabel = rupiah(it.sub_total || it.price || 0)
 

@@ -331,7 +331,7 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
                 const { id, ...rest } = it
                 return {
                     ...rest,
-                    skipabled: transactionBatchItemsGod.some((god) => god.id === it.id),
+                    status: transactionBatchItemsGod.some((god) => god.id === it.id),
                     productVariant: it.variant
                 }
             }),

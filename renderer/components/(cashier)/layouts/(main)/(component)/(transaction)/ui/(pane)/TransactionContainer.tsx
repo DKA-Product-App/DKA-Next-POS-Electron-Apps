@@ -239,6 +239,7 @@ function Body({ transaction }: { transaction: Transaction }) {
                     {/* Buat Tagihan — kirim array **ID** item */}
                     <NewOrderBillModal
                         items={isSplitMode ? selectedIdList : allItemIds} // string[]
+                        itemsGod={[]}
                         mode={isSplitMode ? 'split' : 'full'}
                         label="Buat Tagihan"
                         variant="contained"
