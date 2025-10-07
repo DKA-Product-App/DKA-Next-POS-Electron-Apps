@@ -25,7 +25,12 @@ import dynamic from 'next/dynamic'
 import ShimmerMenuSelectLoading from '../(loading)/ShimmerMenuSelectLoading'
 import OrderVoidModal from './(components)/OrderVoidModal'
 import NewOrderBillModal from './(components)/NewOrderBillModal'
-import { Transaction } from '../types/api.transaction.type'
+import {
+    Transaction,
+    TransactionBatchesItems,
+    TransactionBills,
+    TransactionBillsItems
+} from '../types/api.transaction.type'
 import { LayoutManipulatorBatchProvider, useLayoutManipulatorBatch } from "../../context/LayoutManipulatorBatchContext"
 import LeftContainerBatchListNewOrder from './(pane)/(components)/LeftContainerBatchListNewOrder'
 
@@ -82,7 +87,7 @@ export const getStatusSummary = (o: Transaction) => {
     const billedItemIdsSet = new Set(
         bills
             .flatMap(b => Array.isArray(b?.items) ? b.items : [])
-            .map(bi => bi?.transactionItem?.id != null ? String(bi.transactionItem.id) : undefined)
+            .map(bi => bi?.productVariant?.id != null ? String(bi.productVariant.id) : undefined)
             .filter(Boolean) as string[]
     );
 
@@ -90,7 +95,7 @@ export const getStatusSummary = (o: Transaction) => {
         bills
             .filter(b => b?.paid?.status === true)
             .flatMap(b => Array.isArray(b?.items) ? b.items : [])
-            .map(bi => bi?.transactionItem?.id != null ? String(bi.transactionItem.id) : undefined)
+            .map(bi => bi?.productVariant?.id != null ? String(bi.productVariant.id) : undefined)
             .filter(Boolean) as string[]
     );
 
@@ -98,7 +103,7 @@ export const getStatusSummary = (o: Transaction) => {
         bills
             .filter(b => !b?.paid || b?.paid?.status === false)
             .flatMap(b => Array.isArray(b?.items) ? b.items : [])
-            .map(bi => bi?.transactionItem?.id != null ? String(bi.transactionItem.id) : undefined)
+            .map(bi => bi?.productVariant?.id != null ? String(bi.productVariant.id) : undefined)
             .filter(Boolean) as string[]
     );
 
@@ -133,10 +138,10 @@ export const getStatusSummary = (o: Transaction) => {
 };
 
 
-const isSuccessPaidItem = (item: any, bills: any[]) =>
-    bills?.some((bill: any) =>
+const isSuccessPaidItem = (item: TransactionBatchesItems, bills: TransactionBills[]) =>
+    bills?.some((bill) =>
         (bill?.paid !== null || bill?.paid?.status === true) &&
-        (bill?.items ?? []).some((bi: any) => bi?.transactionItem?.id === item?.id)
+        (bill?.items ?? []).some((bi) => bi?.productVariant?.id === item?.id)
     )
 
 const totalPrices = (o: Transaction) => {
@@ -154,7 +159,7 @@ const totalPrices = (o: Transaction) => {
 
 /* ===== Body ===== */
 function Body({ tr }: { tr: Transaction }) {
-    const { selectedItemIds, selectedTotal, clearSelection, reloadKey } = useTx()
+    const { selectedItemIds, selectedItemIdsGod, selectedTotal, clearSelection, reloadKey } = useTx()
     const [transaction, setTransaction] = React.useState<Transaction>(undefined)
     const { setMenu, remove,  key, seq } = useFunctionKeyCtx()
     const isClosed = React.useMemo(() => Boolean(transaction?.time_closed), [transaction])
@@ -165,6 +170,18 @@ function Body({ tr }: { tr: Transaction }) {
         () => Array.from(selectedItemIds ?? []).map(toId).filter(Boolean),
         [selectedItemIds]
     )
+    const selectedIdListGod: string[] = React.useMemo(
+        () => Array.from(selectedItemIdsGod ?? []).map(toId).filter(Boolean),
+        [selectedItemIdsGod]
+    )
+
+    React.useEffect(() => {
+        console.table({
+            normally: selectedIdList,
+            goddest: selectedIdListGod,
+            unpaid: ids.unpaid.filter((data) => selectedIdListGod.map((god) => god === data))
+        })
+    }, [selectedIdList, selectedIdListGod])
 
     const isSplitMode = (selectedItemIds?.size ?? 0) > 0
 
@@ -335,6 +352,7 @@ function Body({ tr }: { tr: Transaction }) {
                     <OrderVoidModal transaction={transaction} />
                     <NewOrderBillModal
                         items={isSplitMode ? selectedIdList : ids.unpaid} // string[]
+                        /*itemsGod={isSplitMode ? selectedIdListGod : ids.unpaid.filter((data) => selectedIdListGod.map((god) => god === data))} // string[]*/
                         mode={isSplitMode ? 'split' : 'full'}
                         label={isSplitMode ? 'Checkout Split' : 'Checkout Semua'}
                         variant="contained"

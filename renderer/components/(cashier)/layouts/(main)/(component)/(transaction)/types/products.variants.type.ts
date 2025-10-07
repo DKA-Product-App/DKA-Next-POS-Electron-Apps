@@ -10,15 +10,15 @@ export interface TimeStamp {
 }
 
 export interface ProductsVariants {
-    id: UUID;
+    id?: UUID;
     reference?: AccountDataItem;
     organization?: Organization;
     project?: Project;
     product?: Products;
     code?: string;
-    name: string;
+    name?: string;
     description: string;
-    price : number;
-    time_created: TimeStamp;
-    status: boolean;
+    price?: number;
+    time_created?: TimeStamp;
+    status?: boolean;
 }

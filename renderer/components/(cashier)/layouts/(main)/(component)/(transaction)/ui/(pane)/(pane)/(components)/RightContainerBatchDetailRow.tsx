@@ -19,7 +19,6 @@ import LockRounded from '@mui/icons-material/LockRounded'               // close
 
 import { TransactionBatchesItems } from "../../../types/api.transaction.type";
 import {ImgWithSkeleton, OverlayTone} from "../../../../../../../../../../utils/ImageProcessingIPC";
-import {useSingleDoubleClick} from "../../../../../../../../../../helpers/useSingleDoubleClick";
 import {useGodModeProvider} from "../../../../../../../../context/GodModeProviderContext";
 
 const MotionPaper = motion(Paper)
@@ -67,7 +66,7 @@ type Props = {
     uploadsLoader?: ImageLoader
 
     selected: boolean
-    selectedGodMode: boolean;
+    selectedGodMode?: boolean;
     disabled: boolean
 
     isClosed?: boolean
@@ -77,7 +76,7 @@ type Props = {
     isPaid?: boolean
 
     onToggle: (it: TransactionBatchesItems) => void;
-    onToggleGod: (it: TransactionBatchesItems) => void
+    onToggleGod?: (it: TransactionBatchesItems) => void
 }
 
 const GRADIENT = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)';
@@ -102,12 +101,6 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPr
                         : null
 
     const GRADIENT_TRIGGER = (!selectedGodMode) ? 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)' : 'linear-gradient(90deg,rgba(180, 58, 58, 1) 0%, rgba(233, 34, 54, 1) 40%, rgba(253, 29, 29, 1) 50%, rgba(252, 93, 69, 1) 100%)'
-
-    const click = useSingleDoubleClick(
-        () => onToggle(item),
-        () => onToggleGod(item),
-        250
-    );
 
     return (
         <MotionPaper

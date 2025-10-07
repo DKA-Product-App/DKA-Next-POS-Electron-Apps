@@ -68,7 +68,7 @@ const getPendingActive = (o: Transaction) => {
     const allBillIdSet = new Set(
         bills
             .flatMap(b => Array.isArray(b?.items) ? b!.items! : [])
-            .map(bi => toId(bi?.transactionItem?.id))
+            .map(bi => toId(bi?.productVariant?.id))
             .filter(Boolean)
     )
 
@@ -77,7 +77,7 @@ const getPendingActive = (o: Transaction) => {
         bills
             .filter(b => (b?.paid == null) || (b?.paid?.status === false))
             .flatMap(b => Array.isArray(b?.items) ? b!.items! : [])
-            .map(bi => toId(bi?.transactionItem?.id))
+            .map(bi => toId(bi?.productVariant?.id))
             .filter(Boolean)
     )
 
@@ -86,7 +86,7 @@ const getPendingActive = (o: Transaction) => {
         bills
             .filter(b => b?.paid?.status === true)
             .flatMap(b => Array.isArray(b?.items) ? b!.items! : [])
-            .map(bi => toId(bi?.transactionItem?.id))
+            .map(bi => toId(bi?.productVariant?.id))
             .filter(Boolean)
     )
 
@@ -98,9 +98,9 @@ const getPendingActive = (o: Transaction) => {
 }
 
 const isSuccessPaidItem = (item: TransactionBatchesItems, bills: TransactionBills[]) =>
-    bills?.some((bill: any) =>
+    bills?.some((bill) =>
         (bill?.paid !== null || bill?.paid?.status === true) &&
-        (bill?.items ?? []).some((bi: any) => bi?.transactionItem?.id === item?.id)
+        (bill?.items ?? []).some((bi) => bi?.productVariant?.id === item?.id)
     )
 // total price: skip kalau void approved atau pending paid
 const totalPrices = (o: Transaction) => {

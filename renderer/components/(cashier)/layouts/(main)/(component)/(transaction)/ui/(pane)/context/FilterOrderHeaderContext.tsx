@@ -38,23 +38,23 @@ const isApprovedVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.
 
 const isPendingPaid = (it: TransactionBatchesItems) => {
     const bills = it?.batch?.transaction?.bills ?? []
-    return bills.some((b: any) =>
+    return bills.some((b) =>
         (b?.paid === null || b?.paid?.status === false) &&
-        (b?.items ?? []).some((bi: any) => bi?.transactionItem?.id === it.id)
+        (b?.items ?? []).some((bi) => bi?.productVariant?.id === it.id)
     )
 }
 
 const isPaid = (it: TransactionBatchesItems) => {
     const bills = it?.batch?.transaction?.bills ?? []
-    return bills.some((b: any) =>
+    return bills.some((b) =>
         (b?.paid?.status === true) &&
-        (b?.items ?? []).some((bi: any) => bi?.transactionItem?.id === it.id)
+        (b?.items ?? []).some((bi) => bi?.productVariant?.id === it.id)
     )
 }
 
 const isUnpaid = (it: TransactionBatchesItems) => {
     const bills: TransactionBills[] = it?.batch?.transaction?.bills ?? []
-    return !bills.some(b => (b?.items ?? []).some((bi: any) => bi?.transactionItem?.id === it.id))
+    return !bills.some(b => (b?.items ?? []).some((bi) => bi?.productVariant?.id === it.id))
 }
 
 export function FilterOrderHeaderProvider({

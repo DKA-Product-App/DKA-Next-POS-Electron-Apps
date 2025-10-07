@@ -171,11 +171,9 @@ export interface TransactionBatchesItems {
     note?: string | null;
     time_created?: string;
     time_updated?: string;
-
     reference?: TransactionAccount;
     product?: Products;
     variant?: ProductsVariants;
-
     /** null jika tidak void; objek jika item di-void */
     void?: TransactionBatchesItemsVoid | null;
 }
@@ -191,25 +189,16 @@ export interface TransactionBatches {
     items?: TransactionBatchesItems[];
 }
 
-/** Snapshot minimal item saat masuk bill */
-export interface TransactionBillsItemsTransactionItemRef {
-    id?: string;
-    qty?: number;
-    price?: string;
-    sub_total?: string;
-    note?: string | null;
-    time_created?: string;
-    time_updated?: string;
-}
 
 export interface TransactionBillsItems {
     id?: string;
+    reference?: TransactionAccount;
     qty?: number;
     price?: string;      // "0.00"
     sub_total?: string;  // "0.00"
     time_created?: string;
     time_updated?: string;
-    transactionItem?: TransactionBillsItemsTransactionItemRef;
+    productVariant?: ProductsVariants;
 }
 
 export interface TransactionBills {

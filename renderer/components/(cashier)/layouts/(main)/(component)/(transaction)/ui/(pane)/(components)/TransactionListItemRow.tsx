@@ -56,7 +56,7 @@ const getStatusSummary = (o: Transaction) => {
     const billedItemIdsSet = new Set(
         bills
             .flatMap(b => Array.isArray(b?.items) ? b.items : [])
-            .map(bi => bi?.transactionItem?.id != null ? String(bi.transactionItem.id) : undefined)
+            .map(bi => bi?.productVariant?.id != null ? String(bi.productVariant.id) : undefined)
             .filter(Boolean) as string[]
     );
 
@@ -64,7 +64,7 @@ const getStatusSummary = (o: Transaction) => {
         bills
             .filter(b => b?.paid?.status === true)
             .flatMap(b => Array.isArray(b?.items) ? b.items : [])
-            .map(bi => bi?.transactionItem?.id != null ? String(bi.transactionItem.id) : undefined)
+            .map(bi => bi?.productVariant?.id != null ? String(bi.productVariant.id) : undefined)
             .filter(Boolean) as string[]
     );
 
@@ -72,7 +72,7 @@ const getStatusSummary = (o: Transaction) => {
         bills
             .filter(b => !b?.paid || b?.paid?.status === false)
             .flatMap(b => Array.isArray(b?.items) ? b.items : [])
-            .map(bi => bi?.transactionItem?.id != null ? String(bi.transactionItem.id) : undefined)
+            .map(bi => bi?.productVariant?.id != null ? String(bi.productVariant.id) : undefined)
             .filter(Boolean) as string[]
     );
 
@@ -110,7 +110,7 @@ const totalPrices = (o: Transaction) => {
     const paidTxnItemIds = o.bills
         .filter(b => b?.paid?.status === true)
         .flatMap(b => b?.items ?? [])
-        .map(it => it?.transactionItem?.id)
+        .map(it => it?.productVariant?.id)
         .filter((id): id is string => Boolean(id));
 
     const orders = o.batches

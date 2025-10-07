@@ -10,6 +10,7 @@ import { ThemeChargerProvider, useThemeCharger } from "../../contexts/ThemeCharg
 import {LayoutManipulatorSingleProvider} from "./layouts/(main)/(component)/(transaction)/context/LayoutManipulatorSingleContext";
 import {GodModeProviderProvider} from "./context/GodModeProviderContext";
 import {UserConfigProvider} from "../../contexts/UserConfigContext";
+import {LayoutManipulatorSingleLayoutProvider} from "../../contexts/LayoutManipulatorSingleLayoutContext";
 
 const Header = dynamic(() => import('./(components)/Header'), { loading: () => <ShimmerHeaderLoading />, ssr: false });
 const Footer = dynamic(() => import('./(components)/Footer'), { loading: () => <ShimmerFooterLoading />, ssr: false });
@@ -43,13 +44,15 @@ export default function LayoutContainer({ children }: { children: React.ReactNod
         <UserConfigProvider>
             <ThemeChargerProvider>
                 <GodModeProviderProvider>
-                    <LayoutManipulatorResizableProvider>
-                        <LayoutManipulatorSingleProvider>
-                            <FunctionKeyProvider>
-                                <LayoutBody>{children}</LayoutBody>
-                            </FunctionKeyProvider>
-                        </LayoutManipulatorSingleProvider>
-                    </LayoutManipulatorResizableProvider>
+                    <LayoutManipulatorSingleLayoutProvider>
+                        <LayoutManipulatorResizableProvider>
+                            <LayoutManipulatorSingleProvider>
+                                <FunctionKeyProvider>
+                                    <LayoutBody>{children}</LayoutBody>
+                                </FunctionKeyProvider>
+                            </LayoutManipulatorSingleProvider>
+                        </LayoutManipulatorResizableProvider>
+                    </LayoutManipulatorSingleLayoutProvider>
                 </GodModeProviderProvider>
             </ThemeChargerProvider>
         </UserConfigProvider>

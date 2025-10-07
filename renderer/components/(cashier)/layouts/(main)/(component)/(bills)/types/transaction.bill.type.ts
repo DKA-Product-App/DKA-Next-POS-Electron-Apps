@@ -2,6 +2,8 @@
 // Semua field dibuat optional ("?") sesuai permintaan.
 // Catatan: Field yang di payload bisa bernilai null; maka tipe mencakup null juga.
 
+import {ProductsVariants} from "../../(transaction)/types/products.variants.type";
+
 export type UUID = string
 export type ISODate = string
 
@@ -130,13 +132,14 @@ export interface TransactionBillPaymentMethod {
 
 export interface TransactionBillItem {
     id?: UUID
+    reference?: Maybe<TransactionBillReferenceUser>
     qty?: number
     price?: number
     sub_total?: number
     time_created?: ISODate
     time_updated?: ISODate
     branch?: TransactionBillBranch[]
-    transactionItem?: Maybe<TransactionBillTransactionItem>
+    productVariant?: Maybe<ProductsVariants>
 }
 
 /** ====== NEW / EXPANDED STRUCTURES FROM SAMPLE ====== */

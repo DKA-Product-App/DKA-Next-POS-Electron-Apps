@@ -26,8 +26,7 @@ const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ tr
     // 🔽 NEW: dari context
     const { matchItem } = useFilterOrderHeader()
 
-
-    const fetchItems = (seq) => {
+    const fetchItems = (seq: number) => {
         window.api.invoke('api.transaction.batch.item:read.all', { transaction: transactionId })
             .then((res: any) => {
                 if (seq !== fetchSeqRef.current) return
@@ -40,6 +39,7 @@ const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ tr
                 setItems([])
             })
     }
+
     React.useEffect(() => {
         if (!transactionId) { setItems([]); return }
         setItems([])
@@ -54,17 +54,17 @@ const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ tr
 
     const isPendingPaid = (it: TransactionBatchesItems) => {
         const bills = it?.batch?.transaction?.bills ?? []
-        return bills.some((b: any) =>
+        return bills.some((b) =>
             (b?.paid === null || b?.paid?.status === false) &&
-            (b?.items ?? []).some((bi: any) => bi?.transactionItem?.id === it.id)
+            (b?.items ?? []).some((bi) => bi?.productVariant?.id === it.id)
         )
     }
 
     const isPaid = (it: TransactionBatchesItems) => {
         const bills = it?.batch?.transaction?.bills ?? []
-        return bills.some((b: any) =>
+        return bills.some((b) =>
             (b?.paid?.status === true) &&
-            (b?.items ?? []).some((bi: any) => bi?.transactionItem?.id === it.id)
+            (b?.items ?? []).some((bi) => bi?.productVariant?.id === it.id)
         )
     }
 

@@ -23,7 +23,7 @@ import dynamic from 'next/dynamic'
 import {useTabNavigationHandlerContext} from '../../../context/TabNavigationHandlerContext'
 import {useTransactionEventTrigger} from "../context/TransactionEventTriggerContext";
 import {useSession} from "../../../../../../../../../contexts/SessionProviderContext";
-import {Transaction} from "../../types/api.transaction.type";
+import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../types/api.transaction.type";
 import {AxiosResponse} from "axios";
 import {TransactionBill, TransactionBillPrinterDevice} from "../../../../(bills)/types/transaction.bill.type";
 import SweetAlert2, {SweetAlert2Props} from "react-sweetalert2";
@@ -89,42 +89,38 @@ const pickBills = (o?: Transaction) => o?.bills ?? []
 const getPendingActive = (o?: Transaction) => {
     const bills = pickBills(o);
 
-    // Kumpulin semua id item transaksi (o.batches[].items[].id)
     const ids =
         (o?.batches ?? [])
             .flatMap((bt: any) => Array.isArray(bt?.items) ? bt.items : [])
             .map((it: any) => it?.id)
             .filter(Boolean);
 
-    // Set semua id item yang SUDAH masuk bill (paid apapun)
     const allBillIdSet = new Set(
         bills
-            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
-            .map((bi: any) => bi?.transactionItem?.id)
+            .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
+            .map((bi) => bi?.productVariant?.id)
             .filter(Boolean)
     );
 
-    // Set id item yang masuk bill PENDING (paid null/false)
     const pendingBillIdSet = new Set(
         bills
-            .filter((b: any) => (b?.paid == null) || (b?.paid?.status === false))
-            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
-            .map((bi: any) => bi?.transactionItem?.id)
+            .filter((b) => (b?.paid == null) || (b?.paid?.status === false))
+            .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
+            .map((bi) => bi?.productVariant?.id)
             .filter(Boolean)
     );
 
     const paidBillIdSet = new Set(
         bills
-            .filter((b: any) => (b?.paid == null) || (b?.paid?.status === true))
-            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
-            .map((bi: any) => bi?.transactionItem?.id)
+            .filter((b) => (b?.paid == null) || (b?.paid?.status === true))
+            .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
+            .map((bi) => bi?.productVariant?.id)
             .filter(Boolean)
     );
 
     const pending = ids.filter((id: any) => pendingBillIdSet.has(id)).length;
     const paid  = ids.filter((id: any) => paidBillIdSet.has(id)).length;
     const active  = ids.filter((id: any) => !allBillIdSet.has(id)).length;
-
 
     return { pending, active, paid };
 };
@@ -152,21 +148,25 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
     const baseIcon = isSplitMode ? <CallSplitRounded sx={{fontSize: 36}}/> : <ReceiptLongRounded sx={{fontSize: 36}}/>
     const color: ButtonProps['color'] = (isSplitMode ? 'warning' : 'success')
     const [isHiddenTransaction, setHiddenTransaction ] = useState<boolean>(false);
-    const [transactionBatchItems, setTransactionBatchItems] = useState<Array<any>>([])
+    const [transactionBatchItems, setTransactionBatchItems] = useState<Array<TransactionBatchesItems>>([])
     const [layoutPaper, setLayoutPaper] = useState<React.ReactNode>(<></>)
 
+    const [NewBill, setNewBill] = useState<TransactionBill | undefined>(undefined);
+
     // ====== LOCK semua input saat modal dibuka ======
-    const [lockedItemsKey, setLockedItemsKey] = useState<string | null>(null)       // kunci daftar item
-    const [lockedTxId, setLockedTxId] = useState<string | null>(null)               // kunci txId
+    const [lockedItemsKey, setLockedItemsKey] = useState<string | null>(null)
+    const [lockedTxId, setLockedTxId] = useState<string | null>(null)
     const lockRef = useRef(false)
-    const openNonce = useRef<number>(0)     // penanda sesi open
-    const createdOnce = useRef(false)       // sudah create bill di sesi ini?
+    const openNonce = useRef<number>(0)
+    const createdOnce = useRef(false)
 
     //================
-    // 2) State: langsung simpan objek printer
     const [PrinterList, setPrinterList] = React.useState<TransactionBillPrinterDevice[]>([])
     const [selectedPrinter, setSelectedPrinter] = React.useState<TransactionBillPrinterDevice | null>(null)
 
+    // kontrol hapus bill saat close (default: true → hard close)
+    const [isResetBill, setResetBill ] = React.useState<boolean>(true)
+    const closingRef = useRef(false) // anti double-close
 
     const disabled = isClosed || items.length === 0 || paid === itemQty
     const tooltip = `Buat Tagihan (${isSplitMode ? 'Split' : 'Keseluruhan'}) — ${items.length} item`
@@ -177,31 +177,65 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
         200,
     )
 
-
     const handleOpen = (isHide = false) => {
         if (isClosed || items.length === 0) return
 
-        // ==== sesi baru: reset dan lock snapshot ====
         openNonce.current = Date.now()
         createdOnce.current = false
-        setTransactionBatchItems([])   // bersihkan data sesi lama
-        setLayoutPaper(<></>)          // kosongkan preview lama
-        setHiddenTransaction(isHide);
-        setLockedItemsKey(items.join('|'))  // snapshot ID item saat ini
-        setLockedTxId(txId)                 // snapshot tx saat ini
+        closingRef.current = false
+        setTransactionBatchItems([])
+        setLayoutPaper(<></>)
+        setResetBill(true)                 // default: kalau nanti ditutup biasa → hapus
+        setHiddenTransaction(isHide)
+        setLockedItemsKey(items.join('|'))
+        setLockedTxId(txId)
         lockRef.current = true
 
         setOpen(true)
     }
 
-    const handleClose = () => {
+    // helper close terpusat agar gak balapan state
+    const closeDialog = React.useCallback((opts?: { deleteBill?: boolean }) => {
+        const shouldDelete = opts?.deleteBill !== false && (isResetBill === true)
+        if (closingRef.current) return
+        closingRef.current = true
+
+        // reset lock & UI
         setOpen(false)
         setLockedItemsKey(null)
         setLockedTxId(null)
         setHiddenTransaction(false)
         lockRef.current = false
-    }
 
+        // jalankan penghapusan hanya jika perlu & ada bill
+        if (shouldDelete && NewBill?.id) {
+            window?.api?.invoke?.<any, AxiosResponse<TransactionBill>>('api.transaction.bills:delete.one', {
+                id : NewBill.id
+            }).then(() => {
+                bumpReload(); bump('batch'); bump('pay'); clearSelection();
+                setSwalProps({
+                    show: true,
+                    icon: "success",
+                    theme: themes.mode,
+                    title: 'Canceled',
+                    text: `Bill ${NewBill?.number} Dibatalkan`,
+                });
+            }).catch((error) => {
+                setSwalProps({
+                    show: true,
+                    icon: "error",
+                    theme: themes.mode,
+                    title: 'Transaksi Gagal Di Batalkan',
+                    text: `Check Tagihan Anda`,
+                });
+            });
+        }
+    }, [NewBill, isResetBill]);
+
+    // hard-close: dipakai oleh tombol X / backdrop / ESC
+    const handleClose = React.useCallback(() => {
+        closeDialog({ deleteBill: true })
+    }, [closeDialog])
 
     React.useEffect(() => {
         window?.api.invoke?.<any, AxiosResponse<TransactionBillPrinterDevice[]>>("api.config.device.printer:read.all", {})
@@ -221,27 +255,14 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
             printer: selectedPrinter.id
         })
             .then((res) => {
-                /*setSwalProps({
-                    show: true,
-                    icon: "success",
-                    theme: themes.mode,
-                    title: 'Successfully Sending Printer',
-                    text: `${res.msg}`,
-                });*/
+                /* notif sukses print jika perlu */
             })
             .catch((error) => {
-                console.error(error);
-                /*setSwalProps({
-                    show: true,
-                    icon: "error",
-                    theme: themes.mode,
-                    title: 'Gagal Mencetak Otomatis',
-                    text: `${error?.msg ?? 'Gagal Mencetak. Printer Offline / Error.'}`,
-                });*/
+                /* notif gagal print jika perlu */
             })
     }
 
-    // ====== Fetch items sekali dengan key terkunci (tidak terganggu prop items/transaction) ======
+    // ====== Fetch items satu kali per sesi ======
     useEffect(() => {
         if (!open) return
         if (!lockedItemsKey) return
@@ -251,7 +272,7 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
         window?.api?.invoke?.('api.transaction.batch.item:read.all', { ids: lockedItemsKey.split('|') })
             .then((res: any) => {
                 if (!lockRef.current) return
-                if (myNonce !== openNonce.current) return  // hasil dari sesi lama → skip
+                if (myNonce !== openNonce.current) return
                 setTransactionBatchItems(res?.data ?? [])
             })
             .catch((error: any) => {
@@ -262,57 +283,68 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
             })
     }, [open, lockedItemsKey])
 
-    // ====== Create bill + tampilkan preview, sekali saja untuk batch yang sudah terkunci ======
+    // ====== Create bill + preview ======
     useEffect(() => {
         if (!open) return
         if (transactionBatchItems.length === 0) return
         if (!lockedTxId) return
-        if (createdOnce.current) return   // sudah pernah create di sesi ini
+        if (createdOnce.current) return
 
         const myNonce = openNonce.current
-        createdOnce.current = true        // kunci agar create hanya sekali
+        createdOnce.current = true
 
-        const arrayRefactor = transactionBatchItems.map((it: any) => {
-            const { id, ...rest } = it
-            return { ...rest, transactionItem: { id, reference: { id: Session.id } } }
-        })
+        const payloads : TransactionBill[] = []
 
-        const payload : TransactionBill = {
+        payloads.push({
             reference: { id: Session.id },
             branch: Session.branches,
             transaction: { id: lockedTxId },
             number: Date.now(),
-            items: arrayRefactor,
+            items: transactionBatchItems.map((it: any) => {
+                const { id, ...rest } = it
+                return {
+                    ...rest,
+                    productVariant: {
+                        id,
+                        reference: { id: Session.id }
+                    }
+                }
+            }),
             paid: { status: false },
-            is_hide: isHiddenTransaction
-        }
+        })
 
-        window?.api?.invoke?.<any, AxiosResponse<TransactionBill>>('api.transaction.bills:create', payload)
+        window?.api?.invoke?.<any, AxiosResponse<TransactionBill>>('api.transaction.bills:create', payloads)
             .then((result) => {
                 if (!lockRef.current) return
-                if (myNonce !== openNonce.current) return // sesi sudah berganti → skip render
+                if (myNonce !== openNonce.current) return
                 if (config?.printer?.isPrintAutomatically) onPrintHandle(result?.data);
+                setNewBill(result?.data);
                 setLayoutPaper(
                     <BillListItemDetail
                         billId={result?.data?.id}
                         isHideTransaction={isHiddenTransaction}
+                        pendingBillPay={async () => {
+                            // SOFT CLOSE: tutup tanpa hapus bill
+                            setResetBill(false)
+                            closeDialog({ deleteBill: false })
+                        }}
                         onPaySuccess={() => {
+                            // SOFT CLOSE juga (user berhasil bayar)
+                            setResetBill(false)
                             bumpReload()
                             bump('batch')
                             bump('pay')
                             clearSelection()
-                            // tetap terkunci sampai modal ditutup; tidak recreate
+                            closeDialog({ deleteBill: false })
                         }}
                     />
                 )
 
-                // boleh ping global, tapi TIDAK perlu recreate apa pun
                 bumpReload(); bump('batch'); bump('pay'); clearSelection();
             })
             .catch((error: any) => {
                 if (!lockRef.current) return
                 const e = normalizeIpcError(error)
-                console.log(e);
                 setLayoutPaper(<ErrorDataLayout {...e} />)
             })
     }, [open, transactionBatchItems, isHiddenTransaction, lockedTxId])
@@ -324,7 +356,7 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
             disabled={disabled}
             onClick={useSmartClick}
             onContextMenu={(e) => {
-                e.preventDefault() // block menu klik kanan bawaan browser
+                e.preventDefault()
                 handleOpen(true)
             }}
             size="large"
@@ -337,23 +369,13 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
                     px: 2.2,
                     fontWeight: 800,
                     letterSpacing: .2,
-                    minHeight: 24,         // jumbo
-                    fontSize: '1rem',   // ~20px
-                    borderRadius: 3,       // sudut mantap
-                    // --- Warna adaptif mode ---
+                    minHeight: 24,
+                    fontSize: '1rem',
+                    borderRadius: 3,
                     bgcolor: !godMode ? light ? '#000' : '#fff' : '#2e0ace',
                     color: !godMode? light ? '#fff' : '#000' : '#efefef',
-
-                    // --- Hover/active states ---
-                    '&:hover': {
-                        bgcolor: light ? '#111' : '#f5f5f5',
-                    },
-                    '&:active': {
-                        transform: 'translateY(1px)',
-                        boxShadow: 'none',
-                    },
-
-                    // pastikan ikon ikut mewarisi warna
+                    '&:hover': { bgcolor: light ? '#111' : '#f5f5f5' },
+                    '&:active': { transform: 'translateY(1px)', boxShadow: 'none' },
                     '& .MuiButton-startIcon': {mr: 1.25}
                 }
             }}
@@ -385,7 +407,7 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
                 fullWidth
                 maxWidth="xl"
                 fullScreen={fullScreen}
-                onClose={handleClose}
+                onClose={handleClose}  // HARD CLOSE → hapus bill
                 slotProps={{
                     paper: {
                         sx: {
@@ -425,7 +447,14 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
                     </Box>
                 </DialogContent>
             </Dialog>
-            <SweetAlert2 {...swalProps} />
+            <SweetAlert2
+                {...swalProps}
+                didClose={() =>{
+                    setSwalProps((prev) => {
+                        return { ...prev, show: false }
+                    })
+                }}
+            />
         </>
     )
 }

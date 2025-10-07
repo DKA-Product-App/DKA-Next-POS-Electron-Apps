@@ -9,6 +9,7 @@ import { TransactionEventTriggerProvider } from './(component)/(transaction)/ui/
 import dynamic from "next/dynamic";
 import ShimmerMenuSelectLoading from "./(component)/(transaction)/ui/(loading)/ShimmerMenuSelectLoading";
 import {TabNavigationHandlerProvider} from "./(component)/(transaction)/context/TabNavigationHandlerContext";
+import {useLayoutManipulatorSingleLayout} from "../../../../contexts/LayoutManipulatorSingleLayoutContext";
 
 
 const TabNavigation = dynamic(() => import('./ui/TabNavigation'), {
@@ -18,6 +19,18 @@ const TabNavigation = dynamic(() => import('./ui/TabNavigation'), {
 
 export default function CashierMain() {
     const { layout, setLayout } = useLayoutManipulatorResizable();
+    const LayoutSingle = useLayoutManipulatorSingleLayout();
+
+    useEffect(() => {
+        LayoutSingle.setLayout(
+            <ResizableGrid
+                defaultSize="23%"
+                minSize={400}
+                left={layout?.left ?? <TabNavigation />}
+                right={layout?.right ?? <></>}
+            />
+        )
+    }, [LayoutSingle.setLayout, layout]);
 
     useEffect(() => {
         if (!layout?.left) {
@@ -33,12 +46,7 @@ export default function CashierMain() {
         <>
             <TabNavigationHandlerProvider>
                 <TransactionEventTriggerProvider>
-                    <ResizableGrid
-                        defaultSize="23%"
-                        minSize={400}
-                        left={layout?.left ?? <TabNavigation />}
-                        right={layout?.right ?? <></>}
-                    />
+                    { LayoutSingle.layout }
                 </TransactionEventTriggerProvider>
             </TabNavigationHandlerProvider>
 

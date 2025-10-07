@@ -22,13 +22,8 @@ import TakeoutDiningRounded from '@mui/icons-material/TakeoutDiningRounded'
 import RestaurantRounded from '@mui/icons-material/RestaurantRounded'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
-
-import Image, { ImageLoader } from 'next/image'
-import Skeleton from '@mui/material/Skeleton'
 import {
-    ApiResponseTransactionBill,
     TransactionBill, TransactionBillPaymentMethod, TransactionBillPrinterDevice, TransactionBills,
-    TransactionBillTransactionItem
 } from '../../types/transaction.bill.type'
 import { useEffect, useMemo, useRef, useState } from "react"
 import { ImgWithSkeleton } from '../../../../../../../../utils/ImageProcessingIPC'
@@ -72,23 +67,20 @@ const getRef = (b?: TransactionBill) =>
     || b?.transaction?.order_type?.code
     || undefined
 
-const deriveLineItems = (bill?: TransactionBill): TransactionBillTransactionItem[] =>
+const deriveLineItems = (bill?: TransactionBill) =>
     (bill?.items ?? []).map((wrap) => {
-        const it = wrap.transactionItem ?? {}
+        const it = wrap.productVariant
         return {
-            id: String(wrap.id ?? it.id ?? Math.random()),
-            qty: Number(wrap.qty ?? it.qty ?? 0),
-            price: Number((wrap.price ?? it.price ?? 0) as number),
-            sub_total: Number((wrap.sub_total ?? it.sub_total ?? 0) as number),
-            note: it.note ?? undefined,
+            id: String(wrap.id ?? Math.random()),
+            qty: Number(wrap.qty ?? 0),
+            price: Number((wrap.price ?? 0) as number),
+            sub_total: Number((wrap.sub_total ?? 0) as number),
             number: bill?.number ?? "# -",
-            time_created: it.time_created,
-            time_updated: it.time_updated,
-            void: it.void,
-            reference: it.reference,
-            product: it.product,
-            variant: it.variant,
-        } as TransactionBillTransactionItem
+            time_created: wrap.time_created,
+            time_updated: wrap.time_updated,
+            reference: wrap.reference,
+            variant: it,
+        }
     })
 
 /* ================================== SUB-COMPONENTS ================================== */
@@ -195,7 +187,7 @@ const PaymentMethodsPicker: React.FC<{
 /* ================================= MAIN ================================= */
 type TenderMode = 'idle' | 'entry' | 'ready'
 
-const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean, onPaySuccess?: () => void }> = ({ billId, isHideTransaction, onPaySuccess }) => {
+const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean, onPaySuccess?: () => void; pendingBillPay?: () => void; }> = ({ billId, isHideTransaction, onPaySuccess, pendingBillPay }) => {
     const [bill, setBill] = useState<TransactionBill | undefined>(undefined)
     const { mode, toggleMode } = useThemeCharger()
     const { set, config } = useUserConfig();
@@ -426,17 +418,16 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                                                     {/* Produk */}
                                                     <Box sx={{ ...colCell(true), px: 1.25, py: 1.1, display: 'flex', alignItems: 'flex-start', gap: 1.25 }}>
                                                         <Box sx={{ width: 56, flexShrink: 0 }}>
-                                                            <ImgWithSkeleton path={it.product?.image ?? null} alt={it.product?.name ?? ''} />
+                                                            <ImgWithSkeleton path={it.variant?.product?.image ?? null} alt={it.variant?.product?.name ?? ''} />
                                                         </Box>
                                                         <Box sx={{ minWidth: 0 }}>
-                                                            <Typography variant="body1" fontWeight={900} noWrap title={it.product?.name ?? ''}>{it.product?.name ?? ''}</Typography>
+                                                            <Typography variant="body1" fontWeight={900} noWrap title={it.variant?.product?.name ?? ''}>{it.variant?.product?.name ?? ''}</Typography>
                                                             <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 0.25, minWidth: 0, flexWrap: 'wrap' }}>
-                                                                {it.product?.category && (
-                                                                    <Typography variant="caption" sx={(t) => ({ px: 0.75, py: 0.25, border: '1px solid', borderColor: 'divider', bgcolor: t.palette.action.hover, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .3 })} noWrap title={first(it.product?.category)?.name ?? ''}>{first(it.product?.category)?.name ?? ''}</Typography>
+                                                                {it.variant?.product?.category && (
+                                                                    <Typography variant="caption" sx={(t) => ({ px: 0.75, py: 0.25, border: '1px solid', borderColor: 'divider', bgcolor: t.palette.action.hover, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .3 })} noWrap title={first(it.variant?.product?.category)?.name ?? ''}>{first(it.variant?.product?.category)?.name ?? ''}</Typography>
                                                                 )}
                                                                 {it.variant && (<><Typography variant="caption" color="text.disabled">•</Typography><Typography variant="caption" color="text.secondary" noWrap title={it.variant.name}>{it.variant.name}</Typography></>)}
                                                             </Stack>
-                                                            {it.note && <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.25 }} title={it.note}>{it.note}</Typography>}
                                                         </Box>
                                                     </Box>
                                                     {/* Qty */}
@@ -566,6 +557,21 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
 
                     {/* ===== Footer ===== */}
                     <Box sx={{ p: { xs: 2, md: 2.5 }, borderTop: '1px solid', borderColor: 'divider', display: 'flex', gap: 1.25, justifyContent: 'flex-end', flexShrink: 0 }}>
+
+                        {
+                            pendingBillPay && (
+                                <Button
+                                    variant="contained"
+                                    color="warning"
+                                    startIcon={<AttachMoneyRounded sx={{ fontSize: 36 }} />}
+                                    onClick={pendingBillPay}
+                                    sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, fontSize: { xs: 14, md: 15 }, py: 1.1, px: 2.2 }}
+                                    title={'Tangguhkan Bill'}
+                                >
+                                    Tangguhkan Bill
+                                </Button>
+                            )
+                        }
                         <Button
                             variant="contained"
                             color="success"

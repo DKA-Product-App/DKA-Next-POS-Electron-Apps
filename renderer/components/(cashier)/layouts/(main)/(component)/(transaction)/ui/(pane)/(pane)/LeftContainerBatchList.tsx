@@ -153,13 +153,6 @@ const groupItemsByPrinter = (items: TransactionBatchesItems[]) => {
 // helper: ambil bills dari beberapa kemungkinan shape
 const pickBills = (o: any) => o?.transaction?.bills ?? o?.bills ?? []
 
-// pending paid checker yang langsung pakai bills terpilih
-/*const isPendingPaidItem = (item: any, bills: any[]) =>
-    bills?.some((bill: any) =>
-        (bill?.paid == null || bill?.paid?.status === false) &&
-        (bill?.items ?? []).some((bi: any) => bi?.transactionItem?.id === item?.id)
-    )*/
-
 const isSuccessPaidItem = (item: any, bills: any[]) =>
     bills?.some((bill: any) =>
         (bill?.paid !== null || bill?.paid?.status === true) &&
@@ -197,7 +190,7 @@ export const batchTotal = (b: TransactionBatches) => {
     )
 }
 
-export const getPendingActiveForBatch = (batch: any) => {
+export const getPendingActiveForBatch = (batch: TransactionBatches) => {
     const bills = pickBillsFromBatch(batch)
 
     const ids =
@@ -207,16 +200,16 @@ export const getPendingActiveForBatch = (batch: any) => {
 
     const allBillIdSet = new Set(
         bills
-            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
-            .map((bi: any) => bi?.transactionItem?.id)
+            .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
+            .map((bi) => bi?.transactionItem?.id)
             .filter(Boolean)
     );
 
     const pendingBillIdSet = new Set(
         bills
-            .filter((b: any) => (b?.paid == null) || (b?.paid?.status === false))
-            .flatMap((b: any) => Array.isArray(b?.items) ? b.items : [])
-            .map((bi: any) => bi?.transactionItem?.id)
+            .filter((b) => (b?.paid == null) || (b?.paid?.status === false))
+            .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
+            .map((bi) => bi?.transactionItem?.id)
             .filter(Boolean)
     );
 
