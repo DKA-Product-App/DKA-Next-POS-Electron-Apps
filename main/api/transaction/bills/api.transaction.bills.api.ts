@@ -82,6 +82,46 @@ export function TransactionBills(mainWindow ?: BrowserWindow) {
                 });
         });
     });
+
+    // READ ALL
+    mainWindow?.webContents?.ipc?.handle?.("api.transaction.bills:count.all", (_event, args) => {
+        const toPath = compile(`/v${ApiConfig.version}/resources/transaction/bill/counts`);
+        return new Promise(async (resolve, reject) => {
+            const ApiRequestInstance = await getApi();
+            return ApiRequestInstance({
+                url: toPath(),
+                method: "GET",
+                params: args,
+            })
+                .then((response) => {
+                    const data = response?.data;
+                    return resolve({ ...data });
+                })
+                .catch((err) => {
+                    const pack = (payload: any) => {
+                        const e = new Error(JSON.stringify(payload)); // <-- kirim JSON di message
+                        (e as any).data = payload;                    // <-- bonus: taruh raw data kalau Electron gak nyopot
+                        (e as any).code = payload?.code ?? 530;
+                        return reject(e);
+                    };
+
+                    if (err?.response?.data) return pack(err.response.data);
+
+                    const code = err?.code;
+                    if (code === "ENOTFOUND")    return pack({ status: false, code: 530, msg: "Host tidak ditemukan" });
+                    if (code === "ECONNREFUSED") return pack({ status: false, code: 530, msg: "Koneksi ditolak oleh server" });
+                    if (code === "ETIMEDOUT" || code === "ECONNABORTED")
+                        return pack({ status: false, code: 530, msg: "Waktu koneksi habis" });
+
+                    const isNetwork = typeof err?.message === "string" && err.message.includes("Network Error");
+                    return pack({
+                        status: false,
+                        code: 530,
+                        msg: isNetwork ? "Jaringan/offline atau server tidak dapat dijangkau" : "Gagal menghubungi server"
+                    });
+                });
+        });
+    });
     // READ ONE
     mainWindow?.webContents?.ipc?.handle?.("api.transaction.bills:read.one", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/transaction/bill/:id`);

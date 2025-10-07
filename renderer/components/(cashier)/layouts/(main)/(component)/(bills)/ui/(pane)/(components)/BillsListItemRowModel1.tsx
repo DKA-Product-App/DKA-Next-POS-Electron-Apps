@@ -10,6 +10,7 @@ import LayersRounded from '@mui/icons-material/LayersRounded'
 import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
 import ScheduleRounded from '@mui/icons-material/ScheduleRounded'
 import {TransactionBill} from "../../../types/transaction.bill.type";
+import {useMemo} from "react";
 
 type Props = {
     bill: TransactionBill
@@ -28,7 +29,7 @@ const fmtTime = (iso?: string) => iso ? new Date(iso).toLocaleString('id-ID', { 
 
 const BillsListItemRowModel1: React.FC<Props> = ({ bill, selected, onRowClick }) => {
     // ====== derive semua dari bill ======
-    const invoice = String(bill.number ?? '')
+    const invoice = String(bill.bill ?? '')
     const cashier = nameJoin(bill.reference?.name) || bill.reference?.username || '—'
 
     // order type, shift, meja
@@ -50,8 +51,11 @@ const BillsListItemRowModel1: React.FC<Props> = ({ bill, selected, onRowClick })
     const issuedAt = bill.time_created || bill.transaction?.time_created || bill.items?.[0]?.time_created
     const displayTime = paidAt ?? issuedAt
 
+    const subTotal = sum(bill.items.map(i => Number(i.sub_total)));
+    const taxRate = 0.10
+    const tax = useMemo(() => Math.max(0, Math.round(subTotal * taxRate)), [subTotal])
     // total: ambil dari server, fallback hitung items
-    const displayTotal = toIDR((bill.items?.length ? String(sum(bill.items.map(i => Number(i.sub_total)))) : '0'))
+    const displayTotal = toIDR((bill.items?.length ? String(tax + subTotal) : '0'))
 
     // jumlah items (panjang array items)
     const itemsCount = bill.items?.length ?? 0

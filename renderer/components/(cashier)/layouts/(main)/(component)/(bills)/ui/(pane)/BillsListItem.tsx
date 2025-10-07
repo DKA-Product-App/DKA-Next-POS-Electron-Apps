@@ -188,13 +188,14 @@ const BillsListItem: React.FC = () => {
         setIsFetching(true)
         setFetchError(null)
 
-        console.log(payload)
         const t = setTimeout(() => {
             window.api.invoke('api.transaction.bills:read.all', payload)
                 .then((result: ApiResponseTransactionBill | { data: TransactionBills } | undefined) => {
                     const arr = Array.isArray((result as ApiResponseTransactionBill)?.data)
                         ? (result as ApiResponseTransactionBill).data
                         : (result as any)?.data
+
+                    console.log(arr);
                     return alive ? (arr ?? []) : []
                 })
                 .then(arr => arr.map(stripSecrets))
@@ -245,7 +246,7 @@ const BillsListItem: React.FC = () => {
         return bills.filter(b => {
             const bySearch =
                 (!s) ||
-                hit(String(b.number ?? '')) ||
+                hit(String(b.bill ?? '')) ||
                 hit(getCashierName(b)) ||
                 hit(b.transaction?.table?.name || b.transaction?.table?.code || '') ||
                 hit(b.transaction?.order_type?.name ?? '') ||
@@ -265,7 +266,16 @@ const BillsListItem: React.FC = () => {
 
             const total = getTotal(b)
             const [minT, maxT] = Array.isArray(filters.totalRange) ? filters.totalRange : [0, Number.POSITIVE_INFINITY]
-            const byTotal = total >= (minT ?? 0) && total <= (maxT ?? Number.POSITIVE_INFINITY)
+            const byTotal = (() => {
+                const tr = Array.isArray(filters.totalRange) ? filters.totalRange : [0, 0]
+                const a = Number(tr[0] ?? 0)
+                const b = Number(tr[1] ?? 0)
+                // Matikan filter jika [0,0]
+                if (a === 0 && b === 0) return true
+                const minT = Math.min(a, b)
+                const maxT = Math.max(a, b)
+                return total >= minT && total <= maxT
+            })()
 
             return bySearch && byDate && byPaid && byCashier && byTotal
         })
@@ -277,6 +287,10 @@ const BillsListItem: React.FC = () => {
             setLayout(prev => ({ ...(prev ?? {}), right: <BillsRightEmpty /> }))
         }
     }, [activeId, filtered.length, setLayout])
+
+    useEffect(() => {
+        console.log(filtered);
+    },[filtered])
 
     const handleSelect = (bill: TransactionBill) => {
         setActiveId(prev => {

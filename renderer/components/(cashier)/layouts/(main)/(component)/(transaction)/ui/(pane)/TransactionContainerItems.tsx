@@ -159,7 +159,7 @@ const totalPrices = (o: Transaction) => {
 
 /* ===== Body ===== */
 function Body({ tr }: { tr: Transaction }) {
-    const { selectedItemIds, selectedItemIdsGod, selectedTotal, clearSelection, reloadKey } = useTx()
+    const { selectedItemIds, selectedItemIdsGod, selectedTotal, clearSelection, clearSelectionGods, reloadKey } = useTx()
     const [transaction, setTransaction] = React.useState<Transaction>(undefined)
     const { setMenu, remove,  key, seq } = useFunctionKeyCtx()
     const isClosed = React.useMemo(() => Boolean(transaction?.time_closed), [transaction])
@@ -175,13 +175,13 @@ function Body({ tr }: { tr: Transaction }) {
         [selectedItemIdsGod]
     )
 
-    React.useEffect(() => {
+    /*React.useEffect(() => {
         console.table({
             normally: selectedIdList,
             goddest: selectedIdListGod,
             unpaid: ids.unpaid.filter((data) => selectedIdListGod.map((god) => god === data))
         })
-    }, [selectedIdList, selectedIdListGod])
+    }, [selectedIdList, selectedIdListGod])*/
 
     const isSplitMode = (selectedItemIds?.size ?? 0) > 0
 
@@ -245,7 +245,10 @@ function Body({ tr }: { tr: Transaction }) {
                 <Stack direction="row" alignItems="center" spacing={1}>
                     <DoneAllRounded fontSize="small" />
                     <Typography variant="body2" fontWeight={700}>{selectedItemIds?.size} item dipilih</Typography>
-                    <Button size="small" onClick={clearSelection} title="Kosongkan" variant="text" sx={{ minWidth: 0, p: 0.5 }}>
+                    <Button size="small" onClick={() => {
+                        clearSelection();
+                        clearSelectionGods();
+                    }} title="Kosongkan" variant="text" sx={{ minWidth: 0, p: 0.5 }}>
                         <ClearRounded fontSize="small" />
                     </Button>
                 </Stack>
@@ -351,8 +354,12 @@ function Body({ tr }: { tr: Transaction }) {
                 <Stack direction="row" gap={1.25} alignItems="center" sx={{ pr: 4 }}>
                     <OrderVoidModal transaction={transaction} />
                     <NewOrderBillModal
-                        items={isSplitMode ? selectedIdList : ids.unpaid} // string[]
-                        /*itemsGod={isSplitMode ? selectedIdListGod : ids.unpaid.filter((data) => selectedIdListGod.map((god) => god === data))} // string[]*/
+                        items={isSplitMode ? selectedIdList : ids.unpaid}
+                        itemsGod={
+                            isSplitMode
+                                ? selectedIdListGod
+                                : ids.unpaid.filter((id) => selectedIdListGod.includes(id))
+                        }
                         mode={isSplitMode ? 'split' : 'full'}
                         label={isSplitMode ? 'Checkout Split' : 'Checkout Semua'}
                         variant="contained"

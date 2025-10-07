@@ -77,6 +77,7 @@ const ErrorDataLayout: React.FC<{
 
 type Props = {
     items: string[]
+    itemsGod: string[],
     mode: 'split' | 'full'
     label?: string
     onSuccess?: () => void
@@ -125,10 +126,10 @@ const getPendingActive = (o?: Transaction) => {
     return { pending, active, paid };
 };
 
-export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan', variant = 'contained', transaction }: Props) {
+export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat Tagihan', variant = 'contained', transaction }: Props) {
     const themes = useThemeCharger()
     const { godMode } = useGodModeProvider();
-    const { txId, bumpReload, clearSelection, setReloadKey } = useTx()
+    const { txId, bumpReload, clearSelection, clearSelectionGods, setReloadKey } = useTx()
     const {bump} = useTransactionEventTrigger()
     const isClosed = Boolean(transaction?.time_closed);
     const { set, config } = useUserConfig();
@@ -149,12 +150,15 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
     const color: ButtonProps['color'] = (isSplitMode ? 'warning' : 'success')
     const [isHiddenTransaction, setHiddenTransaction ] = useState<boolean>(false);
     const [transactionBatchItems, setTransactionBatchItems] = useState<Array<TransactionBatchesItems>>([])
+    const [transactionBatchItemsGod, setTransactionBatchItemsGod] = useState<Array<TransactionBatchesItems>>([]) // 🔥 baru
     const [layoutPaper, setLayoutPaper] = useState<React.ReactNode>(<></>)
 
     const [NewBill, setNewBill] = useState<TransactionBill | undefined>(undefined);
 
     // ====== LOCK semua input saat modal dibuka ======
     const [lockedItemsKey, setLockedItemsKey] = useState<string | null>(null)
+    const [lockedItemsKeyGod, setLockedItemsKeyGod] = useState<string | null>(null) // 🔥 baru
+
     const [lockedTxId, setLockedTxId] = useState<string | null>(null)
     const lockRef = useRef(false)
     const openNonce = useRef<number>(0)
@@ -184,10 +188,14 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
         createdOnce.current = false
         closingRef.current = false
         setTransactionBatchItems([])
+        setTransactionBatchItemsGod([])             // 🔥 baru
         setLayoutPaper(<></>)
         setResetBill(true)                 // default: kalau nanti ditutup biasa → hapus
         setHiddenTransaction(isHide)
         setLockedItemsKey(items.join('|'))
+        setLockedItemsKeyGod(                      // 🔥 baru
+            (itemsGod?.length ?? 0) > 0 ? itemsGod.join('|') : null
+        )
         setLockedTxId(txId)
         lockRef.current = true
 
@@ -203,6 +211,7 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
         // reset lock & UI
         setOpen(false)
         setLockedItemsKey(null)
+        setLockedItemsKeyGod(null)     // 🔥 baru
         setLockedTxId(null)
         setHiddenTransaction(false)
         lockRef.current = false
@@ -212,13 +221,13 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
             window?.api?.invoke?.<any, AxiosResponse<TransactionBill>>('api.transaction.bills:delete.one', {
                 id : NewBill.id
             }).then(() => {
-                bumpReload(); bump('batch'); bump('pay'); clearSelection();
+                bumpReload(); bump('batch'); bump('pay'); clearSelection(); clearSelectionGods();
                 setSwalProps({
                     show: true,
                     icon: "success",
                     theme: themes.mode,
                     title: 'Canceled',
-                    text: `Bill ${NewBill?.number} Dibatalkan`,
+                    text: `Bill ${NewBill?.bill} Dibatalkan`,
                 });
             }).catch((error) => {
                 setSwalProps({
@@ -283,6 +292,25 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
             })
     }, [open, lockedItemsKey])
 
+    useEffect(() => {
+        if (!open) return
+        if (!lockedItemsKeyGod) return
+
+        const myNonce = openNonce.current
+
+        window?.api?.invoke?.('api.transaction.batch.item:read.all', { ids: lockedItemsKeyGod.split('|') })
+            .then((res: any) => {
+                if (!lockRef.current) return
+                if (myNonce !== openNonce.current) return
+                setTransactionBatchItemsGod(res?.data ?? [])
+            })
+            .catch(() => {
+                if (!lockRef.current) return
+                setTransactionBatchItemsGod([])
+                // ga perlu taruh ErrorDataLayout di sini; yang utama tetap jalan
+            })
+    }, [open, lockedItemsKeyGod])
+
     // ====== Create bill + preview ======
     useEffect(() => {
         if (!open) return
@@ -299,15 +327,12 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
             reference: { id: Session.id },
             branch: Session.branches,
             transaction: { id: lockedTxId },
-            number: Date.now(),
             items: transactionBatchItems.map((it: any) => {
                 const { id, ...rest } = it
                 return {
                     ...rest,
-                    productVariant: {
-                        id,
-                        reference: { id: Session.id }
-                    }
+                    skipabled: transactionBatchItemsGod.some((god) => god.id === it.id),
+                    productVariant: it.variant
                 }
             }),
             paid: { status: false },
@@ -335,12 +360,13 @@ export default function NewOrderBillModal({ items, mode, label = 'Buat Tagihan',
                             bump('batch')
                             bump('pay')
                             clearSelection()
+                            clearSelectionGods()
                             closeDialog({ deleteBill: false })
                         }}
                     />
                 )
 
-                bumpReload(); bump('batch'); bump('pay'); clearSelection();
+                bumpReload(); bump('batch'); bump('pay'); clearSelection(); clearSelectionGods();
             })
             .catch((error: any) => {
                 if (!lockRef.current) return

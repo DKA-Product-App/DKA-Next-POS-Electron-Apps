@@ -14,6 +14,7 @@ import {useEffect, useState} from "react";
 import dynamic from "next/dynamic";
 import { useFunctionKeyCtx } from '../../../contexts/FunctionKeyProviderContext'
 import {useGodModeProvider} from "../context/GodModeProviderContext";
+import IncomeWidget from "./(ui)/IncomeWidget";
 
 type HeaderProps = {
     appName?: string
@@ -130,13 +131,15 @@ export default function Header({branchName = 'Main Branch', registerName = 'REG-
                         branchName={"Cabang"}
                         registerName={"Center Point Indonesia"}
                     />*/}
+                        <TimeWidget timeVariant="h5" justifySelf="center" />
                     </Stack>
                 </Stack>
 
                 {/* TENGAH: JAM */}
                 <Stack direction="row" spacing={3} sx={{ justifySelf: 'center', alignItems: 'center', minWidth: 0 }}>
                     {/* Center: Time */}
-                    <TimeWidget timeVariant="h5" justifySelf="center" />
+
+                    <IncomeWidget timeVariant="h5" justifySelf="center" />
                 </Stack>
 
                 {/* KANAN: Status + Mode + Kasir */}

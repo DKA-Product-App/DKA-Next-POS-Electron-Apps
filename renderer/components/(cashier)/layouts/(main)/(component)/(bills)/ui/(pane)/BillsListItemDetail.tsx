@@ -57,7 +57,7 @@ const first = <T,>(a?: T[] | T | null): T | undefined =>
     Array.isArray(a) ? a[0] : (a as T | undefined)
 
 /* ================================= DATA DERIVERS ================================= */
-const getInvoice = (b?: TransactionBill) => b?.transaction?.invoice ?? String(b?.number ?? '')
+const getInvoice = (b?: TransactionBill) => b?.transaction?.invoice ?? String(b?.bill ?? '')
 const getIssuedAt = (b?: TransactionBill) => b?.paid?.time_created || b?.transaction?.time_created
 const getPaidAt = (b?: TransactionBill) => b?.paid?.time_updated
 const getRef = (b?: TransactionBill) =>
@@ -75,7 +75,7 @@ const deriveLineItems = (bill?: TransactionBill) =>
             qty: Number(wrap.qty ?? 0),
             price: Number((wrap.price ?? 0) as number),
             sub_total: Number((wrap.sub_total ?? 0) as number),
-            number: bill?.number ?? "# -",
+            bill: bill?.bill ?? "# -",
             time_created: wrap.time_created,
             time_updated: wrap.time_updated,
             reference: wrap.reference,
@@ -373,7 +373,7 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                                 <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
                                     <RequestQuoteRounded sx={{ fontSize: { xs: 18, md: 20 } }} />
                                     <Typography variant="h5" fontWeight={900} noWrap sx={{ letterSpacing: 0.2 }}>
-                                        #{' '}{bill?.number}
+                                        #{' '}{bill?.bill}
                                     </Typography>
                                     <Chip size="small" color={st.color} label={st.label} sx={{ borderRadius: 0, fontSize: { xs: 12, md: 13 } }} />
                                     <Chip size="small" variant="outlined" label={`${itemsCount} item${itemsCount === 1 ? '' : 's'} • ${qtyTotal} qty`} sx={{ borderRadius: 0, fontSize: { xs: 12, md: 13 } }} />

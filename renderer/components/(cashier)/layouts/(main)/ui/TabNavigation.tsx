@@ -31,7 +31,7 @@ const TAB_MIN_WIDTH = 140;   // min lebar tab saat overflow
 
 const TABS: TabDef[] = [
     { key: 'orders', label: 'Pesanan', icon: <ReceiptLongRounded sx={{ fontSize: 18 }} />, render: () => <Transaction /> },
-    { key: 'bills',  label: 'Tagihan', icon: <RequestQuoteRounded  sx={{ fontSize: 18 }} />, render: () => <Bills /> },
+    { key: 'bills',  label: 'History', icon: <RequestQuoteRounded  sx={{ fontSize: 18 }} />, render: () => <Bills /> },
 ];
 
 /* ===== Component ===== */

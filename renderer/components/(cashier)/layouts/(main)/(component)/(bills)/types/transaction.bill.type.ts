@@ -29,7 +29,7 @@ export interface TransactionBillPaid {
 
 export interface TransactionBill {
     id?: UUID
-    number?: number
+    bill?: number
     paid?: TransactionBillPaid
     time_created?: ISODate
     time_updated?: ISODate
@@ -136,6 +136,7 @@ export interface TransactionBillItem {
     qty?: number
     price?: number
     sub_total?: number
+    skipabled?: boolean
     time_created?: ISODate
     time_updated?: ISODate
     branch?: TransactionBillBranch[]

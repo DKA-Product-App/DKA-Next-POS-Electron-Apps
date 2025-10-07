@@ -23,6 +23,7 @@ type Ctx = {
     selectedItemIdsGod: Set<string>
     toggleItem: (item: TransactionBatchesItems) => void
     toggleItemGod: (item: TransactionBatchesItems) => void
+    clearSelectionGods: () => void
     clearSelection: () => void
 
     // Items cache per batch → utk hitung total terpilih secara global
@@ -80,6 +81,7 @@ export function TxProvider({ txId, children }: { txId: string; children: React.R
         })
     }
     const clearSelection = () => setSelectedItemIds(new Set())
+    const clearSelectionGods = () => setSelectedItemIdsGod(new Set())
 
     const selectedTotal = React.useMemo(() => {
         if (selectedItemIds.size === 0) return 0
@@ -100,6 +102,7 @@ export function TxProvider({ txId, children }: { txId: string; children: React.R
         selectedItemIds, toggleItem,
         selectedItemIdsGod, toggleItemGod,
         clearSelection,
+        clearSelectionGods,
         registerItems, itemsByBatch, selectedTotal,
         reloadKey, bumpReload,
         // NEW: expose setter (dua nama, sama-sama ke setReloadKey state)
