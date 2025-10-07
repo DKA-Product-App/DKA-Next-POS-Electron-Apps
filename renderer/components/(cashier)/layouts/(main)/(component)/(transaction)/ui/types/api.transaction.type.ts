@@ -204,6 +204,7 @@ export interface TransactionBillsItems {
 export interface TransactionBills {
     id?: string;
     number?: string; // "9"
+    tax?: number;
     paid?: { time?: string | null; status?: boolean };
     time_created?: string;
     time_updated?: string;

@@ -17,7 +17,27 @@ export default function IncomeWidget({
                                    }: TimeWidgetProps) {
     // Jangan render waktu saat SSR → biar gak mismatch
     const [mounted, setMounted] = React.useState(false)
-    const [ payloadCount, setPayloadCount ] = React.useState<{ status?: boolean, code?: number, msg?: string; data?: { total?: number; }}>(undefined);
+    const [ payloadCount, setPayloadCount ] = React.useState<{ status?: boolean, code?: number, msg?: string; data?: {
+            bruto: {
+                total: number;
+                tax: number;
+            };
+            netto: {
+                total: number;
+            };
+        }}>(undefined);
+
+
+    const fetchTotal = () => {
+        window?.api?.invoke?.("api.transaction.bills:count.all", {})
+            .then(async (result) => {
+
+                setPayloadCount(result);
+            })
+            .catch((error) => {
+                setPayloadCount(undefined)
+            })
+    }
 
     useEffect(() => {
         setMounted(true);
@@ -27,47 +47,50 @@ export default function IncomeWidget({
     }, []);
 
     useEffect(() => {
+        let timer: NodeJS.Timeout | undefined = undefined
         if (mounted){
-            window?.api?.invoke?.("api.transaction.bills:count.all", {})
-                .then(async (result) => {
-
-                    setPayloadCount(result);
-                })
-                .catch((error) => {
-                    setPayloadCount(undefined)
-                })
+            timer = setInterval(() => {
+                fetchTotal();
+            }, 60000)
+        }else{
+            clearInterval(timer)
         }
     }, [mounted]);
 
+
+
+
     return (
-        <Box
-            sx={{
-                justifySelf,
-                textAlign: 'center',
-                lineHeight: 1.1,
-                userSelect: 'none',
-            }}
-        >
-            <Typography
-                variant={timeVariant}
-                // suppressHydrationWarning penting kalau somehow masih ada text saat SSR
-                suppressHydrationWarning
+        <>
+            <Box
                 sx={{
-                    fontWeight: 600,
-                    letterSpacing: 1,
-                    fontVariantNumeric: 'tabular-nums',
+                    justifySelf,
+                    textAlign: 'center',
+                    lineHeight: 1.1,
+                    userSelect: 'none',
                 }}
             >
-                Rp. {payloadCount?.data?.total}
-            </Typography>
+                <Typography
+                    variant={timeVariant}
+                    // suppressHydrationWarning penting kalau somehow masih ada text saat SSR
+                    suppressHydrationWarning
+                    sx={{
+                        fontWeight: 600,
+                        letterSpacing: 1,
+                        fontVariantNumeric: 'tabular-nums',
+                    }}
+                >
+                    Rp. {payloadCount?.data?.bruto?.total}
+                </Typography>
 
-            <Typography
-                variant="caption"
-                suppressHydrationWarning
-                sx={{ display: 'block', color: 'text.secondary', mt: 0.25 }}
-            >
-                Penghasilan Shift Anda
-            </Typography>
-        </Box>
+                <Typography
+                    variant="caption"
+                    suppressHydrationWarning
+                    sx={{ display: 'block', color: 'text.secondary', mt: 0.25 }}
+                >
+                    Penghasilan Shift Anda
+                </Typography>
+            </Box>
+        </>
     )
 }

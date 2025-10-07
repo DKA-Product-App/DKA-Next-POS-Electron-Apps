@@ -30,6 +30,7 @@ export interface TransactionBillPaid {
 export interface TransactionBill {
     id?: UUID
     bill?: number
+    tax?: number;
     paid?: TransactionBillPaid
     time_created?: ISODate
     time_updated?: ISODate

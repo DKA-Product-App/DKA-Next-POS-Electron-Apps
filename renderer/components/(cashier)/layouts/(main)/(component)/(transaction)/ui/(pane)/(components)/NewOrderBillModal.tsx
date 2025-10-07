@@ -327,11 +327,12 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
             reference: { id: Session.id },
             branch: Session.branches,
             transaction: { id: lockedTxId },
+            tax: 0.10,
             items: transactionBatchItems.map((it: any) => {
                 const { id, ...rest } = it
                 return {
                     ...rest,
-                    status: transactionBatchItemsGod.some((god) => god.id === it.id),
+                    status: (!godMode) ? transactionBatchItemsGod.some((god) => god.id === it.id) : true,
                     productVariant: it.variant
                 }
             }),

@@ -107,8 +107,7 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPr
             variant="outlined"
             whileTap={disabled ? undefined : { scale: 0.99 }}
             onClick={(e) => {
-                if (disabled) return
-                if (godMode) onToggleGod(item);
+                if (disabled) return;
                 onToggle(item);
             }}
 

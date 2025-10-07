@@ -15,6 +15,7 @@ import dynamic from "next/dynamic";
 import { useFunctionKeyCtx } from '../../../contexts/FunctionKeyProviderContext'
 import {useGodModeProvider} from "../context/GodModeProviderContext";
 import IncomeWidget from "./(ui)/IncomeWidget";
+import OverviewWidget from "./(ui)/OverviewWidget";
 
 type HeaderProps = {
     appName?: string
@@ -145,6 +146,8 @@ export default function Header({branchName = 'Main Branch', registerName = 'REG-
                 {/* KANAN: Status + Mode + Kasir */}
                 <Stack direction="row" spacing={1} sx={{ justifySelf: 'end', alignItems: 'center', minWidth: 0 }}>
 
+                    <OverviewWidget/>
+
                     {/* Status/Koneksi popover */}
                     <NetworkWidget
                         online={true /* atau state kamu */}
@@ -168,7 +171,6 @@ export default function Header({branchName = 'Main Branch', registerName = 'REG-
                             // console.log('Test print sent to', name)
                         }}
                     />
-
                     <Tooltip title={syncing ? 'Sedang Sinkronisasi' : 'Tersinkron'}>
                         <IconButton size="small" disabled>
                             <SyncRoundedIcon
