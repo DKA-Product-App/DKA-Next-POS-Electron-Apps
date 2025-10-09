@@ -55,7 +55,7 @@ nsis:
   oneClick: false
   perMachine: true
   allowToChangeInstallationDirectory: false
-  allowElevation": true
+  allowElevation: true
   installerIcon: resources/icon.ico
   uninstallerIcon: resources/icon.ico
   uninstallDisplayName: "DKA Cashier POS Apps"
