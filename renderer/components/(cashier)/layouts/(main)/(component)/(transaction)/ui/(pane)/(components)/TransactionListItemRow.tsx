@@ -16,18 +16,21 @@ import moment from "moment-timezone"
 
 import TransactionListItemPrintTransaction from './TransactionListItemPrintTransaction'
 import {Transaction, TransactionBatchesItems, TransactionBills} from "../../types/api.transaction.type";
+import {useEffect} from "react";
+import {AxiosResponse} from "axios";
+import {SummarizeTxReturn} from "../../../types/transaction.read.one.type";
 /* ========= Utils khusus Row ========= */
 const rupiah = (n: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
         .format(typeof n === 'string' ? parseFloat(n) : n)
 
 
-const totalQty = (o: Transaction) => (o.batches ?? []).reduce((acc, b) => acc + (b.items ?? []).reduce((a, i) => a + i.qty, 0), 0)
-const totalItems = (o: Transaction) => (o.batches ?? []).reduce((acc, b) => acc + (b.items ?? []).length, 0)
-const totalBatches = (o: Transaction) => (o.batches ?? []).length
+const totalQty = (transaction: Transaction) => (transaction?.batches ?? []).reduce((acc, b) => acc + (b.items ?? []).reduce((a, i) => a + i.qty, 0), 0)
+const totalItems = (transaction: Transaction) => (transaction?.batches ?? []).reduce((acc, b) => acc + (b.items ?? []).length, 0)
+const totalBatches = (transaction: Transaction) => (transaction?.batches ?? []).length
 
 // ====== Bills-aware helpers ======
-const pickBills = (o: Transaction) => o.bills ?? [];
+const pickBills = (transaction: Transaction) => transaction?.bills ?? [];
 const getStatusSummary = (o: Transaction) => {
     const bills = pickBills(o);
     const allTxItems = (o?.batches ?? []).flatMap(b => b?.items ?? []).filter(Boolean);
@@ -132,16 +135,16 @@ const getStatusSummary = (o: Transaction) => {
     };
 };
 // Total harga transaksi, skip void-approved & success-paid
-const totalPrices = (o: Transaction) => {
-    const paidTxnItemIds = o.bills
+const totalPrices = (transaction: Transaction) => {
+    const paidTxnItemIds = transaction?.bills
         .filter(b => b?.paid?.status === true)
         .flatMap(b => b?.items ?? [])
         .map(it => it?.productVariant?.id)
         .filter((id): id is string => Boolean(id));
 
-    const orders = o.batches
+    const orders = transaction?.batches
         .flatMap(b => b?.items ?? [])
-        .filter(() => o.time_closed === null)
+        .filter(() => transaction?.time_closed === null)
         .filter(it => it?.void === null || it?.void?.is_approved === false)
         .filter(it => !paidTxnItemIds.includes(it.id))
         .reduce((sum, it) => sum + Number(it?.sub_total ?? 0), 0);
@@ -273,22 +276,20 @@ const RoundCheckbox: React.FC<{
 
 /* ========= ROW ========= */
 export const TransactionListItemRow: React.FC<{
-    o: Transaction
+    transactionId: string
     singleSelected?: boolean
     multiChecked?: boolean
     onRowClick?: () => void
     onMultiToggle?: (checked: boolean) => void
-}> = ({ o, singleSelected = false, multiChecked = false, onRowClick, onMultiToggle }) => {
-    const qtys = totalQty(o)
-    const items = totalItems(o)
-    const batches = totalBatches(o)
-    const { counts } = getStatusSummary(o);
-    const { orders } = totalPrices(o) // <-- sudah skip pending-paid & void
-    const isClosed = Boolean(o.time_closed)
+}> = ({ transactionId, singleSelected = false, multiChecked = false, onRowClick, onMultiToggle }) => {
+    
+    const [transaction, setTransaction ] = React.useState<Transaction>(undefined);
+    const [transactionMeta, setTransactionMeta ] = React.useState<SummarizeTxReturn>(undefined);
+    const isClosed = React.useMemo(() => Boolean(transaction?.time_closed), [transaction])
 
     // ★ flags/gradients
-    const hasPending = counts.pendingPaid > 0
-    const allSuccessPaid = counts.pendingPaid === 0 && counts.unpaid === 0 && ((counts.paid + counts.void) === items)
+    const hasPending = transactionMeta?.raw.batchItems?.active.count > 0
+    const allSuccessPaid = transactionMeta?.raw.batchItems?.active.count === 0
 
     const GRAD_WARN_TO_SUCCESS = 'linear-gradient(90deg, #F59E0B, #10B981)'
     const GRAD_ERROR_TO_WARN   = 'linear-gradient(90deg, #EF4444, #F59E0B)'
@@ -323,6 +324,23 @@ export const TransactionListItemRow: React.FC<{
                 : hasPending ? 'warning.contrastText'
                     : 'success.contrastText'
 
+
+    useEffect(() => {
+        window.api.invoke<{ id : string }, { data : Transaction, meta: SummarizeTxReturn }>('api.transaction:read.one', {
+            id : transactionId,
+        })
+            .then(({ data, meta }) => {
+                console.log(data);
+                setTransaction(data);
+                setTransactionMeta(meta)
+            })
+            .catch((err: any) => {
+                console.error(err)
+                setTransaction(undefined)
+                setTransactionMeta(undefined)
+            })
+    }, [transactionId]);
+    
     return (
         <>
             <ListItemButton
@@ -350,21 +368,21 @@ export const TransactionListItemRow: React.FC<{
                         <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
                             <ReceiptLongRounded fontSize="small" />
                             <Typography variant="h6" fontWeight={900} noWrap sx={{ letterSpacing: 0.2, lineHeight: 1.2, fontFeatureSettings: '"tnum" 1, "lnum" 1' }}>
-                                # {o.invoice}
+                                # {transaction?.invoice}
                             </Typography>
-                            <Chip size="small" color="secondary" label={o.order_type?.name ?? '-'} variant="outlined" />
+                            <Chip size="small" color="secondary" label={transaction?.order_type?.name ?? '-'} variant="outlined" />
                             {
-                                o.table && (
-                                    <Chip size="small" color="primary" label={o.table?.code ? `${o.table.code} - ${o.table.floor.code}` : 'No table'} variant="outlined" />
+                                transaction?.table && (
+                                    <Chip size="small" color="primary" label={transaction?.table?.code ? `${transaction?.table.code} - ${transaction?.table.floor.code}` : 'No table'} variant="outlined" />
                                 )
                             }
                         </Stack>
                         <Typography
                             variant="subtitle1"
                             fontWeight={900}
-                            title={rupiah(orders)}
+                            title={rupiah(transactionMeta?.raw.batchItems.active.price)}
                         >
-                            {rupiah(orders ?? 0)}
+                            {rupiah(transactionMeta?.raw.batchItems.active.price ?? 0)}
                         </Typography>
                     </Stack>
 
@@ -372,11 +390,11 @@ export const TransactionListItemRow: React.FC<{
                     <Stack direction="row" alignItems="center" gap={0.75}>
                         <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
                             <Chip size="small" label={isClosed ? 'Selesai' : (hasPending) ? 'Pending' : 'Aktif'} color={isClosed ? 'error' : (hasPending) ? 'warning' : 'success'} variant="filled" />
-                            <Chip size="small" icon={<LocalMallRounded />} label={`${qtys} item`} />
-                            <Chip size="small" icon={<LayersRounded />} label={`${batches} batch`} />
+                            <Chip size="small" icon={<LocalMallRounded />} label={`${transactionMeta?.pretty?.batchItems?.all.count} item`} />
+                            <Chip size="small" icon={<LayersRounded />} label={`${transactionMeta?.pretty?.batches.count} batch`} />
                         </Stack>
                         {/* @ts-ignore */}
-                        <TransactionListItemPrintTransaction tx={o} />
+                        <TransactionListItemPrintTransaction tx={transaction} />
                     </Stack>
 
                     {/* Baris 3 — kasir, shift, dan kode meja */}
@@ -385,11 +403,11 @@ export const TransactionListItemRow: React.FC<{
                             <Chip
                                 size="small"
                                 icon={<PersonOutlineRounded />}
-                                label={o.reference?.name?.first_name ?? o.reference?.username ?? (o.reference?.id ? `${o.reference.id.slice(0,8)}…` : '-')}
-                                title={o.reference?.id ?? ''}
+                                label={transaction?.reference?.name?.first_name ?? transaction?.reference?.username ?? (transaction?.reference?.id ? `${transaction?.reference.id.slice(0,8)}…` : '-')}
+                                title={transaction?.reference?.id ?? ''}
                             />
-                            <Chip size="small" icon={<AccessTimeRounded />} label={o.shift?.name ?? '-'} />
-                            <Chip size="small" icon={<StorageIcon />} label={`${items} item`} />
+                            <Chip size="small" icon={<AccessTimeRounded />} label={transaction?.shift?.name ?? '-'} />
+                            <Chip size="small" icon={<StorageIcon />} label={`${transactionMeta?.pretty.bills.count} item`} />
                         </Stack>
                     </Stack>
 
@@ -398,8 +416,8 @@ export const TransactionListItemRow: React.FC<{
                             <Chip
                                 size="small"
                                 icon={<PersonOutlineRounded />}
-                                label={o.reference?.name?.first_name ?? o.reference?.username ?? (o.reference?.id ? `${o.reference.id.slice(0,8)}…` : '-')}
-                                title={o.reference?.id ?? ''}
+                                label={transaction?.reference?.name?.first_name ?? transaction?.reference?.username ?? (transaction?.reference?.id ? `${transaction?.reference.id.slice(0,8)}…` : '-')}
+                                title={transaction?.reference?.id ?? ''}
                             />
                             <Chip size="small" label={`unpaid : ${active}`} />
                             <Chip size="small" label={`pending : ${pending}`} />
@@ -409,13 +427,13 @@ export const TransactionListItemRow: React.FC<{
 
                     {/* Timestamp asli + RoundCheckbox (kanan) */}
                     <Stack direction="row" alignItems="center" justifyContent="space-between">
-                        <Typography variant="caption" color="text.secondary">{moment(o.time_created).format(`HH:mm:ss DD-MM-YYYY`)}</Typography>
+                        <Typography variant="caption" color="text.secondary">{moment(transaction?.time_created).format(`HH:mm:ss DD-MM-YYYY`)}</Typography>
                         {!isClosed && (
                             <RoundCheckbox
                                 checked={!!multiChecked}
                                 onChange={(c) => onMultiToggle ? onMultiToggle(c) : undefined}
                                 onClick={(e) => e.stopPropagation()}
-                                aria-label={`Pilih transaksi ${o.invoice} untuk multi-select`}
+                                aria-label={`Pilih transaksi ${transaction?.invoice} untuk multi-select`}
                                 sizePx={22}
                                 colorKey="success"
                                 outScale={0.33}
@@ -438,7 +456,7 @@ export const TransactionListItemRow: React.FC<{
                     px: 1.5, py: 0.8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1,
                 }}
             >
-                <TimerText startIso={o.time_created} endIso={o.time_closed} active={!isClosed} />
+                <TimerText startIso={transaction?.time_created} endIso={transaction?.time_closed} active={!isClosed} />
             </Box>
         </>
     )

@@ -439,7 +439,7 @@ const TransactionListItem: React.FC = () => {
                             {filtered.map(o => (
                                 <TransactionListItemRow
                                     key={o.id}
-                                    o={o}
+                                    transactionId={o.id}
                                     singleSelected={singleSelectedId === o.id}
                                     multiChecked={multiSelectedIds.has(o.id as string)}
                                     onRowClick={() => onRowClick(o.id as string)}

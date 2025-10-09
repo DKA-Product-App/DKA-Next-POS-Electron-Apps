@@ -53,13 +53,15 @@ nsis:
   artifactName: "DKA-POS-Setup-${version}.${ext}"
   oneClick: false
   perMachine: true
-  allowToChangeInstallationDirectory: true
+  allowToChangeInstallationDirectory: false
+  allowElevation": true
   installerIcon: resources/icon.ico
   uninstallerIcon: resources/icon.ico
   uninstallDisplayName: "DKA Cashier POS Apps"
   shortcutName: "DKA Cashier POS"
   createDesktopShortcut: always
   createStartMenuShortcut: true
+  include: "resources/scripts/installer-acl.nsh"
 
 portable:
   artifactName: "DKA-POS-Portable-${version}.${ext}"

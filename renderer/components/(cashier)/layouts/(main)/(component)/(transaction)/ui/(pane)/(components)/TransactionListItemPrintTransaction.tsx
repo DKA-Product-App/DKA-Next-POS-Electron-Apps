@@ -51,15 +51,15 @@ function categoriesForPrinter(it: TransactionBatchesItems, printerId: string): s
     return names.length ? names.join(', ') : ''
 }
 
-function allTxItems(tx: Transaction): TransactionBatchesItems[] {
-    return tx.batches.flatMap(b => Array.isArray(b.items) ? b.items : [])
+function allTxItems(tx?: Transaction): TransactionBatchesItems[] {
+    return tx?.batches?.flatMap(b => Array.isArray(b.items) ? b.items : [])
 }
 
-function groupTxItemsByPrinter(tx: Transaction): PrinterBucket[] {
+function groupTxItemsByPrinter(tx?: Transaction): PrinterBucket[] {
     // ⬇️ hide items approved void; tampilkan normal + pending
-    const source = allTxItems(tx).filter(it => !isApprovedVoid(it))
+    const source = allTxItems(tx)?.filter(it => !isApprovedVoid(it))
     const map = new Map<string, PrinterBucket>()
-    source.forEach(it => {
+    source?.forEach(it => {
         const cats: any[] = Array.isArray((it as any)?.product?.category) ? (it as any).product.category : []
         const seen = new Set<string>()
         cats.forEach(c => {
@@ -111,7 +111,7 @@ function mergeItemsByVariant(items: TransactionBatchesItems[]): MergedItem[] {
 /* ===== Komponen utama ===== */
 const PURPLE_GRAD = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
 
-const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx }) => {
+const TransactionListItemPrintTransaction: React.FC<{ tx?: Transaction }> = ({ tx }) => {
     const [open, setOpen] = React.useState(false)
     const buckets = React.useMemo(() => groupTxItemsByPrinter(tx), [tx])
 
@@ -144,8 +144,8 @@ const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx
         const itemIds = bucket.items.map(it => String((it as any).id))
         const payload = {
             printer: bucket.id,
-            transaction: tx.id,
-            invoice: tx.invoice,
+            transaction: tx?.id,
+            invoice: tx?.invoice,
             itemIds,
             merge_variant: true
         }
@@ -165,7 +165,7 @@ const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx
         setLoadingAll(true)
         const tasks = bucketsToPrint.map(b => {
             const itemIds = b.items.map(it => String((it as any).id))
-            const payload = { printer: b.id, transaction: tx.id, invoice: tx.invoice, itemIds, merge_variant: true }
+            const payload = { printer: b.id, transaction: tx?.id, invoice: tx?.invoice, itemIds, merge_variant: true }
             // @ts-ignore
             return window.api.invoke('api.transaction:print', payload)
                 .then((res: any) => { showStatus(b.id, 'success', `${res.msg}`); return { ok: true, id: b.id } })
@@ -210,7 +210,7 @@ const TransactionListItemPrintTransaction: React.FC<{ tx: Transaction }> = ({ tx
                 >
                     {/* Header + Tabs */}
                     <Box sx={{ px: 1.5, pt: 1.25, pb: 0.5 }}>
-                        <Typography variant="subtitle1" fontWeight={900}>Cetak Transaksi • #{tx.invoice}</Typography>
+                        <Typography variant="subtitle1" fontWeight={900}>Cetak Transaksi • #{tx?.invoice}</Typography>
                         <Typography variant="caption" color="text.secondary">{buckets.length} printer ditemukan</Typography>
                     </Box>
                     <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto" sx={{ px: 1 }}>

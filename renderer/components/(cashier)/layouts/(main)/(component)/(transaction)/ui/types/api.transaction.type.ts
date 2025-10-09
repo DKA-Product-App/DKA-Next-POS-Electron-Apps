@@ -4,11 +4,14 @@
  *  Tanggal: 2025-09-29
  * ========================================= */
 
+import {SummarizeTxReturn} from "../../types/transaction.read.one.type";
+
 export interface TransactionApiResponse<T> {
     status?: boolean;
     code?: number;
     msg?: string;
     data?: T;
+    meta?: SummarizeTxReturn;
 }
 
 export type TransactionApiResponseList = TransactionApiResponse<Transaction[]>;

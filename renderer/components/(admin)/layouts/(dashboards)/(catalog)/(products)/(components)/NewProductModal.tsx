@@ -11,10 +11,10 @@ import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded'
 import UploadRounded from '@mui/icons-material/UploadRounded'
 import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded'
 import AutoAwesomeRounded from '@mui/icons-material/AutoAwesomeRounded'
-import { ApiCategory, RowCategory } from '../../(categories)'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 import {useSession} from "../../../../../../../contexts/SessionProviderContext";
+import { ProductsCategories } from '../../../types/product.categories.type'
 
 type VariantDraft = {
     id: string
@@ -117,7 +117,7 @@ export default function NewProductModal(props: NewProductModalProps) {
     const { Session } = useSession();
     const [open, setOpen] = React.useState(false)
     const [name, setName] = React.useState('') // Nama Produk
-    const [categoriesList, setCategoryList] = React.useState<RowCategory[]>([])
+    const [categoriesList, setCategoryList] = React.useState<ProductsCategories[]>([])
     const [description, setDescription] = React.useState('')
     const [categoryId, setCategoryId] = React.useState<string>('')
     const [variants, setVariants] = React.useState<VariantDraft[]>([{
@@ -152,15 +152,8 @@ export default function NewProductModal(props: NewProductModalProps) {
         window.api
             .invoke('api.product.category:read.all', {})
             .then((result: any) => {
-                const data = (result?.data ?? []) as ApiCategory[]
-                const mapped: RowCategory[] = data.map((c) => ({
-                    id: c.id,
-                    category: c.name,
-                    description: c.description ?? null,
-                    printersCount: c.printer?.length ?? 0,
-                    printers: c.printer ?? [],
-                }))
-                setCategoryList(mapped)
+                const data = (result?.data ?? []) as ProductsCategories[]
+
                 setError(null)
             })
             .catch((err: any) => {
@@ -351,7 +344,7 @@ export default function NewProductModal(props: NewProductModalProps) {
                                                 >
                                                     <MenuItem value="">—</MenuItem>
                                                     {categoriesList.map(c => (
-                                                        <MenuItem key={c.id} value={c.id}>{c.category}</MenuItem>
+                                                        <MenuItem key={c.id} value={c.id}>{c?.name ?? ""}</MenuItem>
                                                     ))}
                                                 </TextField>
                                             )}

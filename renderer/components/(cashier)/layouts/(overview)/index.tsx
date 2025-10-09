@@ -77,6 +77,37 @@ export default function Overview() {
     const [mode, setMode] = React.useState<Mode>('sample80');
     const { godMode, setGodMode } = useGodModeProvider();
 
+    const [mounted, setMounted] = React.useState(false)
+    const [ payloadCount, setPayloadCount ] = React.useState<{ status?: boolean, code?: number, msg?: string; data?: {
+            bruto: {
+                total: number;
+                tax: number;
+            };
+            netto: {
+                total: number;
+            };
+        }}>(undefined);
+
+
+    const fetchTotal = () => {
+        window?.api?.invoke?.("api.transaction.bills:count.all", {})
+            .then(async (result) => {
+
+                setPayloadCount(result);
+            })
+            .catch((error) => {
+                setPayloadCount(undefined)
+            })
+    }
+
+    useEffect(() => {
+        setMounted(true);
+        return () => {
+            setMounted(false);
+        }
+    }, []);
+
+
     useEffect(() => {
         setMode(() => (godMode ? 'sample50' : 'sample80'));
     }, [godMode]);
