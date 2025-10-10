@@ -189,7 +189,7 @@ const PaymentMethodsPicker: React.FC<{
 /* ================================= MAIN ================================= */
 type TenderMode = 'idle' | 'entry' | 'ready'
 
-const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean, onPaySuccess?: () => void; pendingBillPay?: () => void; }> = ({ billId, isHideTransaction, onPaySuccess, pendingBillPay }) => {
+const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean, onPaySuccess?: () => void; cancelBill?: () => void; }> = ({ billId, isHideTransaction, onPaySuccess, cancelBill }) => {
     const [bill, setBill] = useState<TransactionBill | undefined>(undefined)
     const { mode, toggleMode } = useThemeCharger()
     const { set, config } = useUserConfig();
@@ -279,6 +279,17 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
     }, [cash, grandTotal, needTender, isPaid, tenderMode])
 
 
+    const onCancelBill = React.useCallback(() => {
+        window.api.invoke('api.transaction.bills:delete.one', { id : bill?.id })
+            .then(() => {
+                setSwalProps({ show: true, icon: "success", theme: mode, title: 'Canceled', text: `Bill dibatalkan` });
+                cancelBill?.();
+            })
+            .catch((error) => {
+                if (error?.safeSkip) return;
+                setSwalProps({ show: true, icon: "error", theme: mode, title: 'Gagal Membatalkan', text: `Check Tagihan Anda` });
+            });
+    }, [bill, mode])
 
     const canPay = !isPaid && !!method && (!needTender || tenderMode === 'ready')
 
@@ -561,16 +572,16 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                     <Box sx={{ p: { xs: 2, md: 2.5 }, borderTop: '1px solid', borderColor: 'divider', display: 'flex', gap: 1.25, justifyContent: 'flex-end', flexShrink: 0 }}>
 
                         {
-                            pendingBillPay && (
+                            cancelBill && (
                                 <Button
                                     variant="contained"
                                     color="warning"
                                     startIcon={<AttachMoneyRounded sx={{ fontSize: 36 }} />}
-                                    onClick={pendingBillPay}
+                                    onClick={onCancelBill}
                                     sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, fontSize: { xs: 14, md: 15 }, py: 1.1, px: 2.2 }}
-                                    title={'Tangguhkan Bill'}
+                                    title={'Cancel Bill'}
                                 >
-                                    Tangguhkan Bill
+                                    Cancel Bill
                                 </Button>
                             )
                         }

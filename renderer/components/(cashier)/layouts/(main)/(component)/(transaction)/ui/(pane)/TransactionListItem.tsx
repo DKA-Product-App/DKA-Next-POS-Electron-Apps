@@ -208,7 +208,7 @@ const TransactionListItem: React.FC = () => {
         lastReasonRef.current = reason ?? null
         setFetchError(null)
         // kalau perlu langsung refresh ringan:
-        // void softRefetch()
+        void softRefetch()
     }, [token, reason])
 
     // b) kalau reason === 'batch' → set ujung slider ke puncak (bukan computed)

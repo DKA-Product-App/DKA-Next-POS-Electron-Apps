@@ -3,6 +3,9 @@
 import * as React from 'react'
 import { Box, Typography } from '@mui/material'
 import {useEffect} from "react";
+import {
+    useTransactionEventTrigger
+} from "../../layouts/(main)/(component)/(transaction)/ui/(pane)/context/TransactionEventTriggerContext";
 
 type TimeWidgetProps = {
     /** Font size jam utama */
@@ -17,6 +20,7 @@ export default function IncomeWidget({
                                    }: TimeWidgetProps) {
     // Jangan render waktu saat SSR → biar gak mismatch
     const [mounted, setMounted] = React.useState(false)
+    const { token, reason } = useTransactionEventTrigger()
     const [ payloadCount, setPayloadCount ] = React.useState<{ status?: boolean, code?: number, msg?: string; data?: {
             bruto: {
                 total: number;
@@ -31,10 +35,11 @@ export default function IncomeWidget({
     const fetchTotal = () => {
         window?.api?.invoke?.("api.transaction.bills:count.all", {})
             .then(async (result) => {
-
+                console.log(`Header Income Diperbarui`, result);
                 setPayloadCount(result);
             })
             .catch((error) => {
+                console.log(`Header Income Gagal Diperbarui`, error);
                 setPayloadCount(undefined)
             })
     }
@@ -47,18 +52,11 @@ export default function IncomeWidget({
     }, []);
 
     useEffect(() => {
-        let timer: NodeJS.Timeout | undefined = undefined
         if (mounted){
-            timer = setInterval(() => {
-                fetchTotal();
-            }, 60000)
-        }else{
-            clearInterval(timer)
+            // keep list up-to-date when token/reason change
+            void fetchTotal();
         }
-    }, [mounted]);
-
-
-
+    }, [token, reason, mounted])
 
     return (
         <>

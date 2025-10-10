@@ -3,13 +3,12 @@
 import * as React from 'react'
 import {
     Button, Badge, Tooltip, Dialog, DialogTitle, DialogContent,
-    Box, Paper, Stack, Typography, IconButton
+    Box, Paper, Stack, Typography, IconButton, CircularProgress
 } from '@mui/material'
 import CallSplitRounded from '@mui/icons-material/CallSplitRounded'
 import ReceiptLongRounded from '@mui/icons-material/ReceiptLongRounded'
-import type {ButtonProps} from '@mui/material'
-import {useTx} from '../context/TransactionContext'
-import {useEffect, useRef, useState} from 'react'
+import type { ButtonProps } from '@mui/material'
+import { useTx } from '../context/TransactionContext'
 import normalizeIpcError from '../../../../../../../../../helpers/electronMessageErrorEsctration'
 import InfoOutlined from '@mui/icons-material/InfoOutlined'
 import FullscreenExitRounded from '@mui/icons-material/FullscreenExitRounded'
@@ -17,57 +16,46 @@ import FullscreenRounded from '@mui/icons-material/FullscreenRounded'
 import DarkModeRounded from '@mui/icons-material/DarkModeRounded'
 import LightModeRounded from '@mui/icons-material/LightModeRounded'
 import CloseRounded from '@mui/icons-material/CloseRounded'
-import {useTheme} from '@mui/material/styles'
-import {useThemeCharger} from '../../../../../../../../../contexts/ThemeCharger'
+import { useTheme } from '@mui/material/styles'
+import { useThemeCharger } from '../../../../../../../../../contexts/ThemeCharger'
 import dynamic from 'next/dynamic'
-import {useTabNavigationHandlerContext} from '../../../context/TabNavigationHandlerContext'
-import {useTransactionEventTrigger} from "../context/TransactionEventTriggerContext";
-import {useSession} from "../../../../../../../../../contexts/SessionProviderContext";
-import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../types/api.transaction.type";
-import {AxiosResponse} from "axios";
-import {TransactionBill, TransactionBillPrinterDevice} from "../../../../(bills)/types/transaction.bill.type";
-import SweetAlert2, {SweetAlert2Props} from "react-sweetalert2";
-import TransactionBills from "../../../../../../../../../../main/api/transaction/bills/api.transaction.bills.api";
-import {useSingleDoubleClick} from "../../../../../../../../../helpers/useSingleDoubleClick";
-import {useGodModeProvider} from "../../../../../../../context/GodModeProviderContext";
-import {useUserConfig} from "../../../../../../../../../contexts/UserConfigContext";
+import { useTabNavigationHandlerContext } from '../../../context/TabNavigationHandlerContext'
+import { useTransactionEventTrigger } from "../context/TransactionEventTriggerContext";
+import { useSession } from "../../../../../../../../../contexts/SessionProviderContext";
+import { Transaction, TransactionBatchesItems } from "../../types/api.transaction.type";
+import { TransactionBill } from "../../../../(bills)/types/transaction.bill.type";
+import SweetAlert2, { SweetAlert2Props } from "react-sweetalert2";
+import { useGodModeProvider } from "../../../../../../../context/GodModeProviderContext";
+import {useEffect} from "react";
 
+// ⬇️ opsional: hindari reuse SSR
 const BillListItemDetail = dynamic(
     () => import('./../../../../(bills)/ui/(pane)/BillsListItemDetail'),
-    {ssr: true}
+    { ssr: false }
 )
 
+/* ---------- Mini error UI ---------- */
 const ErrorDataLayout: React.FC<{
-    status: boolean,
-    code: number | string,
-    msg: string,
-    raw?: any,
-    extra?: any
-}> = ({status, code, msg, raw, extra}) => {
-    const {setState} = useTabNavigationHandlerContext()
+    status: boolean, code: number | string, msg: string, raw?: any, extra?: any
+}> = ({ code, msg, extra }) => {
+    const { setState } = useTabNavigationHandlerContext()
     return (
-        <Box sx={{height: '100%', display: 'grid', placeItems: 'center', p: 2}}>
+        <Box sx={{ height: '100%', display: 'grid', placeItems: 'center', p: 2 }}>
             <Paper elevation={0} sx={(t) => ({
                 maxWidth: 640, width: '100%', p: 3, border: '1px dashed', borderColor: 'divider',
                 bgcolor: t.palette.mode === 'dark' ? 'background.default' : 'background.paper', textAlign: 'center'
             })}>
                 <Stack spacing={1.25} alignItems="center">
-                    <InfoOutlined color="info" sx={{fontSize: 36}}/>
-                    <Typography variant="h6" fontWeight={900}>Harap Selesaikan Tagihan Terakhir</Typography>
-                    <Typography variant="body2" color="text.secondary">{msg}</Typography>
+                    <InfoOutlined color="info" sx={{ fontSize: 36 }} />
+                    <Typography variant="h6" fontWeight={900}>Gagal membuat Tagihan</Typography>
+                    <Typography variant="body2" color="text.secondary">{msg} (code {code})</Typography>
                     {code === 402 && (
-                        <Box sx={{display: 'flex', justifyContent: 'center'}}>
-                            <Button
-                                onClick={() => setState(prev => ({
-                                    ...prev,
-                                    active: 'bills',
-                                    id: extra?.data?.id ?? undefined
-                                }))}
-                                variant="outlined" sx={{textTransform: 'none', fontWeight: 800, borderRadius: 1.5}}
-                            >
-                                Menuju Ke Tagihan ({extra?.data?.number ?? '-'})
-                            </Button>
-                        </Box>
+                        <Button
+                            onClick={() => setState(prev => ({ ...prev, active: 'bills', id: extra?.data?.id ?? undefined }))}
+                            variant="outlined" sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 1.5 }}
+                        >
+                            Buka Tagihan
+                        </Button>
                     )}
                 </Stack>
             </Paper>
@@ -77,315 +65,208 @@ const ErrorDataLayout: React.FC<{
 
 type Props = {
     items: string[]
-    itemsGod: string[],
+    itemsGod: string[]
     mode: 'split' | 'full'
     label?: string
-    onSuccess?: () => void
-    variant?: ButtonProps['variant'],
+    variant?: ButtonProps['variant']
     transaction: Transaction
 }
 
-const totalItems = (o?: Transaction) => (o?.batches ?? []).reduce((acc, b) => acc + (b.items ?? []).length, 0)
-const pickBills = (o?: Transaction) => o?.bills ?? []
-const getPendingActive = (o?: Transaction) => {
-    const bills = pickBills(o);
-
-    const ids =
-        (o?.batches ?? [])
-            .flatMap((bt: any) => Array.isArray(bt?.items) ? bt.items : [])
-            .map((it: any) => it?.id)
-            .filter(Boolean);
-
-    const allBillIdSet = new Set(
-        bills
-            .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
-            .map((bi) => bi?.productVariant?.id)
-            .filter(Boolean)
-    );
-
-    const pendingBillIdSet = new Set(
-        bills
-            .filter((b) => (b?.paid == null) || (b?.paid?.status === false))
-            .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
-            .map((bi) => bi?.productVariant?.id)
-            .filter(Boolean)
-    );
-
-    const paidBillIdSet = new Set(
-        bills
-            .filter((b) => (b?.paid == null) || (b?.paid?.status === true))
-            .flatMap((b) => Array.isArray(b?.items) ? b.items : [])
-            .map((bi) => bi?.productVariant?.id)
-            .filter(Boolean)
-    );
-
-    const pending = ids.filter((id: any) => pendingBillIdSet.has(id)).length;
-    const paid  = ids.filter((id: any) => paidBillIdSet.has(id)).length;
-    const active  = ids.filter((id: any) => !allBillIdSet.has(id)).length;
-
-    return { pending, active, paid };
-};
-
 export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat Tagihan', variant = 'contained', transaction }: Props) {
     const themes = useThemeCharger()
-    const { godMode } = useGodModeProvider();
-    const { txId, bumpReload, clearSelection, clearSelectionGods, setReloadKey } = useTx()
-    const {bump} = useTransactionEventTrigger()
-    const isClosed = Boolean(transaction?.time_closed);
-    const { set, config } = useUserConfig();
-    const {Session} = useSession();
+    const { godMode } = useGodModeProvider()
+    const { bumpReload, clearSelection, clearSelectionGods } = useTx()
+    const { bump } = useTransactionEventTrigger()
+    const { Session } = useSession()
 
-    const [swalProps, setSwalProps] = useState<SweetAlert2Props>({});
+    const [err, setErr] = React.useState<{ status: boolean; code: number | string; msg: string; extra?: any } | null>(null);
+    const [swalProps, setSwalProps] = React.useState<SweetAlert2Props>({})
+    const [transactionBill, setTransactionBill] = React.useState<TransactionBill | undefined>(undefined)
+    const [open, setOpen] = React.useState(false)
+    const [loading, setLoading] = React.useState(false)
 
-    const itemQty = totalItems(transaction);
-    const { active, pending, paid } = getPendingActive(transaction);
+    // ==== Anti-race guard ====
+    const reqIdRef = React.useRef(0)
+    const openRef  = React.useRef(false)
 
-    const [open, setOpen] = useState(false)
-    const [fullScreen, setFullScreen] = useState(false)
+    // ==== Snapshot payload ====
+    const payloadRef = React.useRef<{
+        txId?: string
+        items: string[]
+        itemsGod: string[]
+        sessionId?: string
+        branches?: any[]
+    } | null>(null)
+
+    // ==== Session timing & last ID (NEW) ====
+    const openedAtRef     = React.useRef<number>(0)
+    const lastBillIdRef   = React.useRef<string | undefined>(undefined)
+    const didRetryRef     = React.useRef<boolean>(false)
+
+    const [fullScreen, setFullScreen] = React.useState(false)
     const theme = useTheme()
     const isDark = (theme.palette as any)?.mode === 'dark' || (theme.palette as any)?.colorScheme === 'dark'
 
     const isSplitMode = mode === 'split'
-    const baseIcon = isSplitMode ? <CallSplitRounded sx={{fontSize: 36}}/> : <ReceiptLongRounded sx={{fontSize: 36}}/>
+    const baseIcon = isSplitMode ? <CallSplitRounded sx={{ fontSize: 36 }} /> : <ReceiptLongRounded sx={{ fontSize: 36 }} />
     const color: ButtonProps['color'] = (isSplitMode ? 'warning' : 'success')
-    const [isHiddenTransaction, setHiddenTransaction ] = useState<boolean>(false);
-    const [transactionBatchItems, setTransactionBatchItems] = useState<Array<TransactionBatchesItems>>([])
-    const [transactionBatchItemsGod, setTransactionBatchItemsGod] = useState<Array<TransactionBatchesItems>>([]) // 🔥 baru
-    const [layoutPaper, setLayoutPaper] = useState<React.ReactNode>(<></>)
 
-    const [NewBill, setNewBill] = useState<TransactionBill | undefined>(undefined);
-
-    // ====== LOCK semua input saat modal dibuka ======
-    const [lockedItemsKey, setLockedItemsKey] = useState<string | null>(null)
-    const [lockedItemsKeyGod, setLockedItemsKeyGod] = useState<string | null>(null) // 🔥 baru
-
-    const [lockedTxId, setLockedTxId] = useState<string | null>(null)
-    const lockRef = useRef(false)
-    const openNonce = useRef<number>(0)
-    const createdOnce = useRef(false)
-
-    //================
-    const [PrinterList, setPrinterList] = React.useState<TransactionBillPrinterDevice[]>([])
-    const [selectedPrinter, setSelectedPrinter] = React.useState<TransactionBillPrinterDevice | null>(null)
-
-    // kontrol hapus bill saat close (default: true → hard close)
-    const [isResetBill, setResetBill ] = React.useState<boolean>(true)
-    const closingRef = useRef(false) // anti double-close
-
-    const disabled = isClosed || items.length === 0 || paid === itemQty
+    // ——— Button enable/tooltip
+    const isClosed = Boolean(transaction?.time_closed)
+    const disabled = isClosed || items.length === 0
     const tooltip = `Buat Tagihan (${isSplitMode ? 'Split' : 'Keseluruhan'}) — ${items.length} item`
 
-    const useSmartClick = useSingleDoubleClick(
-        (e) => !godMode ? handleOpen() : handleOpen(true),
-        (e) => handleOpen(true),
-        200,
-    )
-
-    const handleOpen = (isHide = false) => {
-        if (isClosed || items.length === 0) return
-
-        openNonce.current = Date.now()
-        createdOnce.current = false
-        closingRef.current = false
-        setTransactionBatchItems([])
-        setTransactionBatchItemsGod([])             // 🔥 baru
-        setLayoutPaper(<></>)
-        setResetBill(true)                 // default: kalau nanti ditutup biasa → hapus
-        setHiddenTransaction(isHide)
-        setLockedItemsKey(items.join('|'))
-        setLockedItemsKeyGod(                      // 🔥 baru
-            (itemsGod?.length ?? 0) > 0 ? itemsGod.join('|') : null
+    // helper: relaxed checksum (variantId→totalQty)
+    const foldKey = <T extends { variant?: { id?: string }, productVariant?: { id?: string }, qty?: any }>(arr: T[]) =>
+        Object.entries(
+            (arr ?? []).reduce<Record<string, number>>((acc, d) => {
+                const id = String(d?.variant?.id ?? d?.productVariant?.id ?? '')
+                const q  = Number(d?.qty ?? 0) || 0
+                acc[id] = (acc[id] || 0) + q
+                return acc
+            }, {})
         )
-        setLockedTxId(txId)
-        lockRef.current = true
+            .sort((a,b) => a[0].localeCompare(b[0]))
+            .map(([id, q]) => `${id}:${q}`)
+            .join('|')
 
+    /* ---------- OPEN ---------- */
+    const handleOpen = () => {
+        if (disabled) return
+
+        payloadRef.current = {
+            txId: transaction?.id,
+            items: [...items],
+            itemsGod: [...itemsGod],
+            sessionId: Session?.id,
+            branches: Session?.branches ?? [],
+        }
+
+        openedAtRef.current = Date.now()
+        didRetryRef.current = false
+
+        reqIdRef.current += 1
+        openRef.current = true
+        setTransactionBill(undefined)
+        setErr(null)
+        setLoading(true)
         setOpen(true)
     }
 
-    // helper close terpusat agar gak balapan state
-    const closeDialog = React.useCallback((opts?: { deleteBill?: boolean }) => {
-        const shouldDelete = opts?.deleteBill !== false && (isResetBill === true)
-        if (closingRef.current) return
-        closingRef.current = true
-
-        // reset lock & UI
-        setOpen(false)
-        setLockedItemsKey(null)
-        setLockedItemsKeyGod(null)     // 🔥 baru
-        setLockedTxId(null)
-        setHiddenTransaction(false)
-        lockRef.current = false
-
-        // jalankan penghapusan hanya jika perlu & ada bill
-        if (shouldDelete && NewBill?.id) {
-            window?.api?.invoke?.<any, AxiosResponse<TransactionBill>>('api.transaction.bills:delete.one', {
-                id : NewBill.id
-            }).then(() => {
-                bumpReload(); bump('batch'); bump('pay'); clearSelection(); clearSelectionGods();
-                setSwalProps({
-                    show: true,
-                    icon: "success",
-                    theme: themes.mode,
-                    title: 'Canceled',
-                    text: `Bill ${NewBill?.bill} Dibatalkan`,
-                });
-            }).catch((error) => {
-                setSwalProps({
-                    show: true,
-                    icon: "error",
-                    theme: themes.mode,
-                    title: 'Transaksi Gagal Di Batalkan',
-                    text: `Check Tagihan Anda`,
-                });
-            });
-        }
-    }, [NewBill, isResetBill]);
-
-    // hard-close: dipakai oleh tombol X / backdrop / ESC
+    /* ---------- CLOSE ---------- */
     const handleClose = React.useCallback(() => {
-        closeDialog({ deleteBill: true })
-    }, [closeDialog])
+        openRef.current = false
+        setOpen(false)
+        setErr(null)
+        setTransactionBill(undefined)
+        setLoading(false)
+        bump('split');
+        bumpReload()
+        clearSelection()
+        clearSelectionGods()
+    }, [])
+
+    // helper: create bill sekali jalan
+    const createBillOnce = (snap: NonNullable<typeof payloadRef.current>, myReq: number, expectedKey: string) =>
+        window.api.invoke<typeof snap, { data: TransactionBatchesItems[] }>(
+            'api.transaction.batch.item:read.all',
+            // @ts-ignore
+            { ids: snap.items, transaction: snap.txId }
+        )
+            .then(({ data }) => {
+                if (!openRef.current || myReq !== reqIdRef.current) return Promise.reject({ cancelled: true })
+                const BillTemporary: TransactionBill = {
+                    reference: { id: snap.sessionId },
+                    branch: snap.branches ?? [],
+                    transaction: { id: snap.txId },
+                    tax: 0.10,
+                    items: (data ?? []).map((it) => ({
+                        reference: { id: snap.sessionId },
+                        qty: it.qty,
+                        price: it.price,
+                        sub_total: it.sub_total,
+                        productVariant: it.variant,
+                        status: snap.itemsGod.some((id) => id === it.id)
+                    })),
+                    paid: { status: false }
+                }
+                return window.api.invoke<typeof BillTemporary, { data: TransactionBill }>(
+                    'api.transaction.bills:create',
+                    BillTemporary
+                )
+            })
+            .then(({ data }) => {
+                if (!openRef.current || myReq !== reqIdRef.current) return Promise.reject({ cancelled: true })
+
+                // ==== STALE GUARD: tolak jika ID sama dgn sesi sebelumnya ATAU terlalu tua dari waktu open ====
+                const idSameAsLast = data?.id && data.id === lastBillIdRef.current
+                const createdAtMs  = data?.time_created ? new Date(data.time_created).getTime() : Date.now()
+                const tooOld       = createdAtMs + 500 < openedAtRef.current // toleransi 500ms
+
+                if (idSameAsLast || tooOld) return Promise.reject({ stale: true, reason: idSameAsLast ? 'same_id_as_last' : 'older_than_open' })
+
+                // boleh longgar terhadap checksum (server bisa merge)
+                setTransactionBill(data)
+                lastBillIdRef.current = data?.id
+                setLoading(false)
+            })
 
     React.useEffect(() => {
-        window?.api.invoke?.<any, AxiosResponse<TransactionBillPrinterDevice[]>>("api.config.device.printer:read.all", {})
-            .then(async ({ data }) => {
-                if (selectedPrinter === null) setSelectedPrinter(data?.[0]);
-                setPrinterList(data);
+        if (!open) return
+
+        const myReq = reqIdRef.current
+        const snap  = payloadRef.current
+
+        if (!snap?.txId || (snap.items?.length ?? 0) === 0) { setLoading(false); return }
+
+        setTransactionBill(undefined)
+        setErr(null)
+        setLoading(true)
+
+        // siapkan expectedKey (santai)
+        window.api.invoke<{ ids?: string[]; transaction?: string }, { data: TransactionBatchesItems[] }>(
+            'api.transaction.batch.item:read.all',
+            { ids: snap.items, transaction: snap.txId }
+        )
+            .then(({ data }) => {
+                if (!openRef.current || myReq !== reqIdRef.current) return Promise.reject({ cancelled: true })
+                const expectedKey = foldKey(data ?? [])
+                return createBillOnce(snap, myReq, expectedKey)
+                    .catch((err) => {
+                        // sekali retry kalau stale
+                        if (err?.stale && !didRetryRef.current) {
+                            didRetryRef.current = true
+                            return new Promise((r) => setTimeout(r, 120))
+                                .then(() => createBillOnce(snap, myReq, expectedKey))
+                        }
+                        return Promise.reject(err)
+                    })
             })
             .catch((error) => {
-                setPrinterList([])
-            })
-    },[])
-
-    const onPrintHandle = (bill: TransactionBill) => {
-        if (!selectedPrinter) return
-        window.api.invoke('api.transaction.bills:print', {
-            bill: bill?.id ?? undefined,
-            printer: selectedPrinter.id
-        })
-            .then((res) => {
-                /* notif sukses print jika perlu */
-            })
-            .catch((error) => {
-                /* notif gagal print jika perlu */
-            })
-    }
-
-    // ====== Fetch items satu kali per sesi ======
-    useEffect(() => {
-        if (!open) return
-        if (!lockedItemsKey) return
-
-        const myNonce = openNonce.current
-
-        window?.api?.invoke?.('api.transaction.batch.item:read.all', { ids: lockedItemsKey.split('|') })
-            .then((res: any) => {
-                if (!lockRef.current) return
-                if (myNonce !== openNonce.current) return
-                setTransactionBatchItems(res?.data ?? [])
-            })
-            .catch((error: any) => {
-                if (!lockRef.current) return
-                setTransactionBatchItems([])
+                if (error?.cancelled) { setLoading(false); return }
                 const e = normalizeIpcError(error)
-                setLayoutPaper(<ErrorDataLayout {...e} />)
+                if (!openRef.current || myReq !== reqIdRef.current) { setLoading(false); return }
+                console.error(e);
+                setTransactionBill(undefined)
+                setErr({
+                    status: Boolean(e?.status),
+                    code: error?.stale ? 425 : (e?.code ?? 500), // 425 Too Early (ish) untuk signal stale
+                    msg: error?.stale
+                        ? 'Sinkronisasi tagihan belum konsisten. Coba klik lagi sebentar.'
+                        : (e?.msg ?? 'Gagal Membuat Tagihan'),
+                    extra: e?.extra
+                })
+                setLoading(false)
             })
-    }, [open, lockedItemsKey])
-
-    useEffect(() => {
-        if (!open) return
-        if (!lockedItemsKeyGod) return
-
-        const myNonce = openNonce.current
-
-        window?.api?.invoke?.('api.transaction.batch.item:read.all', { ids: lockedItemsKeyGod.split('|') })
-            .then((res: any) => {
-                if (!lockRef.current) return
-                if (myNonce !== openNonce.current) return
-                setTransactionBatchItemsGod(res?.data ?? [])
-            })
-            .catch(() => {
-                if (!lockRef.current) return
-                setTransactionBatchItemsGod([])
-                // ga perlu taruh ErrorDataLayout di sini; yang utama tetap jalan
-            })
-    }, [open, lockedItemsKeyGod])
-
-    // ====== Create bill + preview ======
-    useEffect(() => {
-        if (!open) return
-        if (transactionBatchItems.length === 0) return
-        if (!lockedTxId) return
-        if (createdOnce.current) return
-
-        const myNonce = openNonce.current
-        createdOnce.current = true
-
-        const payloads : TransactionBill[] = []
-
-        payloads.push({
-            reference: { id: Session.id },
-            branch: Session.branches,
-            transaction: { id: lockedTxId },
-            tax: 0.10,
-            items: transactionBatchItems.map((it: any) => {
-                const { id, ...rest } = it
-                return {
-                    ...rest,
-                    status: (!godMode) ? transactionBatchItemsGod.some((god) => god.id === it.id) : true,
-                    productVariant: it.variant
-                }
-            }),
-            paid: { status: false },
-        })
-
-        window?.api?.invoke?.<any, AxiosResponse<TransactionBill>>('api.transaction.bills:create', payloads)
-            .then((result) => {
-                if (!lockRef.current) return
-                if (myNonce !== openNonce.current) return
-                if (config?.printer?.isPrintAutomatically) onPrintHandle(result?.data);
-                setNewBill(result?.data);
-                setLayoutPaper(
-                    <BillListItemDetail
-                        billId={result?.data?.id}
-                        isHideTransaction={isHiddenTransaction}
-                        pendingBillPay={async () => {
-                            // SOFT CLOSE: tutup tanpa hapus bill
-                            setResetBill(false)
-                            closeDialog({ deleteBill: false })
-                        }}
-                        onPaySuccess={() => {
-                            // SOFT CLOSE juga (user berhasil bayar)
-                            setResetBill(false)
-                            bumpReload()
-                            bump('batch')
-                            bump('pay')
-                            clearSelection()
-                            clearSelectionGods()
-                            closeDialog({ deleteBill: false })
-                        }}
-                    />
-                )
-
-                bumpReload(); bump('batch'); bump('pay'); clearSelection(); clearSelectionGods();
-            })
-            .catch((error: any) => {
-                if (!lockRef.current) return
-                const e = normalizeIpcError(error)
-                setLayoutPaper(<ErrorDataLayout {...e} />)
-            })
-    }, [open, transactionBatchItems, isHiddenTransaction, lockedTxId])
+    }, [open])
 
     const ButtonEl = (
         <Button
             variant={variant}
             color={color}
             disabled={disabled}
-            onClick={useSmartClick}
-            onContextMenu={(e) => {
-                e.preventDefault()
-                handleOpen(true)
-            }}
+            onClick={(e) => { e.preventDefault(); handleOpen() }}
+            onContextMenu={(e) => { e.preventDefault(); handleOpen() }}
             size="large"
             startIcon={baseIcon}
             sx={(t) => {
@@ -399,11 +280,11 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
                     minHeight: 24,
                     fontSize: '1rem',
                     borderRadius: 3,
-                    bgcolor: !godMode ? light ? '#000' : '#fff' : '#2e0ace',
-                    color: !godMode? light ? '#fff' : '#000' : '#efefef',
+                    bgcolor: !godMode ? (light ? '#000' : '#fff') : '#2e0ace',
+                    color: !godMode ? (light ? '#fff' : '#000') : '#efefef',
                     '&:hover': { bgcolor: light ? '#111' : '#f5f5f5' },
                     '&:active': { transform: 'translateY(1px)', boxShadow: 'none' },
-                    '& .MuiButton-startIcon': {mr: 1.25}
+                    '& .MuiButton-startIcon': { mr: 1.25 }
                 }
             }}
         >
@@ -411,76 +292,92 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
         </Button>
     )
 
+    useEffect(() => { console.log(transactionBill) }, [transactionBill])
+
     return (
         <>
             <Tooltip title={tooltip} arrow>
-        <span>
-          {isSplitMode ? (
-              <Badge
-                  badgeContent={items.length}
-                  invisible={items.length === 0}
-                  anchorOrigin={{vertical: 'top', horizontal: 'right'}}
-                  overlap="rectangular"
-                  sx={{'& .MuiBadge-badge': {fontWeight: 800}}}
-              >
-                  {ButtonEl}
-              </Badge>
-          ) : ButtonEl}
-        </span>
+                <span>
+                    {isSplitMode ? (
+                        <Badge
+                            badgeContent={items.length}
+                            invisible={items.length === 0}
+                            anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                            overlap="rectangular"
+                            sx={{ '& .MuiBadge-badge': { fontWeight: 800 } }}
+                        >
+                            {ButtonEl}
+                        </Badge>
+                    ) : ButtonEl}
+                </span>
             </Tooltip>
 
             <Dialog
+                key={`dlg-${reqIdRef.current}`}
                 open={open}
                 fullWidth
                 maxWidth="xl"
                 fullScreen={fullScreen}
-                onClose={handleClose}  // HARD CLOSE → hapus bill
+                onClose={handleClose}
+                keepMounted={false}
                 slotProps={{
                     paper: {
                         sx: {
                             display: 'flex', flexDirection: 'column',
                             height: fullScreen ? '100vh' : '85vh',
                             overflow: 'hidden',
-                            transition: (t) => t.transitions.create('height', {duration: t.transitions.duration.standard}),
+                            transition: (t) => t.transitions.create('height', { duration: t.transitions.duration.standard }),
                         }
                     }
                 }}
-                PaperProps={{sx: {height: {xs: '90vh', md: '85vh'}}}}
+                PaperProps={{ sx: { height: { xs: '90vh', md: '85vh' } } }}
             >
-                <DialogTitle sx={{display: 'flex', alignItems: 'center', pr: 1.5, gap: 1}}>
+                <DialogTitle sx={{ display: 'flex', alignItems: 'center', pr: 1.5, gap: 1 }}>
                     <Typography variant="h6" fontWeight={800}>
-                        {(isSplitMode ? 'Preview Tagihan (Split)' : 'Preview Tagihan (Keseluruhan)')}
+                        {isSplitMode ? 'Preview Tagihan (Split)' : 'Preview Tagihan (Keseluruhan)'}
                     </Typography>
-
-                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ml: 'auto'}}>
-                        <IconButton size="small" onClick={() => setFullScreen(v => !v)}
-                                    aria-label={fullScreen ? 'Keluar layar penuh' : 'Layar penuh'}>
-                            {fullScreen ? <FullscreenExitRounded fontSize="small"/> :
-                                <FullscreenRounded fontSize="small"/>}
+                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ ml: 'auto' }}>
+                        <IconButton size="small" onClick={() => setFullScreen(v => !v)} aria-label={fullScreen ? 'Keluar layar penuh' : 'Layar penuh'}>
+                            {fullScreen ? <FullscreenExitRounded fontSize="small" /> : <FullscreenRounded fontSize="small" />}
                         </IconButton>
-                        <IconButton size="small" onClick={() => themes.toggleMode()}
-                                    aria-label={isDark ? 'Ganti ke tema terang' : 'Ganti ke tema gelap'}>
-                            {isDark ? <DarkModeRounded fontSize="small"/> : <LightModeRounded fontSize="small"/>}
+                        <IconButton size="small" onClick={themes.toggleMode} aria-label={isDark ? 'Ganti ke tema terang' : 'Ganti ke tema gelap'}>
+                            {isDark ? <DarkModeRounded fontSize="small" /> : <LightModeRounded fontSize="small" />}
                         </IconButton>
                         <IconButton size="small" onClick={handleClose} aria-label="Tutup">
-                            <CloseRounded fontSize="small"/>
+                            <CloseRounded fontSize="small" />
                         </IconButton>
                     </Stack>
                 </DialogTitle>
 
-                <DialogContent dividers sx={{p: 0, display: 'flex', flexDirection: 'column'}}>
-                    <Box sx={{flex: 1, minHeight: 0}}>
-                        {layoutPaper}
+                <DialogContent dividers sx={{ p: 0, display: 'flex', flexDirection: 'column' }}>
+                    <Box sx={{ flex: 1, minHeight: 0, display: 'grid', placeItems: 'center' }}>
+                        {loading ? (
+                            <Stack spacing={1.25} alignItems="center" sx={{ py: 4 }}>
+                                <CircularProgress size={28} />
+                                <Typography variant="body2" color="text.secondary">Menyiapkan preview tagihan…</Typography>
+                            </Stack>
+                        ) : transactionBill ? (
+                            <BillListItemDetail
+                                key={`${transactionBill?.id ?? 'pending'}-${reqIdRef.current}`}
+                                billId={transactionBill?.id}
+                                cancelBill={handleClose}
+                                onPaySuccess={handleClose}
+                            />
+                        ) : err ? (
+                            <ErrorDataLayout
+                                status={err.status}
+                                code={err.code}
+                                msg={err.msg}
+                                extra={err.extra}
+                            />
+                        ) : null}
                     </Box>
                 </DialogContent>
             </Dialog>
+
             <SweetAlert2
                 {...swalProps}
-                didClose={() =>{
-                    setSwalProps((prev) => {
-                        return { ...prev, show: false }
-                    })
-                }}
+                didClose={() => setSwalProps(prev => ({ ...prev, show: false }))}
             />
         </>
     )

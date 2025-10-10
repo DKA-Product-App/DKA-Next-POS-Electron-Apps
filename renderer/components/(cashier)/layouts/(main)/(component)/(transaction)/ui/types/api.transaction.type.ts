@@ -5,6 +5,7 @@
  * ========================================= */
 
 import {SummarizeTxReturn} from "../../types/transaction.read.one.type";
+import {ProductsVariants} from "../../types/products.variants.type";
 
 export interface TransactionApiResponse<T> {
     status?: boolean;
@@ -145,15 +146,6 @@ export interface Products {
     category?: ProductCategories[];
 }
 
-export interface ProductsVariants {
-    id?: string;
-    code?: string;
-    name?: string;
-    description?: string | null;
-    price?: string; // "25000.00"
-    time_created?: string;
-    time_updated?: string;
-}
 
 /* ===== Transaction Graph ===== */
 
@@ -169,8 +161,8 @@ export interface TransactionBatchesItems {
     id?: string;
     qty?: number;
     batch?: TransactionBatches;
-    price?: string;      // "45000.00"
-    sub_total?: string;  // "135000.00"
+    price?: number;      // "45000.00"
+    sub_total?: number;  // "135000.00"
     note?: string | null;
     time_created?: string;
     time_updated?: string;
@@ -211,6 +203,7 @@ export interface TransactionBills {
     paid?: { time?: string | null; status?: boolean };
     time_created?: string;
     time_updated?: string;
+    time_deleted?: string;
     items?: TransactionBillsItems[];
 }
 

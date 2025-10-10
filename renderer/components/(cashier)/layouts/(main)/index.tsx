@@ -4,7 +4,6 @@ import * as React from 'react';
 import { useEffect } from 'react';
 import ResizableGrid from './ui/ResizableContainer';
 import { useLayoutManipulatorResizable } from '../../../../contexts/LayoutManipulatorResizableContext';
-import { TransactionEventTriggerProvider } from './(component)/(transaction)/ui/(pane)/context/TransactionEventTriggerContext';
 
 import dynamic from "next/dynamic";
 import ShimmerMenuSelectLoading from "./(component)/(transaction)/ui/(loading)/ShimmerMenuSelectLoading";
@@ -45,9 +44,7 @@ export default function CashierMain() {
     return (
         <>
             <TabNavigationHandlerProvider>
-                <TransactionEventTriggerProvider>
-                    { LayoutSingle.layout }
-                </TransactionEventTriggerProvider>
+                { LayoutSingle.layout }
             </TabNavigationHandlerProvider>
 
         </>

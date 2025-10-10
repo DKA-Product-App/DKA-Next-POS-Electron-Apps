@@ -11,6 +11,9 @@ import {LayoutManipulatorSingleProvider} from "./layouts/(main)/(component)/(tra
 import {GodModeProviderProvider} from "./context/GodModeProviderContext";
 import {UserConfigProvider} from "../../contexts/UserConfigContext";
 import {LayoutManipulatorSingleLayoutProvider} from "../../contexts/LayoutManipulatorSingleLayoutContext";
+import {
+    TransactionEventTriggerProvider
+} from "./layouts/(main)/(component)/(transaction)/ui/(pane)/context/TransactionEventTriggerContext";
 
 const Header = dynamic(() => import('./(components)/Header'), { loading: () => <ShimmerHeaderLoading />, ssr: false });
 const Footer = dynamic(() => import('./(components)/Footer'), { loading: () => <ShimmerFooterLoading />, ssr: false });
@@ -48,7 +51,9 @@ export default function LayoutContainer({ children }: { children: React.ReactNod
                         <LayoutManipulatorResizableProvider>
                             <LayoutManipulatorSingleProvider>
                                 <FunctionKeyProvider>
-                                    <LayoutBody>{children}</LayoutBody>
+                                    <TransactionEventTriggerProvider>
+                                        <LayoutBody>{children}</LayoutBody>
+                                    </TransactionEventTriggerProvider>
                                 </FunctionKeyProvider>
                             </LayoutManipulatorSingleProvider>
                         </LayoutManipulatorResizableProvider>

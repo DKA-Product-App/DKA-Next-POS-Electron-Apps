@@ -23,6 +23,7 @@ import OrderVoidModal from './(components)/OrderVoidModal'
 import NewOrderBillModal from './(components)/NewOrderBillModal'
 import {Transaction, TransactionBatchesItems, TransactionBills} from '../types/api.transaction.type'
 import {LayoutManipulatorBatchProvider, useLayoutManipulatorBatch} from "../../context/LayoutManipulatorBatchContext";
+import {useEffect} from "react";
 
 /* ========= Utils ========= */
 const rupiah = (n: number | string) =>
@@ -122,6 +123,7 @@ function Body({ transaction }: { transaction: Transaction }) {
         selectedItemIds,
         selectedTotal,
         clearSelection,
+        clearSelectionGods
     } = useTx()
 
     const { layout, setLayout } = useLayoutManipulatorBatch();
@@ -130,7 +132,10 @@ function Body({ transaction }: { transaction: Transaction }) {
     const itemQty = totalItems(transaction)
     const { active, pending, paid } = getPendingActive(transaction)
 
-
+    useEffect(() => {
+        clearSelection()
+        clearSelectionGods();
+    }, []);
 
     // Semua ID item transaksi (untuk full-bill mode)
     const allItemIds: string[] = React.useMemo(() => {

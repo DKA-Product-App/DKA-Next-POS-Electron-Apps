@@ -31,7 +31,7 @@ import {
     TransactionBills,
     TransactionBillsItems
 } from '../types/api.transaction.type'
-import { LayoutManipulatorBatchProvider, useLayoutManipulatorBatch } from "../../context/LayoutManipulatorBatchContext"
+import { LayoutManipulatorBatchProvider } from "../../context/LayoutManipulatorBatchContext"
 import LeftContainerBatchListNewOrder from './(pane)/(components)/LeftContainerBatchListNewOrder'
 
 /** 🔽 NEW: Filter context & button */
@@ -194,14 +194,18 @@ function Body({ tr }: { tr: Transaction }) {
     const itemQty = React.useMemo(() => totalItems(transaction), [transaction])
     const { counts, ids } =  React.useMemo(() => getStatusSummary(transaction), [transaction])
 
+
     const selectedIdList: string[] = React.useMemo(
-        () => Array.from(selectedItemIds ?? []).map(toId).filter(Boolean),
+        () => {
+            return Array.from(selectedItemIds ?? []).map(toId).filter(Boolean)
+        },
         [selectedItemIds]
     )
     const selectedIdListGod: string[] = React.useMemo(
         () => Array.from(selectedItemIdsGod ?? []).map(toId).filter(Boolean),
         [selectedItemIdsGod]
     )
+
 
     const isSplitMode = (selectedItemIds?.size ?? 0) > 0
 
@@ -376,11 +380,7 @@ function Body({ tr }: { tr: Transaction }) {
                     <OrderVoidModal transaction={transaction} />
                     <NewOrderBillModal
                         items={isSplitMode ? selectedIdList : ids.unpaid}
-                        itemsGod={
-                            isSplitMode
-                                ? selectedIdListGod
-                                : ids.unpaid.filter((id) => selectedIdListGod.includes(id))
-                        }
+                        itemsGod={selectedIdListGod}
                         mode={isSplitMode ? 'split' : 'full'}
                         label={isSplitMode ? 'Checkout Split' : 'Checkout Semua'}
                         variant="contained"

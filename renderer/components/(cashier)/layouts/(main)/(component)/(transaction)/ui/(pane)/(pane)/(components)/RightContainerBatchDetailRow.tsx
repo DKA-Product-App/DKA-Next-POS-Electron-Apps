@@ -107,6 +107,7 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPr
             variant="outlined"
             whileTap={disabled ? undefined : { scale: 0.99 }}
             onClick={(e) => {
+                e.preventDefault()              // blok menu konteks bawaan
                 if (disabled) return;
                 onToggle(item);
             }}
