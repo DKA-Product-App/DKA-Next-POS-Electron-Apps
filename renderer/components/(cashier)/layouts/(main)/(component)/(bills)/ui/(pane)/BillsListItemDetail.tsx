@@ -32,6 +32,7 @@ import {AxiosResponse} from "axios";
 import SweetAlert2, {SweetAlert2Props} from "react-sweetalert2";
 import {useThemeCharger} from "../../../../../../../../contexts/ThemeCharger";
 import {useUserConfig} from "../../../../../../../../contexts/UserConfigContext";
+import {useGodModeProvider} from "../../../../../../context/GodModeProviderContext";
 
 /* ================================= THEME ACCENTS ================================= */
 const PURPLE_GRAD = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
@@ -68,22 +69,24 @@ const getRef = (b?: TransactionBill) =>
     || b?.transaction?.order_type?.code
     || undefined
 
-const deriveLineItems = (bill?: TransactionBill) =>
-    (bill?.items ?? []).map((wrap) => {
-        const it = wrap.productVariant
-        return {
-            id: String(wrap.id ?? Math.random()),
-            qty: Number(wrap.qty ?? 0),
-            price: Number((wrap.price ?? 0) as number),
-            sub_total: Number((wrap.sub_total ?? 0) as number),
-            bill: bill?.bill ?? "# -",
-            status: wrap.status,
-            time_created: wrap.time_created,
-            time_updated: wrap.time_updated,
-            reference: wrap.reference,
-            variant: it,
-        }
-    })
+const deriveLineItems = (bill?: TransactionBill, godMode?: boolean) =>
+    (bill?.items ?? [])
+        .filter(wrap => godMode ? wrap.status === true : true) // godMode on: cuma yang status true
+        .map((wrap) => {
+            const it = wrap.productVariant
+            return {
+                id: String(wrap.id ?? Math.random()),
+                qty: Number(wrap.qty ?? 0),
+                price: Number((wrap.price ?? 0) as number),
+                sub_total: Number((wrap.sub_total ?? 0) as number),
+                bill: bill?.bill ?? "# -",
+                status: wrap.status,
+                time_created: wrap.time_created,
+                time_updated: wrap.time_updated,
+                reference: wrap.reference,
+                variant: it,
+            }
+        })
 
 /* ================================== SUB-COMPONENTS ================================== */
 type ApiResponse<T> = { status: boolean; code: number; msg: string; data: T }
@@ -192,11 +195,12 @@ type TenderMode = 'idle' | 'entry' | 'ready'
 const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean, onPaySuccess?: () => void; cancelBill?: () => void; }> = ({ billId, isHideTransaction, onPaySuccess, cancelBill }) => {
     const [bill, setBill] = useState<TransactionBill | undefined>(undefined)
     const { mode, toggleMode } = useThemeCharger()
+    const { godMode } = useGodModeProvider();
     const { set, config } = useUserConfig();
     // ==== ⛓️ DERIVED FROM `bill` (selalu up-to-date) ====
     const isPaid = useMemo(() => !!bill?.paid?.status, [bill])
     const st = useMemo(() => statusChip(bill), [bill])
-    const items = useMemo(() => deriveLineItems(bill), [bill])
+    const items = useMemo(() => deriveLineItems(bill, godMode), [bill, godMode])
 
     const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0)
     const itemsSubtotal = useMemo(() => items.length ? sum(items.map(i => Number(i.sub_total ?? 0))) : 0, [items])

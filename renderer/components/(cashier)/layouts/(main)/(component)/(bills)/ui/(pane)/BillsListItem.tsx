@@ -125,7 +125,7 @@ const buildPayload = (q: string, f: BillFilters, godMode: boolean) => {
         sort: { time_created: 'desc' as const },
         startAt: startIso,
         endAt: endIso,
-        is_hide: godMode,
+        god_mode: godMode,
         isPaid: f.paid === 'all' ? undefined : f.paid === 'paid',
         cashierName: f.cashierName === 'all' ? undefined : f.cashierName,
         minTotal,

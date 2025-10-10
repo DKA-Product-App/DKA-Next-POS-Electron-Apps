@@ -6,6 +6,7 @@ import {useEffect} from "react";
 import {
     useTransactionEventTrigger
 } from "../../layouts/(main)/(component)/(transaction)/ui/(pane)/context/TransactionEventTriggerContext";
+import {useGodModeProvider} from "../../context/GodModeProviderContext";
 
 type TimeWidgetProps = {
     /** Font size jam utama */
@@ -21,6 +22,7 @@ export default function IncomeWidget({
     // Jangan render waktu saat SSR → biar gak mismatch
     const [mounted, setMounted] = React.useState(false)
     const { token, reason } = useTransactionEventTrigger()
+    const { godMode } = useGodModeProvider();
     const [ payloadCount, setPayloadCount ] = React.useState<{ status?: boolean, code?: number, msg?: string; data?: {
             bruto: {
                 total: number;
@@ -32,8 +34,10 @@ export default function IncomeWidget({
         }}>(undefined);
 
 
-    const fetchTotal = () => {
-        window?.api?.invoke?.("api.transaction.bills:count.all", {})
+    const fetchTotal = React.useCallback(() => {
+        window?.api?.invoke?.("api.transaction.bills:count.all", {
+            god_mode : godMode
+        })
             .then(async (result) => {
                 console.log(`Header Income Diperbarui`, result);
                 setPayloadCount(result);
@@ -42,7 +46,7 @@ export default function IncomeWidget({
                 console.log(`Header Income Gagal Diperbarui`, error);
                 setPayloadCount(undefined)
             })
-    }
+    },[ godMode ])
 
     useEffect(() => {
         setMounted(true);
@@ -56,7 +60,7 @@ export default function IncomeWidget({
             // keep list up-to-date when token/reason change
             void fetchTotal();
         }
-    }, [token, reason, mounted])
+    }, [token, reason, mounted, godMode])
 
     return (
         <>

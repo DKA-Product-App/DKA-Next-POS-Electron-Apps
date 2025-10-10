@@ -186,7 +186,7 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
                         price: it.price,
                         sub_total: it.sub_total,
                         productVariant: it.variant,
-                        status: snap.itemsGod.some((id) => id === it.id)
+                        status: !godMode ? snap.itemsGod.some((id) => id === it.id) : true
                     })),
                     paid: { status: false }
                 }
@@ -266,7 +266,6 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
             color={color}
             disabled={disabled}
             onClick={(e) => { e.preventDefault(); handleOpen() }}
-            onContextMenu={(e) => { e.preventDefault(); handleOpen() }}
             size="large"
             startIcon={baseIcon}
             sx={(t) => {
@@ -280,7 +279,7 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
                     minHeight: 24,
                     fontSize: '1rem',
                     borderRadius: 3,
-                    bgcolor: !godMode ? (light ? '#000' : '#fff') : '#2e0ace',
+                    bgcolor: !godMode ? (light ? '#000' : '#fff') : '#b7051a',
                     color: !godMode ? (light ? '#fff' : '#000') : '#efefef',
                     '&:hover': { bgcolor: light ? '#111' : '#f5f5f5' },
                     '&:active': { transform: 'translateY(1px)', boxShadow: 'none' },
