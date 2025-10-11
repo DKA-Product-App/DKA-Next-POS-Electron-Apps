@@ -43,17 +43,18 @@ export function KeyEvent(mainWindow?: BrowserWindow) {
         win.webContents.on('before-input-event', (event, input) => {
             const fn = resolveFnKey(input);                                // ← baca dari key ATAU code
             const keyUp = String(input?.key ?? '').toUpperCase();
-
+            /** Check Before Input **/
             const isReload = keyUp === 'F5' || (keyUp === 'R' && (input.control || input.meta));
             const isHardReload = keyUp === 'R' && (input.control || input.meta) && input.shift;
             const isFullscreen = keyUp === 'F11';
             const isDevtoolsAccel = (keyUp === 'I' && (input.control || input.meta) && input.shift) || keyUp === 'F12';
             const isMenuFocus = keyUp === 'F10';
-
             const shouldBlock = Boolean(fn) || isReload || isHardReload || isFullscreen || isDevtoolsAccel || isMenuFocus;
-
-            // Gunakan nama FN ter-normalisasi saat broadcast (mis. 'F12')
-            shouldBlock ? (event.preventDefault(), broadcast(fn ?? keyUp, 'before-input')) : null;
+            /** Gunakan nama FN ter-normalisasi saat broadcast (mis. 'F12') **/
+            if (shouldBlock){
+                event.preventDefault();
+                broadcast(fn ?? keyUp, 'before-input')
+            }
         });
 
     const customEventsDefaults = (win: BrowserWindow) => {
