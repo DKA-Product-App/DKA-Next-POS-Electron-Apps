@@ -153,7 +153,7 @@ export default function NewProductModal(props: NewProductModalProps) {
             .invoke('api.product.category:read.all', {})
             .then((result: any) => {
                 const data = (result?.data ?? []) as ProductsCategories[]
-
+                setCategoryList(data)
                 setError(null)
             })
             .catch((err: any) => {
