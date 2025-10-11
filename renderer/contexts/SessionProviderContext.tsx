@@ -1,19 +1,19 @@
 'use client';
 
 import * as React from 'react';
-import {AccountDataItem} from "../types/Accounts.type";
+import {Accounts} from "../types/account/accounts.type";
 
 
 // ✅ biar bisa pakai setLayout(prev => ...)
 export type SessionCtx = {
-    Session: AccountDataItem | null;
-    setSession: React.Dispatch<React.SetStateAction<AccountDataItem | null>>;
+    Session: Accounts | null;
+    setSession: React.Dispatch<React.SetStateAction<Accounts | null>>;
 };
 
 const SessionContext = React.createContext<SessionCtx | undefined>(undefined);
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-    const [Session, setSession] = React.useState<AccountDataItem | null>(null);
+    const [Session, setSession] = React.useState<Accounts | null>(null);
 
     const value = React.useMemo(() => ({ Session, setSession }), [Session]);
 

@@ -12,10 +12,10 @@ import Image, { ImageLoader } from 'next/image'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 
-import type { Products } from '../../../../types/products.type'
-import type { ProductsVariants } from '../../../../types/products.variants.type'
-import type { Category } from '../../../../types/product.categories.type'
 import {ImgWithSkeleton} from "../../../../../../../../utils/ImageProcessingIPC";
+import {ProductsVariants} from "../../../../../../../../types/products.variants.type";
+import {Products} from "../../../../../../../../types/products.type";
+import {ProductsCategories} from "../../../../../../../../types/product.categories.type";
 
 export type DetailProductModalHandle = { open: () => void; close: () => void }
 
@@ -26,7 +26,7 @@ export type DetailProductModalHandle = { open: () => void; close: () => void }
  */
 export type ProductWithVariants = Products & {
     variants?: ProductsVariants[]
-    category?: Category | Category[] | null
+    category?: ProductsCategories | ProductsCategories[] | null
 }
 
 export type DetailProductModalProps = {
@@ -56,9 +56,9 @@ export const ProductDetailModal = forwardRef<DetailProductModalHandle, DetailPro
     const dialogSelectedVar = p.variants?.find(v => String(v.id) === String(dialogVarId))
 
     // normalisasi category → array
-    const cats: Category[] =
-        Array.isArray(p.category) ? p.category.filter(Boolean) as Category[] :
-            p.category ? [p.category as Category] : []
+    const cats: ProductsCategories[] =
+        Array.isArray(p.category) ? p.category.filter(Boolean) as ProductsCategories[] :
+            p.category ? [p.category as ProductsCategories] : []
 
     useImperativeHandle(ref, () => ({ open: () => setOpen(true), close: () => setOpen(false) }), [])
 

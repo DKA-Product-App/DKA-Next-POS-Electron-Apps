@@ -2,7 +2,7 @@
 // Semua field dibuat optional ("?") sesuai permintaan.
 // Catatan: Field yang di payload bisa bernilai null; maka tipe mencakup null juga.
 
-import {ProductsVariants} from "../../(transaction)/types/products.variants.type";
+import {ProductsVariants} from "../../../../../../../types/products.variants.type";
 
 export type UUID = string
 export type ISODate = string

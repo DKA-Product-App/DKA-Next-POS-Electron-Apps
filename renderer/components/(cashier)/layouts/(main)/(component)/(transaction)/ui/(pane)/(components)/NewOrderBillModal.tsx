@@ -28,6 +28,7 @@ import { TransactionBill } from "../../../../(bills)/types/transaction.bill.type
 import SweetAlert2, { SweetAlert2Props } from "react-sweetalert2";
 import { useGodModeProvider } from "../../../../../../../context/GodModeProviderContext";
 import {useEffect} from "react";
+import {ConfigBranch} from "../../../../../../../../../types/config/base/branch.type";
 
 // ⬇️ opsional: hindari reuse SSR
 const BillListItemDetail = dynamic(
@@ -96,7 +97,7 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
         items: string[]
         itemsGod: string[]
         sessionId?: string
-        branches?: any[]
+        branches?: ConfigBranch[]
     } | null>(null)
 
     // ==== Session timing & last ID (NEW) ====

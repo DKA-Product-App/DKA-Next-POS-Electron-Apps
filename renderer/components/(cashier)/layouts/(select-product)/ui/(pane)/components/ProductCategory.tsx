@@ -2,12 +2,12 @@
 
 import React, { FC, memo } from 'react'
 import { Tabs, Tab, Chip, Stack } from '@mui/material'
-import type { Category } from '../../../types/product.categories.type'
+import {ProductsCategories} from "../../../../../../../types/product.categories.type";
 
 type Props = {
     value: number
     onChange: (idx: number) => void
-    categories: Category[]
+    categories: ProductsCategories[]
     counts: Map<string, number>
     total: number
     indicatorGradient?: string

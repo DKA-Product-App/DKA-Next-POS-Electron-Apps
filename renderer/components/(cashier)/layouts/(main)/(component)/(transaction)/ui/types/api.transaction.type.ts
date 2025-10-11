@@ -5,7 +5,7 @@
  * ========================================= */
 
 import {SummarizeTxReturn} from "../../types/transaction.read.one.type";
-import {ProductsVariants} from "../../types/products.variants.type";
+import {ProductsVariants} from "../../../../../../../../types/products.variants.type";
 
 export interface TransactionApiResponse<T> {
     status?: boolean;

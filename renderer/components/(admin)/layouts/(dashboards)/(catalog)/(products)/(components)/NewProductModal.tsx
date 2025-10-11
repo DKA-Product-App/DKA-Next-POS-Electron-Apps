@@ -14,7 +14,7 @@ import AutoAwesomeRounded from '@mui/icons-material/AutoAwesomeRounded'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 import {useSession} from "../../../../../../../contexts/SessionProviderContext";
-import { ProductsCategories } from '../../../types/product.categories.type'
+import {ProductsCategories} from "../../../../../../../types/product.categories.type";
 
 type VariantDraft = {
     id: string

@@ -9,10 +9,10 @@ import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import { motion } from 'framer-motion'
 
 // ==== TYPES (sesuaikan dengan project-mu) ====
-import type { Products } from '../../../types/products.type'
-import type { ProductsVariants } from '../../../types/products.variants.type'
 import { ProductDetailModal, DetailProductModalHandle, type ProductWithVariants } from './modals/ProductDetailModal'
 import {ImgWithSkeleton} from "../../../../../../../utils/ImageProcessingIPC";
+import { Products } from '../../../../../../../types/products.type'
+import {ProductsVariants} from "../../../../../../../types/products.variants.type";
 
 
 

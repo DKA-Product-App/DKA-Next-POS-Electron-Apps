@@ -1,8 +1,8 @@
 'use client'
 
 import React from 'react'
-import type { Products } from '../types/products.type'
-import type { ProductsVariants } from '../types/products.variants.type'
+import {ProductsVariants} from "../../../../../types/products.variants.type";
+import {Products} from "../../../../../types/products.type";
 
 /* =========================
  *  TIPE DATA BARU

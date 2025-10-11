@@ -19,10 +19,10 @@ import { useCartActions } from "../../context/CartContext";
 import ShiummerLoadingProductCategory from "../(loading)/ShimmerLoadingProductCategory";
 import ProductCard from "./components/ProductCard";
 
-import type { Products } from "../../types/products.type";
-import type { ProductsVariants } from "../../types/products.variants.type";
-import type { Category } from "../../types/product.categories.type";
-import type { ProductWithVariants } from "./components/modals/ProductDetailModal"; // re-use komposit
+import type { ProductWithVariants } from "./components/modals/ProductDetailModal";
+import {ProductsCategories} from "../../../../../../types/product.categories.type";
+import {Products} from "../../../../../../types/products.type";
+import {ProductsVariants} from "../../../../../../types/products.variants.type"; // re-use komposit
 
 const GRADIENT = "linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)";
 
@@ -55,7 +55,7 @@ export const SelectMenuAndVariant: FC = () => {
     const searchRef = React.useRef<HTMLInputElement>(null);
 
     const [products, setProducts] = useState<ProductWithVariants[]>([]);
-    const [productsCategories, setProductsCategories] = useState<Category[]>([]);
+    const [productsCategories, setProductsCategories] = useState<ProductsCategories[]>([]);
     const [prodError, setProdError] = useState<{ code?: number; msg?: string } | null>(null);
 
     const fetchProducts = () => {
@@ -85,7 +85,7 @@ export const SelectMenuAndVariant: FC = () => {
 
         window.api.invoke("api.product.category:read.all", {})
             .then(async (result: any) => {
-                setProductsCategories(result.data as Category[]);
+                setProductsCategories(result.data as ProductsCategories[]);
                 console.log(result);
             })
             .catch(async (error) => {
