@@ -194,8 +194,6 @@ const BillsListItem: React.FC = () => {
                     const arr = Array.isArray((result as ApiResponseTransactionBill)?.data)
                         ? (result as ApiResponseTransactionBill).data
                         : (result as any)?.data
-
-                    console.log(arr);
                     return alive ? (arr ?? []) : []
                 })
                 .then(arr => arr.map(stripSecrets))

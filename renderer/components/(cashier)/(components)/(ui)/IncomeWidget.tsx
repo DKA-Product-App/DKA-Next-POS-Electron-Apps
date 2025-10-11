@@ -24,12 +24,14 @@ export default function IncomeWidget({
     const { token, reason } = useTransactionEventTrigger()
     const { godMode } = useGodModeProvider();
     const [ payloadCount, setPayloadCount ] = React.useState<{ status?: boolean, code?: number, msg?: string; data?: {
-            bruto: {
-                total: number;
-                tax: number;
-            };
-            netto: {
-                total: number;
+            summary: {
+                bruto: {
+                    total: number;
+                    tax: number;
+                };
+                netto: {
+                    total: number;
+                };
             };
         }}>(undefined);
 
@@ -82,7 +84,7 @@ export default function IncomeWidget({
                         fontVariantNumeric: 'tabular-nums',
                     }}
                 >
-                    Rp. {payloadCount?.data?.bruto?.total}
+                    Rp. {payloadCount?.data?.summary?.bruto?.total}
                 </Typography>
 
                 <Typography
