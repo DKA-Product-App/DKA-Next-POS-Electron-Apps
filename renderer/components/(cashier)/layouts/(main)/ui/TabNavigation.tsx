@@ -11,10 +11,10 @@ import RequestQuoteRounded from '@mui/icons-material/RequestQuoteRounded';
 
 import { useLayoutManipulatorResizable } from '../../../../../contexts/LayoutManipulatorResizableContext';
 import ShimmerMenuSelectLoading from './../(component)/(transaction)/ui/(loading)/ShimmerMenuSelectLoading';
-import {useTabNavigationHandlerContext} from "../(component)/(transaction)/context/TabNavigationHandlerContext";
+import { useTabNavigationHandlerContext } from "../(component)/(transaction)/context/TabNavigationHandlerContext";
 
 /* ===== Types & Constants ===== */
-type TabDef = { key: string; label: string; icon: React.ReactNode; render: () => React.ReactNode };
+type TabDef = { key: string; label?: string; icon: React.ReactNode; render: () => React.ReactNode };
 
 const Transaction = dynamic(() => import('./../(component)/(transaction)'), {
     loading: () => <ShimmerMenuSelectLoading />,
@@ -27,11 +27,21 @@ const Bills = dynamic(() => import('./../(component)/(bills)'), {
 
 const ACCENT = '#7c3aed';
 const ACCENT_2 = '#a855f7';
-const TAB_MIN_WIDTH = 140;   // min lebar tab saat overflow
+
+// Ambang lebar per tab
+const TAB_TEXT_MIN_W = 140; // saat label tampil
+const TAB_ICON_MIN_W = 64;  // saat icon-only
+
+// Fallback label kalau TabDef.label undefined
+const LABELS: Record<string, string> = {
+    orders: 'Pesanan',
+    bills: 'Tagihan',
+};
 
 const TABS: TabDef[] = [
     { key: 'orders', label: 'Pesanan', icon: <ReceiptLongRounded sx={{ fontSize: 18 }} />, render: () => <Transaction /> },
-    { key: 'bills',  label: 'History', icon: <RequestQuoteRounded  sx={{ fontSize: 18 }} />, render: () => <Bills /> },
+    // label bisa undefined, tapi nanti difallback ke LABELS di render
+    { key: 'bills',  label: "History",     icon: <RequestQuoteRounded  sx={{ fontSize: 18 }} />, render: () => <Bills /> },
 ];
 
 /* ===== Component ===== */
@@ -40,17 +50,17 @@ const TabNavigation: React.FC = React.memo(() => {
     const { setLayout } = useLayoutManipulatorResizable();
 
     const value = Math.max(0, TABS.findIndex(t => t.key === state.active));
-    const onChange = (_e: React.SyntheticEvent, v: number) => setState((prev) => {
-        return { ...prev, active: TABS[v]?.key ?? 'orders', id: undefined }
-    });
+    const onChange = (_e: React.SyntheticEvent, v: number) =>
+        setState(prev => ({ ...prev, active: TABS[v]?.key ?? 'orders', id: undefined }));
 
     const Current = useMemo(() => TABS[value]?.render ?? (() => <></>), [value]);
 
     useEffect(() => { setLayout(prev => ({ ...(prev ?? {}), right: <></> })); }, [state.active, setLayout]);
 
-    // ===== Overflow detection =====
+    // ===== Overflow & label visibility detection =====
     const headerRef = useRef<HTMLDivElement>(null);
     const [isOverflow, setIsOverflow] = useState(false);
+    const [showLabels, setShowLabels] = useState(true);
 
     useEffect(() => {
         const el = headerRef.current;
@@ -58,8 +68,14 @@ const TabNavigation: React.FC = React.memo(() => {
 
         const calc = () => {
             const containerW = el.clientWidth || 0;
-            const needW = TABS.length * TAB_MIN_WIDTH;
-            setIsOverflow(needW > containerW);
+            const tabsCount = TABS.length;
+
+            const needText = tabsCount * TAB_TEXT_MIN_W;
+            const nextShowLabels = containerW >= needText; // cukup lebar untuk teks?
+            setShowLabels(nextShowLabels);
+
+            const needW = tabsCount * (nextShowLabels ? TAB_TEXT_MIN_W : TAB_ICON_MIN_W);
+            setIsOverflow(containerW < needW); // kalau masih kurang → scrollable + panah
         };
 
         const ro = new ResizeObserver(calc);
@@ -70,7 +86,7 @@ const TabNavigation: React.FC = React.memo(() => {
 
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {/* ===== Header Tabs (fullWidth jika muat; scrollable + arrows jika overflow) ===== */}
+            {/* ===== Header Tabs ===== */}
             <Box
                 ref={headerRef}
                 sx={{
@@ -85,7 +101,7 @@ const TabNavigation: React.FC = React.memo(() => {
                     value={value}
                     onChange={onChange}
                     variant={isOverflow ? 'scrollable' : 'fullWidth'}
-                    scrollButtons="auto" // <-- panah balik lagi
+                    scrollButtons="auto"
                     sx={(t) => ({
                         position: 'relative',
                         bgcolor: 'background.paper',
@@ -101,21 +117,19 @@ const TabNavigation: React.FC = React.memo(() => {
                             pointerEvents: 'none',
                         },
 
-                        // style tombol scroll arrows
                         '& .MuiTabs-scrollButtons': {
                             color: ACCENT,
                             '&.Mui-disabled': { opacity: 0.35 },
                         },
 
                         '& .MuiTab-root': {
-                            justifyContent: 'flex-start',
+                            justifyContent: showLabels ? 'flex-start' : 'center',
                             textAlign: 'left',
-                            gap: 0.5,
-                            px: 2,
+                            gap: showLabels ? 0.5 : 0,
+                            px: showLabels ? 2 : 1.25,
                             minHeight: 60,
 
-                            // fullWidth jika muat; minWidth saat overflow
-                            minWidth: isOverflow ? TAB_MIN_WIDTH : 0,
+                            minWidth: isOverflow ? (showLabels ? TAB_TEXT_MIN_W : TAB_ICON_MIN_W) : 0,
                             flex: isOverflow ? '0 0 auto' : '1 1 0',
                             maxWidth: 'none',
                             whiteSpace: 'nowrap',
@@ -141,11 +155,16 @@ const TabNavigation: React.FC = React.memo(() => {
                 >
                     {TABS.map((t, i) => {
                         const isActive = i === value;
+                        const labelText = t.label ?? LABELS[t.key] ?? t.key;
+
                         return (
                             <Tab
                                 key={t.key}
                                 disableRipple
                                 iconPosition="start"
+                                // a11y + tooltip bawaan browser saat icon-only
+                                aria-label={labelText}
+                                title={labelText}
                                 icon={
                                     <motion.span
                                         initial={false}
@@ -157,14 +176,18 @@ const TabNavigation: React.FC = React.memo(() => {
                                     </motion.span>
                                 }
                                 label={
-                                    <motion.span
-                                        initial={false}
-                                        animate={{ y: isActive ? -1 : 0 }}
-                                        transition={{ type: 'spring', stiffness: 350, damping: 24 }}
-                                        style={{ display: 'inline-flex', alignItems: 'center', fontWeight: 800 }}
-                                    >
-                                        {t.label}
-                                    </motion.span>
+                                    showLabels
+                                        ? (
+                                            <motion.span
+                                                initial={false}
+                                                animate={{ y: isActive ? -1 : 0 }}
+                                                transition={{ type: 'spring', stiffness: 350, damping: 24 }}
+                                                style={{ display: 'inline-flex', alignItems: 'center', fontWeight: 800 }}
+                                            >
+                                                {labelText}
+                                            </motion.span>
+                                        )
+                                        : undefined
                                 }
                                 sx={{ '&::before': { content: 'none' } }}
                             />
