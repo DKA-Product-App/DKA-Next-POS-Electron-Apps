@@ -16,6 +16,13 @@ import 'react-perfect-scrollbar/dist/css/styles.css'
 import {useSession} from "../../../../../../../contexts/SessionProviderContext";
 import {ProductsCategories} from "../../../../../../../types/product/product.categories.type";
 import {ProductsVariants} from "../../../../../../../types/product/products.variants.type";
+import FullscreenExitRounded from "@mui/icons-material/FullscreenExitRounded";
+import FullscreenRounded from "@mui/icons-material/FullscreenRounded";
+import DarkModeRounded from "@mui/icons-material/DarkModeRounded";
+import LightModeRounded from "@mui/icons-material/LightModeRounded";
+import CloseRounded from "@mui/icons-material/CloseRounded";
+import {useTheme} from "@mui/material/styles";
+import {useThemeCharger} from "../../../../../../../contexts/ThemeCharger";
 
 type VariantDraft = ProductsVariants & {
     codeTouched?: boolean     // user edited code manually
@@ -111,6 +118,10 @@ const b64ToBytes = (b64: string): number[] => {
 export default function NewProductModal(props: NewProductModalProps) {
     const { onCreated, triggerLabel = 'Tambah Produk', triggerProps } = props
     const { Session } = useSession();
+
+    const [fullScreen, setFullScreen] = React.useState(false)
+    const { mode, toggleMode} = useThemeCharger()
+
     const [open, setOpen] = React.useState(false)
     const [name, setName] = React.useState('') // Nama Produk
     const [categoriesList, setCategoryList] = React.useState<ProductsCategories[]>([])
@@ -261,17 +272,35 @@ export default function NewProductModal(props: NewProductModalProps) {
                 onClose={closeModal}
                 fullWidth
                 maxWidth="xl"
-                PaperProps={{
-                    sx: {
-                        height: '85vh',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        minWidth: 0,
+                fullScreen={fullScreen}
+                slotProps={{
+                    paper: {
+                        sx: {
+                            height: fullScreen ? '100vh' : '85vh',
+                            display: 'flex',
+                            bgcolor: 'background.paper', // <-- ini yang bener buat warna Card
+                            flexDirection: 'column',
+                            minWidth: 0,
+                        }
                     }
                 }}
             >
-                <DialogTitle>Tambah Produk</DialogTitle>
-
+                <DialogTitle sx={{ display: 'flex', alignItems: 'center', pr: 1.5, gap: 1 }}>
+                    <Typography variant="h6" fontWeight={800}>
+                        Tambah Product
+                    </Typography>
+                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ ml: 'auto' }}>
+                        <IconButton size="small" onClick={() => setFullScreen(v => !v)} aria-label={fullScreen ? 'Keluar layar penuh' : 'Layar penuh'}>
+                            {fullScreen ? <FullscreenExitRounded fontSize="small" /> : <FullscreenRounded fontSize="small" />}
+                        </IconButton>
+                        <IconButton size="small" onClick={toggleMode} aria-label={(mode === "dark") ? 'Ganti ke tema terang' : 'Ganti ke tema gelap'}>
+                            {(mode === "dark") ? <DarkModeRounded fontSize="small" /> : <LightModeRounded fontSize="small" />}
+                        </IconButton>
+                        <IconButton size="small" onClick={closeModal} aria-label="Tutup">
+                            <CloseRounded fontSize="small" />
+                        </IconButton>
+                    </Stack>
+                </DialogTitle>
                 <DialogContent
                     dividers
                     sx={{
@@ -280,6 +309,7 @@ export default function NewProductModal(props: NewProductModalProps) {
                         display: 'flex',
                         flexDirection: 'column',
                         minHeight: 0,
+                        bgcolor: 'background.paper', // <-- ini yang bener buat warna Card
                         overflow: 'hidden',
                     }}
                 >
@@ -338,9 +368,8 @@ export default function NewProductModal(props: NewProductModalProps) {
                                                     onChange={e => setCategoryId(e.target.value)}
                                                     fullWidth
                                                 >
-                                                    <MenuItem value="">—</MenuItem>
                                                     {categoriesList.map(c => (
-                                                        <MenuItem key={c.id} value={c.id}>{c?.name ?? ""}</MenuItem>
+                                                        <MenuItem key={c.id} value={c.id}>{c?.name?.toUpperCase() ?? ""}</MenuItem>
                                                     ))}
                                                 </TextField>
                                             )}
