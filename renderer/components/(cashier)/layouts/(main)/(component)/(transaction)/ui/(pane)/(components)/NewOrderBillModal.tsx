@@ -3,7 +3,8 @@
 import * as React from 'react'
 import {
     Button, Badge, Tooltip, Dialog, DialogTitle, DialogContent,
-    Box, Paper, Stack, Typography, IconButton, CircularProgress
+    Box, Paper, Stack, Typography, IconButton, CircularProgress,
+    GlobalStyles
 } from '@mui/material'
 import CallSplitRounded from '@mui/icons-material/CallSplitRounded'
 import ReceiptLongRounded from '@mui/icons-material/ReceiptLongRounded'
@@ -154,16 +155,51 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
     }
 
     /* ---------- CLOSE ---------- */
+    const closeWithDialog = React.useCallback(() => {
+        setSwalProps({
+            show: true,
+            icon: 'warning',
+            title: 'Yakin Ingin Menutup Bill Ini ?',
+            text: 'Dengan Menutup Dialog Ini Berarti Bill Akan Berubah Menjadi Unpaid, perlu dibayar Manual. Kecuali Anda Menekan "Cancel Bill". Lanjutkan ?',
+            showConfirmButton: true,
+            confirmButtonText: 'Ya',
+            showCancelButton: true,
+            cancelButtonText: 'Batal',
+            theme: themes.mode,
+            reverseButtons: true,          // UX: Bikin Cancel di kiri, Confirm di kanan (atau kebalikan sesuai selera)
+            allowOutsideClick: false,      // cegah klik luar nutup alert
+            allowEscapeKey: false,         // cegah ESC nutup alert
+            didOpen: (popupEl) => {
+                const container = (popupEl as HTMLElement)?.closest('.swal2-container') as HTMLElement | null;
+                container?.style.setProperty('z-index', '20000', 'important'); // top-most
+            },
+            // satu pintu handler: bedakan confirm vs cancel di sini
+            onResolve: (result: { isConfirmed: any; isDismissed: any }) => {
+                if (result?.isConfirmed) {
+                    // === onConfirm ===
+                    handleClose()
+                } else if (result?.isDismissed) {
+                    // === onCancel ===
+                    // default: tidak melakukan apa-apa (dialog utama tetap terbuka)
+                    // optional: kasih info kecil kalau perlu
+                    // toast.info('Dibatalkan. Bill tetap seperti semula.')
+                }
+            },
+        });
+
+    }, [themes])
+
     const handleClose = React.useCallback(() => {
-        openRef.current = false
-        setOpen(false)
-        setErr(null)
-        setTransactionBill(undefined)
-        setLoading(false)
+        // === onConfirm ===
+        openRef.current = false;
+        setOpen(false);
+        setErr(null);
+        setTransactionBill(undefined);
+        setLoading(false);
         bump('split');
-        bumpReload()
-        clearSelection()
-        clearSelectionGods()
+        bumpReload();
+        clearSelection();
+        clearSelectionGods();
     }, [])
 
     // helper: create bill sekali jalan
@@ -317,8 +353,14 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
                 fullWidth
                 maxWidth="xl"
                 fullScreen={fullScreen}
-                onClose={handleClose}
+                disableEscapeKeyDown={true}
+                onClose={(event, reason) => {
+                    if (reason === 'backdropClick' || reason === 'escapeKeyDown')
+                        return;
+
+                }}
                 keepMounted={false}
+                sx={{ zIndex: (t) => (t.zIndex?.modal ?? 1300) + 1000 }} // <- kunci z-index
                 slotProps={{
                     paper: {
                         sx: {
@@ -342,7 +384,7 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
                         <IconButton size="small" onClick={themes.toggleMode} aria-label={isDark ? 'Ganti ke tema terang' : 'Ganti ke tema gelap'}>
                             {isDark ? <DarkModeRounded fontSize="small" /> : <LightModeRounded fontSize="small" />}
                         </IconButton>
-                        <IconButton size="small" onClick={handleClose} aria-label="Tutup">
+                        <IconButton size="small" onClick={closeWithDialog} aria-label="Tutup">
                             <CloseRounded fontSize="small" />
                         </IconButton>
                     </Stack>
@@ -373,7 +415,6 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
                     </Box>
                 </DialogContent>
             </Dialog>
-
             <SweetAlert2
                 {...swalProps}
                 didClose={() => setSwalProps(prev => ({ ...prev, show: false }))}

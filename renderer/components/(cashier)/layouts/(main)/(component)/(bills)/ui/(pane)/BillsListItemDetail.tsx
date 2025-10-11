@@ -286,12 +286,33 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
     const onCancelBill = React.useCallback(() => {
         window.api.invoke('api.transaction.bills:delete.one', { id : bill?.id })
             .then(() => {
-                setSwalProps({ show: true, icon: "success", theme: mode, title: 'Canceled', text: `Bill dibatalkan` });
+                setSwalProps({
+                    show: true,
+                    icon: "success",
+                    theme: mode,
+                    title: 'Canceled',
+                    text: `Bill dibatalkan`,
+                    timer: 3000,
+                    didOpen: (popupEl) => {
+                        const container = (popupEl as HTMLElement)?.closest('.swal2-container') as HTMLElement | null;
+                        container?.style.setProperty('z-index', '20000', 'important'); // top-most
+                    },
+                });
                 cancelBill?.();
             })
             .catch((error) => {
                 if (error?.safeSkip) return;
-                setSwalProps({ show: true, icon: "error", theme: mode, title: 'Gagal Membatalkan', text: `Check Tagihan Anda` });
+                setSwalProps({
+                    show: true,
+                    icon: "error",
+                    theme: mode,
+                    title: 'Gagal Membatalkan',
+                    text: `Check Tagihan Anda`,
+                    didOpen: (popupEl) => {
+                        const container = (popupEl as HTMLElement)?.closest('.swal2-container') as HTMLElement | null;
+                        container?.style.setProperty('z-index', '20000', 'important'); // top-most
+                    },
+                });
             });
     }, [bill, mode])
 
@@ -350,7 +371,8 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
         if (!config?.printer.defaultPrinter) return
         window.api.invoke('api.transaction.bills:print', {
             bill: bill.id,
-            printer: config?.printer?.defaultPrinter?.id ?? null
+            printer: config?.printer?.defaultPrinter?.id ?? null,
+            god_mode: godMode,
         })
             .then((res) => {
                 if (enableNotify) {
@@ -360,6 +382,10 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                         theme: mode,
                         title: 'Successfully Sending Printer',
                         text: `${res.msg}`,
+                        didOpen: (popupEl) => {
+                            const container = (popupEl as HTMLElement)?.closest('.swal2-container') as HTMLElement | null;
+                            container?.style.setProperty('z-index', '20000', 'important'); // top-most
+                        },
                     });
                 }
 
@@ -373,6 +399,10 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                         theme: mode,
                         title: 'Gagal Mencetak Otomatis',
                         text: `${error?.msg ?? 'Gagal Mencetak. Printer Offline / Error.'}`,
+                        didOpen: (popupEl) => {
+                            const container = (popupEl as HTMLElement)?.closest('.swal2-container') as HTMLElement | null;
+                            container?.style.setProperty('z-index', '20000', 'important'); // top-most
+                        },
                     });
                 }
             })
@@ -605,7 +635,7 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                         <ButtonGroup variant="outlined" color={isPaid ? 'success' : 'warning'} sx={{ borderRadius: 2, overflow: 'hidden' }}>
                             <Button
                                 onClick={() => {
-                                    if (config?.printer.isPrintAutomatically) onPrintHandle({ enableNotify : true })
+                                    onPrintHandle({ enableNotify : true })
                                 }}
                                 startIcon={<PrintRounded sx={{ fontSize: 36 }} />}
                                 sx={{ textTransform: 'none', fontWeight: 800, fontSize: { xs: 14, md: 15 }, py: 1.1, px: 2.2 }}

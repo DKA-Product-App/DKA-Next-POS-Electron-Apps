@@ -14,33 +14,46 @@ export function KeyEvent(mainWindow?: BrowserWindow) {
             w.webContents.send(CHANNEL, { key, origin })
         );
 
-    // Daftarkan global F1..F12 hanya saat ada window fokus
+    // --- NEW: normalizer untuk key|code (fix F12 di Windows) ---
+    const resolveFnKey = (input: any): FnKey | undefined => {
+        const k = String(input?.key ?? '').toUpperCase();
+        const c = String(input?.code ?? '').toUpperCase();
+        const hit = (FN_KEYS as readonly string[]).find(fn => fn === k || fn === c);
+        return hit as FnKey | undefined;
+    };
+
     const registerGlobals = () => {
         if (registered || !app.isReady()) return false;
         customEventsDefaults(mainWindow);
-        registered = FN_KEYS.map(k => globalShortcut.register(k, () => broadcast(k, 'global'))).every(Boolean);
+        registered = FN_KEYS
+            .map(k => globalShortcut.register(k, () => broadcast(k, 'global')))
+            .every(Boolean);
         return registered;
     };
 
     const unregisterGlobals = () => {
-        globalShortcut  .unregisterAll();
-        ipcMain.removeAllListeners(`key.window.fullscreen`);
-        ipcMain.removeAllListeners('key.window.dev.mode')
-        registered = false
+        globalShortcut.unregisterAll();
+        ipcMain.removeAllListeners('key.window.fullscreen');
+        ipcMain.removeAllListeners('key.window.dev.mode');
+        registered = false;
     };
 
-    // Blok default Chromium (F5/F11/F12, Ctrl/Cmd+R/I, F10 menu focus) → teruskan ke renderer
+    // Blok default Chromium (F5/F11/F12, Ctrl/Cmd+R/I, F10) → teruskan ke renderer
     const preventBrowserDefaults = (win: BrowserWindow) =>
         win.webContents.on('before-input-event', (event, input) => {
-            const isFn = (FN_KEYS as readonly string[]).includes(input.key as FnKey);
-            const isReload = input.key === 'F5' || (input.key === 'R' && (input.control || input.meta));
-            const isHardReload = input.key === 'R' && (input.control || input.meta) && input.shift;
-            const isFullscreen = input.key === 'F11';
-            const isDevtools = input.key === 'I' && (input.control || input.meta) && input.shift;
-            const isMenuFocus = input.key === 'F10';
-            const shouldBlock = isFn || isReload || isHardReload || isFullscreen || isDevtools || isMenuFocus;
+            const fn = resolveFnKey(input);                                // ← baca dari key ATAU code
+            const keyUp = String(input?.key ?? '').toUpperCase();
 
-            shouldBlock ? (event.preventDefault(), broadcast(input.key, 'before-input')) : null;
+            const isReload = keyUp === 'F5' || (keyUp === 'R' && (input.control || input.meta));
+            const isHardReload = keyUp === 'R' && (input.control || input.meta) && input.shift;
+            const isFullscreen = keyUp === 'F11';
+            const isDevtoolsAccel = (keyUp === 'I' && (input.control || input.meta) && input.shift) || keyUp === 'F12';
+            const isMenuFocus = keyUp === 'F10';
+
+            const shouldBlock = Boolean(fn) || isReload || isHardReload || isFullscreen || isDevtoolsAccel || isMenuFocus;
+
+            // Gunakan nama FN ter-normalisasi saat broadcast (mis. 'F12')
+            shouldBlock ? (event.preventDefault(), broadcast(fn ?? keyUp, 'before-input')) : null;
         });
 
     const customEventsDefaults = (win: BrowserWindow) => {
@@ -55,7 +68,6 @@ export function KeyEvent(mainWindow?: BrowserWindow) {
     };
 
     app.on('browser-window-created', (_e, win) => {
-
         preventBrowserDefaults(win);
     });
     app.on('browser-window-focus', registerGlobals);

@@ -14,8 +14,6 @@ import ErrorOutlineRounded from '@mui/icons-material/ErrorOutlineRounded'
 import PendingActionsRounded from '@mui/icons-material/PendingActionsRounded'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
-import Image, { ImageLoader } from 'next/image'
-import Skeleton from '@mui/material/Skeleton'
 import { NoteAltRounded } from '@mui/icons-material'
 import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../../types/api.transaction.type";
 import {ImgWithSkeleton} from "../../../../../../../../../../utils/ImageProcessingIPC";
