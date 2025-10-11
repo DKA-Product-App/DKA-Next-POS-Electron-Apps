@@ -71,7 +71,7 @@ function groupTxItemsByPrinter(tx?: Transaction): PrinterBucket[] {
                 const name = String(p?.name ?? pid)
                 const description = String(p?.description ?? name)
                 const bucket = map.get(pid) ?? { id: pid, name, description, items: [] }
-                bucket.items.push(it as Item)
+                bucket.items.push(it as TransactionBatchesItems)
                 map.set(pid, bucket)
             })
         })

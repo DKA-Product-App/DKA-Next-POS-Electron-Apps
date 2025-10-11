@@ -10,7 +10,6 @@ export type OrderType = { id: string; code: string; name: string }
 export type Table = { id: string; code: string; name: string }
 export type Product = { id: string; name: string; description?: string; image?: string }
 export type Variant = { id: string; code?: string; name?: string; price?: string }
-export type Item = { id: string; qty: number; price: string; sub_total: string; note?: string | null; reference?: Reference | null; product: Product; variant?: Variant }
 
 
 type Ctx = {
@@ -54,16 +53,16 @@ export function TxProvider({ txId, children }: { txId: string; children: React.R
     const [selectedBatchId, setSelectedBatchId] = React.useState<string | undefined>(undefined)
     const [selectedItemIds, setSelectedItemIds] = React.useState<Set<string>>(new Set())
     const [selectedItemIdsGod, setSelectedItemIdsGod] = React.useState<Set<string>>(new Set())
-    const [itemsByBatch, setItemsByBatch] = React.useState<Record<string, Item[]>>({})
+    const [itemsByBatch, setItemsByBatch] = React.useState<Record<string, TransactionBatchesItems[]>>({})
     const [reloadKey, setReloadKey] = React.useState(0)
 
     const setGrandTotal = (num: number) => setGrandTotalState(num)
     const bumpReload = () => setReloadKey(k => k + 1)
 
-    const registerItems = (batchId: string, items: Item[]) =>
+    const registerItems = (batchId: string, items: TransactionBatchesItems[]) =>
         setItemsByBatch(prev => ({ ...prev, [batchId]: items }))
 
-    const toggleItem = (item: Item, batchId?: string) => {
+    const toggleItem = (item: TransactionBatchesItems, batchId?: string) => {
         const key = batchId ? `${batchId}:${item.id}` : item.id
         setSelectedItemIds(prev => {
             const next = new Set(prev)
@@ -72,7 +71,7 @@ export function TxProvider({ txId, children }: { txId: string; children: React.R
         })
     }
 
-    const toggleItemGod = (item: Item, batchId?: string) => {
+    const toggleItemGod = (item: TransactionBatchesItems, batchId?: string) => {
         const key = batchId ? `${batchId}:${item.id}` : item.id
         setSelectedItemIdsGod(prev => {
             const next = new Set(prev)
@@ -86,11 +85,11 @@ export function TxProvider({ txId, children }: { txId: string; children: React.R
     const selectedTotal = React.useMemo(() => {
         if (selectedItemIds.size === 0) return 0
         let sum = 0
-        const index: Record<string, Item> = {}
+        const index: Record<string, TransactionBatchesItems> = {}
         Object.values(itemsByBatch).forEach(arr => arr.forEach(it => { index[it.id] = it }))
         selectedItemIds.forEach(id => {
             const it = index[id]
-            if (it) sum += parseFloat(it.sub_total || '0')
+            if (it) sum += parseFloat( `${it.sub_total || '0'}`)
         })
         return sum
     }, [selectedItemIds, itemsByBatch])
