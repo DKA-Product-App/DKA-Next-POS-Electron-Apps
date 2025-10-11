@@ -25,12 +25,6 @@ import dynamic from 'next/dynamic'
 import ShimmerMenuSelectLoading from '../(loading)/ShimmerMenuSelectLoading'
 import OrderVoidModal from './(components)/OrderVoidModal'
 import NewOrderBillModal from './(components)/NewOrderBillModal'
-import {
-    Transaction,
-    TransactionBatchesItems,
-    TransactionBills,
-    TransactionBillsItems
-} from '../types/api.transaction.type'
 import { LayoutManipulatorBatchProvider } from "../../context/LayoutManipulatorBatchContext"
 import LeftContainerBatchListNewOrder from './(pane)/(components)/LeftContainerBatchListNewOrder'
 
@@ -40,6 +34,9 @@ import FilterOrderHeader from './(components)/FilterOrderHeader'
 import TaskAltRounded from "@mui/icons-material/TaskAltRounded";
 import {useFunctionKeyCtx} from "../../../../../../../../contexts/FunctionKeyProviderContext";
 import {SummarizeTxReturn} from "../../types/transaction.read.one.type";
+import {Transaction} from "../../../../../../../../types/transaction/transaction.type";
+import {TransactionBatchItem} from "../../../../../../../../types/transaction/batch/transaction.batch.item.type";
+import {TransactionBill} from "../../../../../../../../types/transaction/bill/transaction.bill.type";
 
 /* ========= Utils ========= */
 const rupiah = (n: number | string) =>
@@ -165,7 +162,7 @@ const getStatusSummary = (o: Transaction) => {
 };
 
 
-const isSuccessPaidItem = (item: TransactionBatchesItems, bills: TransactionBills[]) =>
+const isSuccessPaidItem = (item: TransactionBatchItem, bills: TransactionBill[]) =>
     bills?.some((bill) =>
         (bill?.paid !== null || bill?.paid?.status === true) &&
         (bill?.items ?? []).some((bi) => bi?.productVariant?.id === item?.id)

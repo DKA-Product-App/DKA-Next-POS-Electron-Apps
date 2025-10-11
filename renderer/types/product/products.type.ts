@@ -4,8 +4,8 @@
  * =========================== */
 
 import {ProductsCategories} from "./product.categories.type";
-import {Accounts} from "./account/accounts.type";
-import {ConfigBranch} from "./config/base/branch.type";
+import {Accounts} from "../account/accounts.type";
+import {ConfigBranch} from "../config/base/branch.type";
 import {ProductsVariants} from "./products.variants.type";
 
 /** Wrapper response utama */

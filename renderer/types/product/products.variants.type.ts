@@ -3,8 +3,8 @@
  * Root: ProductsVariants
  * ============================================ */
 
-import {ConfigBranch} from "./config/base/branch.type";
-import {Accounts} from "./account/accounts.type";
+import {ConfigBranch} from "../config/base/branch.type";
+import {Accounts} from "../account/accounts.type";
 import {Products} from "./products.type";
 
 

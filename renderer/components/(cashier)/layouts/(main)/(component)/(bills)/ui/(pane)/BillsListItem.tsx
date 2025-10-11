@@ -15,10 +15,13 @@ import ClearRounded from '@mui/icons-material/ClearRounded'
 
 import { useLayoutManipulatorResizable } from '../../../../../../../../contexts/LayoutManipulatorResizableContext'
 import BillListItemDetail from './BillsListItemDetail'
-import { ApiResponseTransactionBill, TransactionBill, TransactionBills } from '../../types/transaction.bill.type'
 import { useTabNavigationHandlerContext } from '../../../(transaction)/context/TabNavigationHandlerContext'
 import ShimmerLoading from '../../../../../../../(shared)/(loading)/ShimmerLoading'
 import { useGodModeProvider } from '../../../../../../context/GodModeProviderContext'
+import {
+    ApiTransactionBillResponse,
+    TransactionBill
+} from "../../../../../../../../types/transaction/bill/transaction.bill.type";
 
 /* ====== Dynamic chunks ====== */
 const Shimmer = () => (
@@ -190,9 +193,9 @@ const BillsListItem: React.FC = () => {
 
         const t = setTimeout(() => {
             window.api.invoke('api.transaction.bills:read.all', payload)
-                .then((result: ApiResponseTransactionBill | { data: TransactionBills } | undefined) => {
-                    const arr = Array.isArray((result as ApiResponseTransactionBill)?.data)
-                        ? (result as ApiResponseTransactionBill).data
+                .then((result: ApiTransactionBillResponse | { data: TransactionBill } | undefined) => {
+                    const arr = Array.isArray((result as ApiTransactionBillResponse)?.data)
+                        ? (result as ApiTransactionBillResponse).data
                         : (result as any)?.data
                     return alive ? (arr ?? []) : []
                 })

@@ -22,9 +22,6 @@ import TakeoutDiningRounded from '@mui/icons-material/TakeoutDiningRounded'
 import RestaurantRounded from '@mui/icons-material/RestaurantRounded'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
-import {
-    TransactionBill, TransactionBillPaymentMethod, TransactionBillPrinterDevice, TransactionBills,
-} from '../../types/transaction.bill.type'
 import { useEffect, useMemo, useRef, useState } from "react"
 import { ImgWithSkeleton } from '../../../../../../../../utils/ImageProcessingIPC'
 import {CheckRounded, ExpandLessRounded } from '@mui/icons-material'
@@ -33,6 +30,9 @@ import SweetAlert2, {SweetAlert2Props} from "react-sweetalert2";
 import {useThemeCharger} from "../../../../../../../../contexts/ThemeCharger";
 import {useUserConfig} from "../../../../../../../../contexts/UserConfigContext";
 import {useGodModeProvider} from "../../../../../../context/GodModeProviderContext";
+import {TransactionBill} from "../../../../../../../../types/transaction/bill/transaction.bill.type";
+import {ConfigPaymentMethod} from "../../../../../../../../types/config/data/payment.method.type";
+import {DevicePrinter} from "../../../../../../../../types/config/device/device.printer.type";
 
 /* ================================= THEME ACCENTS ================================= */
 const PURPLE_GRAD = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
@@ -91,7 +91,7 @@ const deriveLineItems = (bill?: TransactionBill, godMode?: boolean) =>
 /* ================================== SUB-COMPONENTS ================================== */
 type ApiResponse<T> = { status: boolean; code: number; msg: string; data: T }
 
-const iconFromMethod = (m?: TransactionBillPaymentMethod) => {
+const iconFromMethod = (m?: ConfigPaymentMethod) => {
     const key = (m?.icon || '').toLowerCase()
     const nm = (m?.name || '').toLowerCase()
     if (key.includes('qr') || nm.includes('qris')) return <QrCode2Rounded fontSize="medium" />
@@ -144,9 +144,9 @@ const MethodCard: React.FC<{
 const PaymentMethodsPicker: React.FC<{
     disabled?: boolean
     selectedId?: string
-    onSelect: (m: TransactionBillPaymentMethod) => void
+    onSelect: (m: ConfigPaymentMethod) => void
 }> = ({ disabled, selectedId, onSelect }) => {
-    const [methods, setMethods] = useState<TransactionBillPaymentMethod[]>([])
+    const [methods, setMethods] = useState<ConfigPaymentMethod[]>([])
     const [loading, setLoading] = useState(true)
     const [err, setErr] = useState<string | null>(null)
 
@@ -155,8 +155,8 @@ const PaymentMethodsPicker: React.FC<{
         setLoading(true)
         // @ts-ignore
         window.api.invoke('api.config.data.payment.method:read.all', {})
-            .then((res: ApiResponse<TransactionBillPaymentMethod[]> | { data: TransactionBillPaymentMethod[] } | undefined) => {
-                const arr = Array.isArray((res as any)?.data) ? (res as any).data as TransactionBillPaymentMethod[] : []
+            .then((res: ApiResponse<ConfigPaymentMethod[]> | { data: ConfigPaymentMethod[] } | undefined) => {
+                const arr = Array.isArray((res as any)?.data) ? (res as any).data as ConfigPaymentMethod[] : []
                 if (!alive) return
                 setMethods(arr.filter(m => m.status !== false))
                 setErr(null)
@@ -216,7 +216,7 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
     const [swalProps, setSwalProps] = useState<SweetAlert2Props>({});
 
     /* ---------------- PAYMENT STATE ---------------- */
-    const [method, setMethod] = useState<TransactionBillPaymentMethod | null>(null)
+    const [method, setMethod] = useState<ConfigPaymentMethod | null>(null)
     const [needTender, setNeedTender] = useState<boolean>(false)
     const [tenderMode, setTenderMode] = useState<TenderMode>('idle')
     const [showTotals, setShowTotals] = useState<boolean>(true)
@@ -228,7 +228,7 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
 
     // 2) State: langsung simpan objek printer
     const [printerMenuOpen, setPrinterMenuOpen] = React.useState(false)
-    const [PrinterList, setPrinterList] = React.useState<TransactionBillPrinterDevice[]>([])
+    const [PrinterList, setPrinterList] = React.useState<DevicePrinter[]>([])
     const arrowRef = React.useRef<HTMLButtonElement | null>(null)
 
     const togglePrinterMenu = () => setPrinterMenuOpen(v => !v)
@@ -358,7 +358,7 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
     }
 
     React.useEffect(() => {
-       window?.api.invoke?.<any, AxiosResponse<TransactionBillPrinterDevice[]>>("api.config.device.printer:read.all", {})
+       window?.api.invoke?.<any, AxiosResponse<DevicePrinter[]>>("api.config.device.printer:read.all", {})
            .then(async ({ data }) => {
                if (config?.printer.defaultPrinter === undefined) set({ printer : { defaultPrinter: data?.[0] }})
                setPrinterList(data);

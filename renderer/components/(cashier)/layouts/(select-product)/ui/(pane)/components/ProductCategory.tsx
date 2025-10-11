@@ -2,7 +2,7 @@
 
 import React, { FC, memo } from 'react'
 import { Tabs, Tab, Chip, Stack } from '@mui/material'
-import {ProductsCategories} from "../../../../../../../types/product.categories.type";
+import {ProductsCategories} from "../../../../../../../types/product/product.categories.type";
 
 type Props = {
     value: number

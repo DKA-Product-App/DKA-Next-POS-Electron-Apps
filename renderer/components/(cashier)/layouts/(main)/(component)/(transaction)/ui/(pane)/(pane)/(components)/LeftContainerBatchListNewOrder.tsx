@@ -21,11 +21,13 @@ import { useTheme } from '@mui/material/styles'
 import { useThemeCharger } from '../../../../../../../../../../contexts/ThemeCharger'
 import {useTransactionEventTrigger} from "../../context/TransactionEventTriggerContext";
 import {useSession} from "../../../../../../../../../../contexts/SessionProviderContext";
-import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../../types/api.transaction.type";
 import {AxiosResponse} from "axios";
 import {useEffect, useState} from "react";
 import {useFunctionKeyCtx} from "../../../../../../../../../../contexts/FunctionKeyProviderContext";
 import {useUserConfig} from "../../../../../../../../../../contexts/UserConfigContext";
+import {TransactionBatchItem} from "../../../../../../../../../../types/transaction/batch/transaction.batch.item.type";
+import {Transaction} from "../../../../../../../../../../types/transaction/transaction.type";
+import {TransactionBatch} from "../../../../../../../../../../types/transaction/batch/transaction.batch.type";
 
 const Billing = dynamic(() => import('../../../../../../../(select-product)'), { ssr: true })
 
@@ -34,8 +36,8 @@ const rupiah = (n: number | string) =>
         .format(typeof n === 'string' ? parseFloat(n) : n)
 
 /* ===== Printer grouping ===== */
-type PrinterBucket = { id: string; name: string; description: string; items: TransactionBatchesItems[] }
-function groupItemsByPrinter(items: TransactionBatchesItems[]): PrinterBucket[] {
+type PrinterBucket = { id: string; name: string; description: string; items: TransactionBatchItem[] }
+function groupItemsByPrinter(items: TransactionBatchItem[]): PrinterBucket[] {
     const map = new Map<string, PrinterBucket>()
     items.forEach(it => {
         const cats: any[] = Array.isArray(it?.product?.category) ? (it as any).product.category : []
@@ -57,13 +59,13 @@ function groupItemsByPrinter(items: TransactionBatchesItems[]): PrinterBucket[] 
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
 }
 
-const isApprovedVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved === true
-const isPendingVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved !== true
+const isApprovedVoid = (it: TransactionBatchItem) => Boolean(it?.void) && it.void!.is_approved === true
+const isPendingVoid = (it: TransactionBatchItem) => Boolean(it?.void) && it.void!.is_approved !== true
 /* ===== Merge helpers (UI only) ===== */
-type MergedItem = { sample: TransactionBatchesItems; qty: number; hasPending: boolean }
-const keyOf = (it: TransactionBatchesItems) => `${it.product?.id ?? ''}::${it.variant?.id ?? it.product?.id ?? ''}`
+type MergedItem = { sample: TransactionBatchItem; qty: number; hasPending: boolean }
+const keyOf = (it: TransactionBatchItem) => `${it.product?.id ?? ''}::${it.variant?.id ?? it.product?.id ?? ''}`
 
-function mergeItemsByVariant(items: TransactionBatchesItems[]): MergedItem[] {
+function mergeItemsByVariant(items: TransactionBatchItem[]): MergedItem[] {
     const rec = items.reduce((acc, it) => {
         const key = keyOf(it)
         const cur = acc[key]
@@ -145,11 +147,11 @@ const LeftContainerBatchListNewOrder: React.FC<{ transactionId: string }> = ({ t
     const closeDialog = () => setOpen(false)
 
     // ⬇️ hide items yang approved void, tampilkan normal + pending
-    const buckets = (batch : TransactionBatches) => {
+    const buckets = (batch : TransactionBatch) => {
         const visible = (batch.items || []).filter(it => !isApprovedVoid(it))
         return groupItemsByPrinter(visible)
     }
-    const handlePrintAll = (batch : TransactionBatches) => {
+    const handlePrintAll = (batch : TransactionBatch) => {
         const bucketsToPrint = buckets(batch).filter(b => (b.items?.length ?? 0) > 0)
         if (!bucketsToPrint.length) return
 

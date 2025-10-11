@@ -20,9 +20,9 @@ import ShiummerLoadingProductCategory from "../(loading)/ShimmerLoadingProductCa
 import ProductCard from "./components/ProductCard";
 
 import type { ProductWithVariants } from "./components/modals/ProductDetailModal";
-import {ProductsCategories} from "../../../../../../types/product.categories.type";
-import {Products} from "../../../../../../types/products.type";
-import {ProductsVariants} from "../../../../../../types/products.variants.type"; // re-use komposit
+import {ProductsCategories} from "../../../../../../types/product/product.categories.type";
+import {Products} from "../../../../../../types/product/products.type";
+import {ProductsVariants} from "../../../../../../types/product/products.variants.type"; // re-use komposit
 
 const GRADIENT = "linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)";
 

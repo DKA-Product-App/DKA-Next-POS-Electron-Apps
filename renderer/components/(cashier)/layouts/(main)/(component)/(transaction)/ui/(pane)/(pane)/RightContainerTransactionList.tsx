@@ -7,11 +7,12 @@ import { Box } from '@mui/material'
 import Grid from '@mui/material/Grid'
 import dynamic from "next/dynamic"
 import { useTx } from '../context/TransactionContext'
-import { TransactionBatchesItems } from "../../types/api.transaction.type"
 
 /** 🔽 NEW: filter context */
 import { useFilterOrderHeader } from '../context/FilterOrderHeaderContext'
 import { useMemo } from "react";
+import {TransactionBatch} from "../../../../../../../../../types/transaction/batch/transaction.batch.type";
+import {TransactionBatchItem} from "../../../../../../../../../types/transaction/batch/transaction.batch.item.type";
 
 const RightContainerBatchDetailRowSkeleton = dynamic(() => import('../../(loading)/RightContainerBatchDetailRowSkeleton'), { ssr: false })
 const RightContainerBatchDetailRow = dynamic(() => import('./(components)/RightContainerBatchDetailRow'), { ssr: false })
@@ -24,7 +25,7 @@ const notNull = <T,>(x: T | null | undefined): x is T => x != null
 
 const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ transactionId }) => {
     const { selectedItemIds, selectedItemIdsGod, toggleItemGod, toggleItem, registerItems, reloadKey } = useTx()
-    const [items, setItems] = React.useState<TransactionBatchesItems[]>([])
+    const [items, setItems] = React.useState<TransactionBatchItem[]>([])
     const fetchSeqRef = React.useRef(0)
 
     // 🔽 NEW: dari context
@@ -34,7 +35,7 @@ const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ tr
         window.api.invoke('api.transaction.batch.item:read.all', { transaction: transactionId })
             .then((res: any) => {
                 if (seq !== fetchSeqRef.current) return
-                const arr: TransactionBatchesItems[] = res?.data ?? []
+                const arr: TransactionBatchItem[] = res?.data ?? []
                 setItems(arr)
                 registerItems(transactionId, arr)
             })
@@ -117,13 +118,13 @@ const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ tr
         return { paid, pending, billed, voidPendingIds, voidApprovedIds }
     }, [items])
 
-    const hasNote = (it: TransactionBatchesItems) => Boolean(it.note?.trim()?.length)
-    const isPendingVoid = (it: TransactionBatchesItems) => statusSets.voidPendingIds.has(sid(it.id))
-    const isApprovedVoid = (it: TransactionBatchesItems) => statusSets.voidApprovedIds.has(sid(it.id))
+    const hasNote = (it: TransactionBatchItem) => Boolean(it.note?.trim()?.length)
+    const isPendingVoid = (it: TransactionBatchItem) => statusSets.voidPendingIds.has(sid(it.id))
+    const isApprovedVoid = (it: TransactionBatchItem) => statusSets.voidApprovedIds.has(sid(it.id))
 
     /** ✅ FIX: cek paid/pendingPaid pakai hasil alokasi per-variant, bukan nyocokkan ke id item */
-    const isPendingPaid = (it: TransactionBatchesItems) => statusSets.pending.has(sid(it.id))
-    const isPaid        = (it: TransactionBatchesItems) => statusSets.paid.has(sid(it.id))
+    const isPendingPaid = (it: TransactionBatchItem) => statusSets.pending.has(sid(it.id))
+    const isPaid        = (it: TransactionBatchItem) => statusSets.paid.has(sid(it.id))
 
     if (!transactionId) return <Box sx={{ p: 2, color: 'text.secondary' }}>Pilih Transaction untuk melihat detail item…</Box>
 

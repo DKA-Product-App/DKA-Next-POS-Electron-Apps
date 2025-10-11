@@ -25,7 +25,8 @@ import {
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
 import moment from 'moment-timezone';
-import {ProductsCategories, ProductsCategoriesPrinters} from "../../../../../../types/product.categories.type";
+import {ProductsCategories} from "../../../../../../types/product/product.categories.type";
+import {DevicePrinter} from "../../../../../../types/config/device/device.printer.type";
 
 
 const CatalogProductCategories = () => {
@@ -34,7 +35,7 @@ const CatalogProductCategories = () => {
 
     // ==== Popover state (anchored to Chip) ====
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const [selectedPrinters, setSelectedPrinters] = useState<ProductsCategoriesPrinters[]>([]);
+    const [selectedPrinters, setSelectedPrinters] = useState<DevicePrinter[]>([]);
     const [selectedCategoryName, setSelectedCategoryName] = useState<string>('');
 
     const openPopover = useCallback((anchor: HTMLElement, row: ProductsCategories) => {

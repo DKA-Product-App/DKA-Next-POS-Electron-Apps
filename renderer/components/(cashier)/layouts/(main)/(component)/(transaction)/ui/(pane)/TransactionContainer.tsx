@@ -21,9 +21,11 @@ import dynamic from 'next/dynamic'
 import ShimmerMenuSelectLoading from '../(loading)/ShimmerMenuSelectLoading'
 import OrderVoidModal from './(components)/OrderVoidModal'
 import NewOrderBillModal from './(components)/NewOrderBillModal'
-import {Transaction, TransactionBatchesItems, TransactionBills} from '../types/api.transaction.type'
 import {LayoutManipulatorBatchProvider, useLayoutManipulatorBatch} from "../../context/LayoutManipulatorBatchContext";
 import {useEffect} from "react";
+import {TransactionBatchItem} from "../../../../../../../../types/transaction/batch/transaction.batch.item.type";
+import {TransactionBill} from "../../../../../../../../types/transaction/bill/transaction.bill.type";
+import {Transaction} from "../../../../../../../../types/transaction/transaction.type";
 
 /* ========= Utils ========= */
 const rupiah = (n: number | string) =>
@@ -46,7 +48,7 @@ const RightContainerBatchDetail = dynamic(() => import('./(pane)/RightContainerB
 
 /* ========= Selectors & Counters ========= */
 const totalItems = (o: Transaction) =>
-    (o?.batches ?? []).reduce((acc, b) => acc + (b?.items?.length ?? 0), 0)
+    o?.batches?.reduce((acc, b) => acc + (b?.items?.length ?? 0), 0)
 
 const pickBills = (o: Transaction) => Array.isArray(o?.bills) ? o.bills : []
 
@@ -98,7 +100,7 @@ const getPendingActive = (o: Transaction) => {
     return { pending, active, paid }
 }
 
-const isSuccessPaidItem = (item: TransactionBatchesItems, bills: TransactionBills[]) =>
+const isSuccessPaidItem = (item: TransactionBatchItem, bills: TransactionBill[]) =>
     bills?.some((bill) =>
         (bill?.paid !== null || bill?.paid?.status === true) &&
         (bill?.items ?? []).some((bi) => bi?.productVariant?.id === item?.id)
@@ -106,10 +108,10 @@ const isSuccessPaidItem = (item: TransactionBatchesItems, bills: TransactionBill
 // total price: skip kalau void approved atau pending paid
 const totalPrices = (o: Transaction) => {
     const bills = pickBills(o)
-    return (o?.batches ?? []).reduce(
+    return o?.batches?.reduce(
         (acc, b) =>
             acc +
-            (b?.items ?? []).reduce(
+            b?.items?.reduce(
                 (a, i) => a + ((i?.void?.is_approved === true || isSuccessPaidItem(i, bills)) ? 0 : (+i?.sub_total || 0)),
                 0
             ),
@@ -139,8 +141,7 @@ function Body({ transaction }: { transaction: Transaction }) {
 
     // Semua ID item transaksi (untuk full-bill mode)
     const allItemIds: string[] = React.useMemo(() => {
-        const fromBatches = (transaction?.batches ?? [])
-            .flatMap(b => Array.isArray(b?.items) ? b!.items! : [])
+        const fromBatches = transaction?.batches?.flatMap(b => Array.isArray(b?.items) ? b!.items! : [])
             .map(it => toId(it?.id))
             .filter(Boolean)
 

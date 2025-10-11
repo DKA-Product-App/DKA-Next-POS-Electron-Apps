@@ -17,9 +17,9 @@ import GppBadRounded from '@mui/icons-material/GppBadRounded'          // voided
 import PendingActionsRounded from '@mui/icons-material/PendingActionsRounded' // pending void
 import LockRounded from '@mui/icons-material/LockRounded'               // closed
 
-import { TransactionBatchesItems } from "../../../types/api.transaction.type";
 import {ImgWithSkeleton, OverlayTone} from "../../../../../../../../../../utils/ImageProcessingIPC";
 import {useGodModeProvider} from "../../../../../../../../context/GodModeProviderContext";
+import {TransactionBatchItem} from "../../../../../../../../../../types/transaction/batch/transaction.batch.item.type";
 
 const MotionPaper = motion(Paper)
 
@@ -60,7 +60,7 @@ const StatusBadge: React.FC<{
 
 
 type Props = {
-    item: TransactionBatchesItems
+    item: TransactionBatchItem
     totalLabel: string
     qtyPriceLabel: string
     uploadsLoader?: ImageLoader
@@ -75,8 +75,8 @@ type Props = {
     isPendingPaid?: boolean
     isPaid?: boolean
 
-    onToggle: (it: TransactionBatchesItems) => void;
-    onToggleGod?: (it: TransactionBatchesItems) => void
+    onToggle: (it: TransactionBatchItem) => void;
+    onToggleGod?: (it: TransactionBatchItem) => void
 }
 
 const GRADIENT = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)';

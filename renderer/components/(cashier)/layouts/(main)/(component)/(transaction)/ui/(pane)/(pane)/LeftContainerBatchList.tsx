@@ -7,11 +7,12 @@ import { Box, Chip, List, Stack, Typography } from '@mui/material'
 import { useTx } from '../context/TransactionContext'
 import {useSession} from "../../../../../../../../../contexts/SessionProviderContext";
 import dynamic from "next/dynamic";
-import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../types/api.transaction.type";
 import {useLayoutManipulatorBatch} from "../../../context/LayoutManipulatorBatchContext";
 import ShimmerMenuSelectLoading from "../../(loading)/ShimmerMenuSelectLoading";
 import {useEffect} from "react";
 import {AxiosRequestConfig, AxiosResponse} from "axios";
+import {TransactionBatchItem} from "../../../../../../../../../types/transaction/batch/transaction.batch.item.type";
+import {TransactionBatch} from "../../../../../../../../../types/transaction/batch/transaction.batch.type";
 
 
 const LeftContainerBatchListRowSkeleton = dynamic(() => import('../../(loading)/LeftContainerBatchListRowSkeleton'), {
@@ -41,8 +42,8 @@ const fmtDT = (iso?: string) =>
             .format(new Date(iso))
         : '-'
 
-const totalItem = (b: TransactionBatches) => b.items.length
-const totalQty = (b: TransactionBatches) => b.items.reduce((a, i) => a + i.qty, 0)
+const totalItem = (b: TransactionBatch) => b.items.length
+const totalQty = (b: TransactionBatch) => b.items.reduce((a, i) => a + i.qty, 0)
 
 // ===== Timer utils (tahun/bulan/hari + jam/menit/detik, tanpa minggu) =====
 const addMonths = (d: Date, months: number) => {
@@ -124,7 +125,7 @@ const TimerText: React.FC<{ startIso?: string; endIso?: string | null; active: b
 }
 
 // ambil printerId dari product.category[].printer[]
-const getPrinterIdsFromItem = (it: TransactionBatchesItems): string[] => {
+const getPrinterIdsFromItem = (it: TransactionBatchItem): string[] => {
     const cats: any[] = Array.isArray((it as any)?.product?.category) ? (it as any).product.category : []
     const ids: string[] = []
     cats.forEach(c => {
@@ -135,8 +136,8 @@ const getPrinterIdsFromItem = (it: TransactionBatchesItems): string[] => {
 }
 
 // kelompokkan item per printerId
-const groupItemsByPrinter = (items: TransactionBatchesItems[]) => {
-    const map = new Map<string, TransactionBatchesItems[]>()
+const groupItemsByPrinter = (items: TransactionBatchItem[]) => {
+    const map = new Map<string, TransactionBatchItem[]>()
     items.forEach(it => {
         const pids = getPrinterIdsFromItem(it)
         pids.forEach(pid => {
@@ -181,7 +182,7 @@ const pickBillsFromBatch = (b: any) =>
     ?? []
 
 // --- HANYA terima Batch ---
-export const batchTotal = (b: TransactionBatches) => {
+export const batchTotal = (b: TransactionBatch) => {
     const bills = pickBillsFromBatch(b)
     return (b?.items ?? []).reduce(
         (acc: number, i: any) =>
@@ -190,7 +191,7 @@ export const batchTotal = (b: TransactionBatches) => {
     )
 }
 
-export const getPendingActiveForBatch = (batch: TransactionBatches) => {
+export const getPendingActiveForBatch = (batch: TransactionBatch) => {
     const bills = pickBillsFromBatch(batch)
 
     const ids =
@@ -224,7 +225,7 @@ const LeftContainerBatchList: React.FC<{ transactionId: string }> = ({ transacti
     const { setGrandTotal, reloadKey, setReloadKey } = useTx()
     const { layout, setLayout } = useLayoutManipulatorBatch();
     const [ selectedBatchId, setSelectedBatchId ] = React.useState<string | undefined>(undefined);
-    const [batches, setBatches] = React.useState<TransactionBatches[]>([])
+    const [batches, setBatches] = React.useState<TransactionBatch[]>([])
     const { Session } = useSession()
     const [isLoading, setIsLoading] = React.useState(false)
 
@@ -252,7 +253,7 @@ const LeftContainerBatchList: React.FC<{ transactionId: string }> = ({ transacti
     }, [transactionId, setLayout]);
 
     // ⬇️ ubah handler jadi toggle
-    const onClickItem = (b: TransactionBatches) => {
+    const onClickItem = (b: TransactionBatch) => {
         setSelectedBatchId(prev => (prev === b.id ? undefined : b.id));
     };
 

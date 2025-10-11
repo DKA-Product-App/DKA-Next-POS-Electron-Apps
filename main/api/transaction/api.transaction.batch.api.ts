@@ -2,9 +2,6 @@ import {BrowserWindow} from "electron";
 import {compile} from "path-to-regexp";
 import {ApiConfig} from "../../config/api.config";
 import {getApi} from "../../functions/api/api.request.instance";
-import {
-    TransactionBatches
-} from "../../../renderer/components/(cashier)/layouts/(main)/(component)/(transaction)/ui/types/api.transaction.type";
 
 let lastCtrl: AbortController | null = null;
 

@@ -2,14 +2,12 @@
 
 import * as React from 'react';
 import { merge } from 'lodash';
-import {
-    TransactionBillPrinterDevice
-} from "../components/(cashier)/layouts/(main)/(component)/(bills)/types/transaction.bill.type";
+import {DevicePrinter} from "../types/config/device/device.printer.type";
 
 /* ========= Types ========= */
 export type PrinterConfig = {
     isPrintAutomatically: boolean;
-    defaultPrinter?: TransactionBillPrinterDevice | undefined;
+    defaultPrinter?: DevicePrinter | undefined;
 };
 
 export type SessionConfig = {

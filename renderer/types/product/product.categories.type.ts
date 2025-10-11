@@ -1,6 +1,8 @@
 // products-categories.types.ts
 
 /* ===== Common ===== */
+import {DevicePrinter} from "../config/device/device.printer.type";
+
 export type UUID = string;
 export type ISODateString = string;
 
@@ -32,26 +34,6 @@ export interface BranchRef {
     time_deleted: ISODateString | null;
 }
 
-/* ===== Printers ===== */
-export interface ProductsCategoriesPrintersOptions {
-    /** Mode koneksi printer (contoh data: "NETWORK") */
-    mode: 'NETWORK' | 'USB' | 'SERIAL' | 'BLUETOOTH' | (string & {});
-    port?: number;
-    timeout?: number;
-    ip_address?: string;
-}
-
-export interface ProductsCategoriesPrinters {
-    id: UUID;
-    name: string;
-    description?: string | null;
-    options?: ProductsCategoriesPrintersOptions;
-    time_created: ISODateString;
-    time_updated: ISODateString;
-    time_deleted: ISODateString | null;
-    status: boolean;
-}
-
 /* ===== Main Entity ===== */
 export interface ProductsCategories {
     id: UUID;
@@ -61,9 +43,8 @@ export interface ProductsCategories {
     time_updated: ISODateString;
     time_deleted: ISODateString | null;
     status: boolean;
-
     reference?: AccountRef;
     branches?: BranchRef[];
     /** daftar printer yang terasosiasi dengan kategori ini */
-    printer?: ProductsCategoriesPrinters[];
+    printer?: DevicePrinter[];
 }

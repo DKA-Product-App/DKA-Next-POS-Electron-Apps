@@ -1,7 +1,10 @@
 'use client'
 
 import * as React from 'react'
-import { Transaction, TransactionBatches, TransactionBatchesItems, TransactionBills } from '../../types/api.transaction.type'
+import {Transaction} from "../../../../../../../../../types/transaction/transaction.type";
+import {TransactionBatchItem} from "../../../../../../../../../types/transaction/batch/transaction.batch.item.type";
+import {TransactionBill} from "../../../../../../../../../types/transaction/bill/transaction.bill.type";
+import {TransactionBatch} from "../../../../../../../../../types/transaction/batch/transaction.batch.type";
 
 export type VoidFilterKey = 'pending_void' | 'voided'
 export type PaidFilterKey = 'pending_paid' | 'paid' | 'unpaid'
@@ -14,8 +17,8 @@ type Ctx = {
 
     // derived
     batches: number[]
-    matchItem: (it: TransactionBatchesItems) => boolean
-    selectedBatch?: TransactionBatches
+    matchItem: (it: TransactionBatchItem) => boolean
+    selectedBatch?: TransactionBatch
     transaction: Transaction
 
     // actions
@@ -33,10 +36,10 @@ export function useFilterOrderHeader() {
 }
 
 /* ===== helpers ===== */
-const isPendingVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved !== true
-const isApprovedVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved === true
+const isPendingVoid = (it: TransactionBatchItem) => Boolean(it?.void) && it.void!.is_approved !== true
+const isApprovedVoid = (it: TransactionBatchItem) => Boolean(it?.void) && it.void!.is_approved === true
 
-const isPendingPaid = (it: TransactionBatchesItems) => {
+const isPendingPaid = (it: TransactionBatchItem) => {
     const bills = it?.batch?.transaction?.bills ?? []
     return bills.some((b) =>
         (b?.paid === null || b?.paid?.status === false) &&
@@ -44,7 +47,7 @@ const isPendingPaid = (it: TransactionBatchesItems) => {
     )
 }
 
-const isPaid = (it: TransactionBatchesItems) => {
+const isPaid = (it: TransactionBatchItem) => {
     const bills = it?.batch?.transaction?.bills ?? []
     return bills.some((b) =>
         (b?.paid?.status === true) &&
@@ -52,8 +55,8 @@ const isPaid = (it: TransactionBatchesItems) => {
     )
 }
 
-const isUnpaid = (it: TransactionBatchesItems) => {
-    const bills: TransactionBills[] = it?.batch?.transaction?.bills ?? []
+const isUnpaid = (it: TransactionBatchItem) => {
+    const bills: TransactionBill[] = it?.batch?.transaction?.bills ?? []
     return !bills.some(b => (b?.items ?? []).some((bi) => bi?.productVariant?.id === it.id))
 }
 
@@ -75,12 +78,12 @@ export function FilterOrderHeaderProvider({
         return Array.from(new Set(nums)).sort((a, b) => a - b)
     }, [transaction])
 
-    const selectedBatch = React.useMemo<TransactionBatches | undefined>(() => {
+    const selectedBatch = React.useMemo<TransactionBatch | undefined>(() => {
         if (batch === 'any') return undefined
         return (transaction?.batches ?? []).find(b => Number(b?.batch) === Number(batch))
     }, [transaction, batch])
 
-    const matchItem = React.useCallback((it: TransactionBatchesItems) => {
+    const matchItem = React.useCallback((it: TransactionBatchItem) => {
         // batch
         if (batch !== 'any' && Number(it?.batch?.batch) !== Number(batch)) return false
 

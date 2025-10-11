@@ -7,7 +7,7 @@ import {Box, Chip, Stack, Typography, Paper, Tooltip} from '@mui/material'
 import Grid from '@mui/material/Grid'
 import { useTx } from '../context/TransactionContext'
 import dynamic from "next/dynamic";
-import {TransactionBatchesItems} from "../../types/api.transaction.type";
+import { TransactionBatchItem } from '../../../../../../../../../types/transaction/batch/transaction.batch.item.type'
 
 const RightContainerBatchDetailRowSkeleton = dynamic(() => import('../../(loading)/RightContainerBatchDetailRowSkeleton'), {
     ssr: false,
@@ -21,7 +21,7 @@ const rupiah = (n: number | string) => new Intl.NumberFormat('id-ID',{style:'cur
 
 const RightContainerBatchDetail: React.FC<{ batchId : string }> = ({  batchId }) => {
     const { selectedItemIds, toggleItem, registerItems, reloadKey } = useTx()
-    const [items, setItems] = React.useState<TransactionBatchesItems[]>([])
+    const [items, setItems] = React.useState<TransactionBatchItem[]>([])
     const fetchSeqRef = React.useRef(0)
 
     React.useEffect(() => {
@@ -34,7 +34,7 @@ const RightContainerBatchDetail: React.FC<{ batchId : string }> = ({  batchId })
         window.api.invoke('api.transaction.batch.item:read.all', { batch: batchId })
             .then((res: any) => {
                 if (seq !== fetchSeqRef.current) return
-                const arr: TransactionBatchesItems[] = res?.data ?? []
+                const arr: TransactionBatchItem[] = res?.data ?? []
                 setItems(arr)
                 registerItems(batchId, arr)
             })
@@ -44,13 +44,13 @@ const RightContainerBatchDetail: React.FC<{ batchId : string }> = ({  batchId })
             })
     }, [batchId, reloadKey])
 
-    const hasNote = (it: TransactionBatchesItems) => Boolean(it.note?.trim()?.length)
-    const isPendingVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved !== true
-    const isApprovedVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved === true
+    const hasNote = (it: TransactionBatchItem) => Boolean(it.note?.trim()?.length)
+    const isPendingVoid = (it: TransactionBatchItem) => Boolean(it?.void) && it.void!.is_approved !== true
+    const isApprovedVoid = (it: TransactionBatchItem) => Boolean(it?.void) && it.void!.is_approved === true
 
     /** ✅ Item dianggap “Pending Paid” jika ada bill dan paid.is_paid === true */
     /** ✅ Pending jika: bill.paid == null DAN bill.items[*].transactionItem.id === it.id */
-    const isPendingPaid = (it: TransactionBatchesItems) => {
+    const isPendingPaid = (it: TransactionBatchItem) => {
         const bills = it?.batch?.transaction?.bills ?? [];
         return bills.some((b: any) =>
             (b?.paid === null || b?.paid?.status === false) &&
@@ -58,7 +58,7 @@ const RightContainerBatchDetail: React.FC<{ batchId : string }> = ({  batchId })
         );
     };
 
-    const isPaid = (it: TransactionBatchesItems) => {
+    const isPaid = (it: TransactionBatchItem) => {
         const bills = it?.batch?.transaction?.bills ?? [];
         return bills.some((b: any) =>
             (b?.paid?.status === true) &&

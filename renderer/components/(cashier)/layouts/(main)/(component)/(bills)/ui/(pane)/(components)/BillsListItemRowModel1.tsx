@@ -9,8 +9,8 @@ import LocalMallRounded from '@mui/icons-material/LocalMallRounded'
 import LayersRounded from '@mui/icons-material/LayersRounded'
 import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
 import ScheduleRounded from '@mui/icons-material/ScheduleRounded'
-import {TransactionBill} from "../../../types/transaction.bill.type";
 import {useMemo} from "react";
+import {TransactionBill} from "../../../../../../../../../types/transaction/bill/transaction.bill.type";
 
 type Props = {
     bill: TransactionBill

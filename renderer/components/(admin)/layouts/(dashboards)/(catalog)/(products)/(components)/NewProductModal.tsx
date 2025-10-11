@@ -14,14 +14,10 @@ import AutoAwesomeRounded from '@mui/icons-material/AutoAwesomeRounded'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 import {useSession} from "../../../../../../../contexts/SessionProviderContext";
-import {ProductsCategories} from "../../../../../../../types/product.categories.type";
+import {ProductsCategories} from "../../../../../../../types/product/product.categories.type";
+import {ProductsVariants} from "../../../../../../../types/product/products.variants.type";
 
-type VariantDraft = {
-    id: string
-    code: string              // editable, pattern XXX-XXX saat blur
-    name: string              // ALWAYS UPPERCASE
-    price: string             // raw digits only
-    description?: string
+type VariantDraft = ProductsVariants & {
     codeTouched?: boolean     // user edited code manually
     expanded?: boolean
 }

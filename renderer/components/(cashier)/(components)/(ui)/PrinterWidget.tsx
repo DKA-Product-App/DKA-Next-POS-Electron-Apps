@@ -12,14 +12,14 @@ import ScienceRoundedIcon from '@mui/icons-material/ScienceRounded'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 import { useUserConfig } from '../../../../contexts/UserConfigContext'
-import { TransactionBillPrinterDevice } from '../../layouts/(main)/(component)/(bills)/types/transaction.bill.type'
 import { AxiosResponse } from 'axios'
+import {DevicePrinter} from "../../../../types/config/device/device.printer.type";
 
 type PrinterWidgetProps = {
     printerOnline?: boolean
     iconFontSize?: 'small' | 'medium' | 'large'
-    onDefaultChanged?: (printer: TransactionBillPrinterDevice) => void
-    onTestPrint?: (printer: TransactionBillPrinterDevice) => void
+    onDefaultChanged?: (printer: DevicePrinter) => void
+    onTestPrint?: (printer: DevicePrinter) => void
     width?: number
     maxHeight?: number
 }
@@ -35,7 +35,7 @@ export default function PrinterWidget({
     const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null)
     const open = Boolean(anchorEl);
 
-    const [printers, setPrinters] = React.useState<TransactionBillPrinterDevice[]>([])
+    const [printers, setPrinters] = React.useState<DevicePrinter[]>([])
     const [search, setSearch] = React.useState('')
 
     const { config, set } = useUserConfig()
@@ -43,7 +43,7 @@ export default function PrinterWidget({
     const defaultPrinter = config.printer.defaultPrinter
 
     const requestPrinters = React.useCallback(() => {
-        window?.api.invoke?.<any, AxiosResponse<TransactionBillPrinterDevice[]>>('api.config.device.printer:read.all', {})
+        window?.api.invoke?.<any, AxiosResponse<DevicePrinter[]>>('api.config.device.printer:read.all', {})
             .then(({ data }) => {
                 const list = data ?? []
                 setPrinters(list)

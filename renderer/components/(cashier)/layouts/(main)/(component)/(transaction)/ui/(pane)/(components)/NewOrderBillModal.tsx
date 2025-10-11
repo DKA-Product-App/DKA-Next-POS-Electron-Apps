@@ -23,12 +23,13 @@ import dynamic from 'next/dynamic'
 import { useTabNavigationHandlerContext } from '../../../context/TabNavigationHandlerContext'
 import { useTransactionEventTrigger } from "../context/TransactionEventTriggerContext";
 import { useSession } from "../../../../../../../../../contexts/SessionProviderContext";
-import { Transaction, TransactionBatchesItems } from "../../types/api.transaction.type";
-import { TransactionBill } from "../../../../(bills)/types/transaction.bill.type";
 import SweetAlert2, { SweetAlert2Props } from "react-sweetalert2";
 import { useGodModeProvider } from "../../../../../../../context/GodModeProviderContext";
 import {useEffect} from "react";
 import {ConfigBranch} from "../../../../../../../../../types/config/base/branch.type";
+import { TransactionBill } from '../../../../../../../../../types/transaction/bill/transaction.bill.type'
+import {TransactionBatchItem} from "../../../../../../../../../types/transaction/batch/transaction.batch.item.type";
+import {Transaction} from "../../../../../../../../../types/transaction/transaction.type";
 
 // ⬇️ opsional: hindari reuse SSR
 const BillListItemDetail = dynamic(
@@ -205,7 +206,7 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
 
     // helper: create bill sekali jalan
     const createBillOnce = (snap: NonNullable<typeof payloadRef.current>, myReq: number, expectedKey: string) =>
-        window.api.invoke<typeof snap, { data: TransactionBatchesItems[] }>(
+        window.api.invoke<typeof snap, { data: TransactionBatchItem[] }>(
             'api.transaction.batch.item:read.all',
             // @ts-ignore
             { ids: snap.items, transaction: snap.txId }
@@ -217,7 +218,7 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
                     branch: snap.branches ?? [],
                     transaction: { id: snap.txId },
                     tax: 0.10,
-                    items: (data ?? []).map((it) => ({
+                    items: data.map((it) => ({
                         reference: { id: snap.sessionId },
                         qty: it.qty,
                         price: it.price,
@@ -261,7 +262,7 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
         setLoading(true)
 
         // siapkan expectedKey (santai)
-        window.api.invoke<{ ids?: string[]; transaction?: string }, { data: TransactionBatchesItems[] }>(
+        window.api.invoke<{ ids?: string[]; transaction?: string }, { data: TransactionBatchItem[] }>(
             'api.transaction.batch.item:read.all',
             { ids: snap.items, transaction: snap.txId }
         )

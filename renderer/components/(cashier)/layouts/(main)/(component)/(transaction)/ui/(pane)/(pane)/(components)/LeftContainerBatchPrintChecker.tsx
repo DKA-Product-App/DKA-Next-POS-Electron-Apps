@@ -15,20 +15,22 @@ import PendingActionsRounded from '@mui/icons-material/PendingActionsRounded'
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 import { NoteAltRounded } from '@mui/icons-material'
-import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../../types/api.transaction.type";
 import {ImgWithSkeleton} from "../../../../../../../../../../utils/ImageProcessingIPC";
+import {TransactionBatchItem} from "../../../../../../../../../../types/transaction/batch/transaction.batch.item.type";
+import {Transaction} from "../../../../../../../../../../types/transaction/transaction.type";
+import { TransactionBatch } from '../../../../../../../../../../types/transaction/batch/transaction.batch.type'
 
 const PURPLE_GRAD = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
 const ACCENT = 'linear-gradient(90deg, #7C3AED, #6366F1 45%, #8B5CF6)'
 
 /* ===== Void helpers ===== */
-const isApprovedVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved === true
-const isPendingVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved !== true
+const isApprovedVoid = (it: TransactionBatchItem) => Boolean(it?.void) && it.void!.is_approved === true
+const isPendingVoid = (it: TransactionBatchItem) => Boolean(it?.void) && it.void!.is_approved !== true
 
 /* ===== Printer grouping ===== */
-type PrinterBucket = { id: string; name: string; description: string; items: TransactionBatchesItems[] }
+type PrinterBucket = { id: string; name: string; description: string; items: TransactionBatchItem[] }
 
-function categoriesForPrinter(it: TransactionBatchesItems, printerId: string): string {
+function categoriesForPrinter(it: TransactionBatchItem, printerId: string): string {
     const cats: any[] = Array.isArray((it as any)?.product?.category) ? (it as any).product.category : []
     const names: string[] = []
     cats.forEach(c => {
@@ -39,7 +41,7 @@ function categoriesForPrinter(it: TransactionBatchesItems, printerId: string): s
     return names.length ? names.join(', ') : ''
 }
 
-function groupItemsByPrinter(items: TransactionBatchesItems[]): PrinterBucket[] {
+function groupItemsByPrinter(items: TransactionBatchItem[]): PrinterBucket[] {
     const map = new Map<string, PrinterBucket>()
     items.forEach(it => {
         const cats: any[] = Array.isArray((it as any)?.product?.category) ? (it as any).product.category : []
@@ -62,10 +64,10 @@ function groupItemsByPrinter(items: TransactionBatchesItems[]): PrinterBucket[] 
 }
 
 /* ===== Merge helpers (UI only) ===== */
-type MergedItem = { sample: TransactionBatchesItems; qty: number; hasPending: boolean }
-const keyOf = (it: TransactionBatchesItems) => `${it.product?.id ?? ''}::${it.variant?.id ?? it.product?.id ?? ''}`
+type MergedItem = { sample: TransactionBatchItem; qty: number; hasPending: boolean }
+const keyOf = (it: TransactionBatchItem) => `${it.product?.id ?? ''}::${it.variant?.id ?? it.product?.id ?? ''}`
 
-function mergeItemsByVariant(items: TransactionBatchesItems[]): MergedItem[] {
+function mergeItemsByVariant(items: TransactionBatchItem[]): MergedItem[] {
     const rec = items.reduce((acc, it) => {
         const key = keyOf(it)
         const cur = acc[key]
@@ -80,7 +82,7 @@ function mergeItemsByVariant(items: TransactionBatchesItems[]): MergedItem[] {
 }
 
 /* ===== Komponen ===== */
-type Props = { transaction: Transaction; batch: TransactionBatches }
+type Props = { transaction: Transaction; batch: TransactionBatch }
 const MotionItem = motion(Paper)
 
 const LeftContainerBatchPrintChecker: React.FC<Props> = ({ transaction, batch }) => {

@@ -11,8 +11,8 @@ import { motion } from 'framer-motion'
 // ==== TYPES (sesuaikan dengan project-mu) ====
 import { ProductDetailModal, DetailProductModalHandle, type ProductWithVariants } from './modals/ProductDetailModal'
 import {ImgWithSkeleton} from "../../../../../../../utils/ImageProcessingIPC";
-import { Products } from '../../../../../../../types/products.type'
-import {ProductsVariants} from "../../../../../../../types/products.variants.type";
+import { Products } from '../../../../../../../types/product/products.type'
+import {ProductsVariants} from "../../../../../../../types/product/products.variants.type";
 
 
 
@@ -231,7 +231,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product: p, variantId, onSele
                     endIcon={<AddRoundedIcon />}
                     color={'info'}
                     sx={{ mt: 1, textTransform: 'none', fontWeight: 800, borderRadius: 1.5, boxShadow: 'none', background: gradient, '&:hover': { boxShadow: 3 } }}
-                    onClick={() => onAdd?.(p, hasVariants ? selectedVar : undefined)}
+                    onClick={() => {
+                        return onAdd?.(p, hasVariants ? selectedVar : undefined)
+                    }}
                 >
                     Tambah
                 </Button>

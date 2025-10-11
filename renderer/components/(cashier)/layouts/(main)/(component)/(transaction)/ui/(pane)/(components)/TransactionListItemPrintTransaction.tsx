@@ -16,8 +16,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { NoteAltRounded } from '@mui/icons-material'
 import PendingActionsRounded from '@mui/icons-material/PendingActionsRounded'
-import {Transaction, TransactionBatchesItems} from "../../types/api.transaction.type";
 import {ImgWithSkeleton} from "../../../../../../../../../utils/ImageProcessingIPC";
+import {TransactionBatchItem} from "../../../../../../../../../types/transaction/batch/transaction.batch.item.type";
+import {Transaction} from "../../../../../../../../../types/transaction/transaction.type";
 
 /* ===== Types (selaraskan dengan project kamu) ===== */
 export type Name = { first_name: string; last_name?: string }
@@ -34,13 +35,13 @@ export type Item = {
 export type Batch = { id: string; batch: number; items: Item[] }
 
 /* ===== Void helpers ===== */
-const isApprovedVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved === true
-const isPendingVoid  = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved !== true
+const isApprovedVoid = (it: TransactionBatchItem) => Boolean(it?.void) && it.void!.is_approved === true
+const isPendingVoid  = (it: TransactionBatchItem) => Boolean(it?.void) && it.void!.is_approved !== true
 
 /* ===== Grouping helpers ===== */
-type PrinterBucket = { id: string; name: string; description: string; items: TransactionBatchesItems[] }
+type PrinterBucket = { id: string; name: string; description: string; items: TransactionBatchItem[] }
 
-function categoriesForPrinter(it: TransactionBatchesItems, printerId: string): string {
+function categoriesForPrinter(it: TransactionBatchItem, printerId: string): string {
     const cats: any[] = Array.isArray(it?.product?.category) ? (it as any).product.category : []
     const names: string[] = []
     cats.forEach(c => {
@@ -51,7 +52,7 @@ function categoriesForPrinter(it: TransactionBatchesItems, printerId: string): s
     return names.length ? names.join(', ') : ''
 }
 
-function allTxItems(tx?: Transaction): TransactionBatchesItems[] {
+function allTxItems(tx?: Transaction): TransactionBatchItem[] {
     return tx?.batches?.flatMap(b => Array.isArray(b.items) ? b.items : [])
 }
 
@@ -71,7 +72,7 @@ function groupTxItemsByPrinter(tx?: Transaction): PrinterBucket[] {
                 const name = String(p?.name ?? pid)
                 const description = String(p?.description ?? name)
                 const bucket = map.get(pid) ?? { id: pid, name, description, items: [] }
-                bucket.items.push(it as TransactionBatchesItems)
+                bucket.items.push(it as TransactionBatchItem)
                 map.set(pid, bucket)
             })
         })
@@ -80,17 +81,17 @@ function groupTxItemsByPrinter(tx?: Transaction): PrinterBucket[] {
 }
 
 /* ===== Merge helpers (UI only) ===== */
-type MergedItem = { sample: TransactionBatchesItems; qty: number; hasPending: boolean }
+type MergedItem = { sample: TransactionBatchItem; qty: number; hasPending: boolean }
 
 // ⬅️ bedakan key berdasarkan status pending vs normal
-const keyOf = (it: TransactionBatchesItems) => {
+const keyOf = (it: TransactionBatchItem) => {
     const productId = it.product?.id ?? ''
     const variantId = it.variant?.id ?? it.product?.id ?? ''
     const statusKey = isPendingVoid(it) ? 'P' : 'N'   // P = pending void, N = normal
     return `${productId}::${variantId}::${statusKey}`
 }
 
-function mergeItemsByVariant(items: TransactionBatchesItems[]): MergedItem[] {
+function mergeItemsByVariant(items: TransactionBatchItem[]): MergedItem[] {
     const rec = items.reduce((acc, it) => {
         // approved void sudah difilter sebelum ini; tinggal bedakan pending vs normal
         const key = keyOf(it)

@@ -20,9 +20,9 @@ import ShimmerLoadingTransactionListItemRow from '../(loading)/ShimmerLoadingTra
 import ShimmerLoadingTransactionContainer from '../(loading)/ShimmerLoadingTransactionContainer'
 import { useTransactionEventTrigger } from './context/TransactionEventTriggerContext'
 import { useSession } from '../../../../../../../../contexts/SessionProviderContext'
-import { Transaction } from '../types/api.transaction.type'
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useFunctionKeyCtx } from '../../../../../../../../contexts/FunctionKeyProviderContext'
+import {Transaction} from "../../../../../../../../types/transaction/transaction.type";
 
 // ===== Const =====
 const TZ_OFFSET = '+08:00' // Asia/Makassar

@@ -18,10 +18,11 @@ import { useThemeCharger } from '../../../../../../../../../contexts/ThemeCharge
 import normalizeIpcError from "../../../../../../../../../helpers/electronMessageErrorEsctration";
 import { useSession } from '../../../../../../../../../contexts/SessionProviderContext'
 import {useFunctionKeyCtx} from "../../../../../../../../../contexts/FunctionKeyProviderContext";
-import {Transaction, TransactionBatches, TransactionBatchesItems} from "../../types/api.transaction.type";
 import SweetAlert2, {SweetAlert2Props} from "react-sweetalert2";
 import {AxiosResponse} from "axios";
 import {useUserConfig} from "../../../../../../../../../contexts/UserConfigContext";
+import {Transaction} from "../../../../../../../../../types/transaction/transaction.type";
+import { TransactionBatchItem } from '../../../../../../../../../types/transaction/batch/transaction.batch.item.type'
 
 // === Dynamically loaded pages ===
 const Billing = dynamic(() => import('../../../../../../(select-product)'), { ssr: false })
@@ -59,13 +60,13 @@ const DiningIntro: React.FC = () => (
 )
 
 /* ===== Void helpers ===== */
-const isApprovedVoid = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved === true
-const isPendingVoid  = (it: TransactionBatchesItems) => Boolean(it?.void) && it.void!.is_approved !== true
+const isApprovedVoid = (it: TransactionBatchItem) => Boolean(it?.void) && it.void!.is_approved === true
+const isPendingVoid  = (it: TransactionBatchItem) => Boolean(it?.void) && it.void!.is_approved !== true
 
 /* ===== Grouping helpers ===== */
-type PrinterBucket = { id: string; name: string; description: string; items: TransactionBatchesItems[] }
+type PrinterBucket = { id: string; name: string; description: string; items: TransactionBatchItem[] }
 
-function categoriesForPrinter(it: TransactionBatchesItems, printerId: string): string {
+function categoriesForPrinter(it: TransactionBatchItem, printerId: string): string {
     const cats: any[] = Array.isArray(it?.product?.category) ? (it as any).product.category : []
     const names: string[] = []
     cats.forEach(c => {
@@ -76,7 +77,7 @@ function categoriesForPrinter(it: TransactionBatchesItems, printerId: string): s
     return names.length ? names.join(', ') : ''
 }
 
-function allTxItems(tx: Transaction): TransactionBatchesItems[] {
+function allTxItems(tx: Transaction): TransactionBatchItem[] {
     return tx.batches.flatMap(b => Array.isArray(b.items) ? b.items : [])
 }
 

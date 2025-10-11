@@ -5,11 +5,11 @@ import { Box, Chip, ListItemButton, Stack, Typography } from '@mui/material'
 import LayersRounded from '@mui/icons-material/LayersRounded'
 import LocalMallRounded from '@mui/icons-material/LocalMallRounded'
 import LeftContainerBatchPrintChecker from './../(components)/LeftContainerBatchPrintChecker'
-import {Transaction, TransactionBatches} from "../../../types/api.transaction.type"; // tipe Batch ambil dari parent
+import {TransactionBatch} from "../../../../../../../../../../types/transaction/batch/transaction.batch.type";
 
 type Props = {
-    batch: TransactionBatches
-    onClick: (batch : TransactionBatches) => void;
+    batch: TransactionBatch
+    onClick: (batch : TransactionBatch) => void;
     selected: boolean;
 }
 
@@ -138,7 +138,7 @@ const pickBillsFromBatch = (b: any) =>
     ?? []
 
 // --- HANYA terima Batch ---
-export const batchTotal = (b: TransactionBatches) => {
+export const batchTotal = (b: TransactionBatch) => {
     const bills = pickBillsFromBatch(b)
     return (b?.items ?? []).reduce(
         (acc: number, i: any) =>

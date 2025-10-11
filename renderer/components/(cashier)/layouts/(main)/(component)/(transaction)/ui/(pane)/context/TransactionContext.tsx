@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import {TransactionBatches, TransactionBatchesItems} from "../../types/api.transaction.type";
+import {TransactionBatchItem} from "../../../../../../../../../types/transaction/batch/transaction.batch.item.type";
 
 /* ====== Minimal types (sinkron dg pane) ====== */
 export type Name = { first_name: string; last_name?: string }
@@ -20,14 +20,14 @@ type Ctx = {
     setSelectedBatchId: (id?: string) => void
     selectedItemIds: Set<string>
     selectedItemIdsGod: Set<string>
-    toggleItem: (item: TransactionBatchesItems) => void
-    toggleItemGod: (item: TransactionBatchesItems) => void
+    toggleItem: (item: TransactionBatchItem) => void
+    toggleItemGod: (item: TransactionBatchItem) => void
     clearSelectionGods: () => void
     clearSelection: () => void
 
     // Items cache per batch → utk hitung total terpilih secara global
-    registerItems: (batchId: string, items: TransactionBatchesItems[]) => void
-    itemsByBatch: Record<string, TransactionBatchesItems[]>
+    registerItems: (batchId: string, items: TransactionBatchItem[]) => void
+    itemsByBatch: Record<string, TransactionBatchItem[]>
     selectedTotal: number
 
     // Trigger refetch pane
@@ -53,16 +53,16 @@ export function TxProvider({ txId, children }: { txId: string; children: React.R
     const [selectedBatchId, setSelectedBatchId] = React.useState<string | undefined>(undefined)
     const [selectedItemIds, setSelectedItemIds] = React.useState<Set<string>>(new Set())
     const [selectedItemIdsGod, setSelectedItemIdsGod] = React.useState<Set<string>>(new Set())
-    const [itemsByBatch, setItemsByBatch] = React.useState<Record<string, TransactionBatchesItems[]>>({})
+    const [itemsByBatch, setItemsByBatch] = React.useState<Record<string, TransactionBatchItem[]>>({})
     const [reloadKey, setReloadKey] = React.useState(0)
 
     const setGrandTotal = (num: number) => setGrandTotalState(num)
     const bumpReload = () => setReloadKey(k => k + 1)
 
-    const registerItems = (batchId: string, items: TransactionBatchesItems[]) =>
+    const registerItems = (batchId: string, items: TransactionBatchItem[]) =>
         setItemsByBatch(prev => ({ ...prev, [batchId]: items }))
 
-    const toggleItem = (item: TransactionBatchesItems, batchId?: string) => {
+    const toggleItem = (item: TransactionBatchItem, batchId?: string) => {
         const key = batchId ? `${batchId}:${item.id}` : item.id
         setSelectedItemIds(prev => {
             const next = new Set(prev)
@@ -71,7 +71,7 @@ export function TxProvider({ txId, children }: { txId: string; children: React.R
         })
     }
 
-    const toggleItemGod = (item: TransactionBatchesItems, batchId?: string) => {
+    const toggleItemGod = (item: TransactionBatchItem, batchId?: string) => {
         const key = batchId ? `${batchId}:${item.id}` : item.id
         setSelectedItemIdsGod(prev => {
             const next = new Set(prev)
@@ -85,7 +85,7 @@ export function TxProvider({ txId, children }: { txId: string; children: React.R
     const selectedTotal = React.useMemo(() => {
         if (selectedItemIds.size === 0) return 0
         let sum = 0
-        const index: Record<string, TransactionBatchesItems> = {}
+        const index: Record<string, TransactionBatchItem> = {}
         Object.values(itemsByBatch).forEach(arr => arr.forEach(it => { index[it.id] = it }))
         selectedItemIds.forEach(id => {
             const it = index[id]

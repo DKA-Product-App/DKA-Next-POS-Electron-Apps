@@ -13,9 +13,9 @@ import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 
 import {ImgWithSkeleton} from "../../../../../../../../utils/ImageProcessingIPC";
-import {ProductsVariants} from "../../../../../../../../types/products.variants.type";
-import {Products} from "../../../../../../../../types/products.type";
-import {ProductsCategories} from "../../../../../../../../types/product.categories.type";
+import {ProductsVariants} from "../../../../../../../../types/product/products.variants.type";
+import {Products} from "../../../../../../../../types/product/products.type";
+import {ProductsCategories} from "../../../../../../../../types/product/product.categories.type";
 
 export type DetailProductModalHandle = { open: () => void; close: () => void }
 

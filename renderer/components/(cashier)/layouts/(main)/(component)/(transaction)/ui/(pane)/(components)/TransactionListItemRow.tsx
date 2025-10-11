@@ -13,12 +13,11 @@ import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded'
 import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
 import CheckRounded from '@mui/icons-material/CheckRounded'
 import moment from "moment-timezone"
-
 import TransactionListItemPrintTransaction from './TransactionListItemPrintTransaction'
-import {Transaction, TransactionBatchesItems, TransactionBills} from "../../types/api.transaction.type";
 import {useEffect} from "react";
 import {AxiosResponse} from "axios";
 import {SummarizeTxReturn} from "../../../types/transaction.read.one.type";
+import {Transaction} from "../../../../../../../../../types/transaction/transaction.type";
 /* ========= Utils khusus Row ========= */
 const rupiah = (n: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
