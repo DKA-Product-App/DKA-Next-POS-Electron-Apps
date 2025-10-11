@@ -1,21 +1,41 @@
 !include "FileFunc.nsh"
 !include "LogicLib.nsh"
+!include "WinVer.nsh"        ; untuk ${AtLeastWin7} jika mau validasi OS
 
 ; =======================
-; Konstanta & helper
+; Konstanta
 ; =======================
 !define DKA_DB_DIR "$InstDir\database"
-!define SID_BUILTIN_USERS "S-1-5-32-545"    ; Builtin\Users (lintas bahasa)
-; Kalau mau ganti target principal, tinggal ubah SID ini (mis. Authenticated Users: S-1-5-11)
+!define SID_BUILTIN_USERS "S-1-5-32-545"    ; Builtin\Users (universal, lintas bahasa)
 
+Var DKA_ICACLS_PATH
+
+; =======================
+; Resolve path icacls (Sysnative-safe)
+; =======================
+!macro DKA_RESOLVE_ICACLS
+  ; Jika proses 32-bit di OS 64-bit, gunakan Sysnative agar tidak kena redirection
+  ${If} ${RunningX64}
+    StrCpy $DKA_ICACLS_PATH "$WINDIR\Sysnative\icacls.exe"
+    ${IfNot} ${FileExists} "$DKA_ICACLS_PATH"
+      StrCpy $DKA_ICACLS_PATH "$WINDIR\System32\icacls.exe"
+    ${EndIf}
+  ${Else}
+    StrCpy $DKA_ICACLS_PATH "$WINDIR\System32\icacls.exe"
+  ${EndIf}
+!macroend
+
+; =======================
+; Helper eksekusi icacls
+; (ExecToStack -> output dulu, lalu exitcode)
+; =======================
 !macro _RunIcacls CMD
-  ; Jalankan icacls, pop 2x: exitCode lalu output
-  nsExec::ExecToStack '${CMD}'
-  Pop $1     ; exitCode
+  nsExec::ExecToStack '"$DKA_ICACLS_PATH" ${CMD}'
   Pop $2     ; stdout/stderr
-  DetailPrint 'icacls: ${CMD}'
+  Pop $1     ; exitCode
+  DetailPrint 'icacls ${CMD}'
   DetailPrint '  -> exit=$1'
-  ${If} $1 != 0
+  ${If} $2 != ""
     DetailPrint '  -> out: $2'
   ${EndIf}
 !macroend
@@ -26,27 +46,33 @@
 !macro ACL_APPLY
   DetailPrint 'ACL_APPLY: start'
 
-  ; Pastikan icacls ada
-  ${IfNot} ${FileExists} "$WINDIR\System32\icacls.exe"
+  !insertmacro DKA_RESOLVE_ICACLS
+
+  ${IfNot} ${FileExists} "$DKA_ICACLS_PATH"
     DetailPrint 'icacls not found, skip ACL'
     Return
   ${EndIf}
 
-  ; Buat folder kalau belum ada
+  ; (Opsional) pastikan minimal Windows 7 (Vista+ sebenarnya sudah oke)
+  ${IfNot} ${AtLeastWin7}
+    DetailPrint 'OS < Windows 7, skip ACL (icacls fitur mungkin terbatas)'
+    Return
+  ${EndIf}
+
+  ; Pastikan folder ada
   CreateDirectory "${DKA_DB_DIR}"
 
-  ; Putus inheritance dari Program Files → supaya ACE custom nggak ketiban
-  !insertmacro _RunIcacls 'icacls "${DKA_DB_DIR}" /inheritance:d'
+  ; Putus inheritance dari Program Files -> biar ACE custom berlaku
+  !insertmacro _RunIcacls '/inheritance:d "${DKA_DB_DIR}"'
 
-  ; Hapus ACE lama untuk Builtin Users (biar idempotent)
-  ; (Kalau belum ada, icacls tetap exit 0)
-  !insertmacro _RunIcacls 'icacls "${DKA_DB_DIR}" /remove:g *${SID_BUILTIN_USERS}'
+  ; Hapus ACE lama utk Builtin Users (idempotent)
+  !insertmacro _RunIcacls '/remove:g *${SID_BUILTIN_USERS} "${DKA_DB_DIR}"'
 
-  ; Grant Modify (M) recursively + turunan (OI/CI)
-  !insertmacro _RunIcacls 'icacls "${DKA_DB_DIR}" /grant *${SID_BUILTIN_USERS}:(OI)(CI)M'
+  ; Grant Modify (M) + turunan (OI/CI)
+  !insertmacro _RunIcacls '/grant *${SID_BUILTIN_USERS}:(OI)(CI)M "${DKA_DB_DIR}"'
 
-  ; Terapkan ke subfolder/file kalau sudah ada isi
-  !insertmacro _RunIcacls 'icacls "${DKA_DB_DIR}" /T /C'
+  ; Terapkan ke isi saat ini (kalau sudah ada struktur)
+  !insertmacro _RunIcacls '/T /C "${DKA_DB_DIR}"'
 
   DetailPrint 'ACL_APPLY: done'
 !macroend
@@ -62,15 +88,17 @@
     Return
   ${EndIf}
 
-  ; Balikkan ke default ACL sesuai parent (Program Files)
-  !insertmacro _RunIcacls 'icacls "${DKA_DB_DIR}" /inheritance:e'
-  !insertmacro _RunIcacls 'icacls "${DKA_DB_DIR}" /reset /T /C'
+  !insertmacro DKA_RESOLVE_ICACLS
+
+  ; Kembalikan inheritance dan reset ACE ke default parent
+  !insertmacro _RunIcacls '/inheritance:e "${DKA_DB_DIR}"'
+  !insertmacro _RunIcacls '/reset /T /C "${DKA_DB_DIR}"'
 
   DetailPrint 'ACL_REVERT: done'
 !macroend
 
 ; =======================
-; Fallback Section untuk manual include (kalau mau langsung section)
+; Fallback Section (jika tidak pakai hook electron-builder)
 ; =======================
 Section -PostInstallACL
   !insertmacro ACL_APPLY
