@@ -6,13 +6,8 @@ import {
     Box,
     Button,
     Chip,
-    Divider,
     Icon,
-    List,
-    ListItem,
-    ListItemAvatar,
-    ListItemText,
-    Popover,
+    Paper,
     Stack,
     Typography,
 } from '@mui/material';
@@ -20,10 +15,10 @@ import AddRounded from '@mui/icons-material/AddRounded';
 import StorefrontRounded from '@mui/icons-material/StorefrontRounded';
 
 import {
-    DataTable,
-    Column,
-    useNonPassiveWheel,
-} from './(components)/TablesLayoutConstructor';
+    MaterialReactTable,
+    useMaterialReactTable,
+    type MRT_ColumnDef,
+} from 'material-react-table';
 
 /* ========= Types dari response ========= */
 type ApiBranch = {
@@ -50,8 +45,18 @@ type ApiOrderType = {
     branches?: ApiBranch[];
 };
 
-/* ========= Row type untuk DataTable ========= */
-type RowOrderType = {
+/* ========= Tree Row Types ========= */
+type BranchChildRow = {
+    kind: 'branch';
+    id: string;
+    name: string;
+    address?: string | null;
+    phone?: string | null;
+    email?: string | null;
+};
+
+type OrderTypeParentRow = {
+    kind: 'type';
     id: string;
     code: string;
     name: string;
@@ -59,42 +64,22 @@ type RowOrderType = {
     description?: string | null;
     requiredTable: boolean;
     status: boolean;
-    branchesCount: number;
-    branches: ApiBranch[];
-    typeCell: React.ReactNode;
+    subRows?: BranchChildRow[];
 };
-
 
 /* util kecil */
 const initial = (s?: string | null) => (s?.trim()?.[0] ?? 'O').toUpperCase();
 
-export default function OrderTypes() {
-    const [rows, setRows] = React.useState<RowOrderType[]>([]);
+export default function OrderTypesTree() {
+    const [rows, setRows] = React.useState<OrderTypeParentRow[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
-
-    // Popover Branches
-    const [branchAnchor, setBranchAnchor] = React.useState<HTMLElement | null>(null);
-    const [branchTitle, setBranchTitle] = React.useState<string>('');
-    const [branchList, setBranchList] = React.useState<ApiBranch[]>([]);
-    const listRef = React.useRef<HTMLDivElement>(null);
-    useNonPassiveWheel(listRef);
-
-    const openBranches = (e: React.MouseEvent<HTMLElement>, typeName: string, branches: ApiBranch[]) => {
-        setBranchAnchor(e.currentTarget);
-        setBranchTitle(typeName);
-        setBranchList(branches ?? []);
-    };
-    const closeBranches = () => {
-        setBranchAnchor(null);
-        setBranchTitle('');
-        setBranchList([]);
-    };
 
     const fetchOrderTypes = React.useCallback(() => {
         if (!window.api) {
             console.error('Failed Get Window Api Bridge');
             setError('Bridge tidak tersedia');
+            setRows([]);
             return;
         }
         setLoading(true);
@@ -102,7 +87,8 @@ export default function OrderTypes() {
             .invoke('api.config.data.order.type:read.all', {})
             .then((result: any) => {
                 const data = (result?.data ?? []) as ApiOrderType[];
-                const mapped: RowOrderType[] = data.map((o) => ({
+                const mapped: OrderTypeParentRow[] = data.map((o) => ({
+                    kind: 'type',
                     id: o.id,
                     code: o.code,
                     name: o.name,
@@ -110,29 +96,14 @@ export default function OrderTypes() {
                     description: o.description ?? null,
                     requiredTable: !!o.required_table_select,
                     status: !!o.status,
-                    branchesCount: o.branches?.length ?? 0,
-                    branches: o.branches ?? [],
-                    typeCell: (
-                        <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
-                            {o.icon ? (
-                                <Avatar variant="rounded" sx={{ width: 32, height: 32, borderRadius: 1 }}>
-                                    <Icon fontSize="small">{o.icon}</Icon>
-                                </Avatar>
-                            ) : (
-                                <Avatar variant="rounded" sx={{ width: 32, height: 32, borderRadius: 1 }}>
-                                    {initial(o.name)}
-                                </Avatar>
-                            )}
-                            <Box sx={{ minWidth: 0 }}>
-                                <Typography variant="body2" fontWeight={600} noWrap title={o.name}>
-                                    {o.name}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" noWrap title={o.code}>
-                                    {o.code}
-                                </Typography>
-                            </Box>
-                        </Stack>
-                    ),
+                    subRows: (o.branches ?? []).map<BranchChildRow>((b) => ({
+                        kind: 'branch',
+                        id: b.id,
+                        name: b.name,
+                        address: b.address ?? null,
+                        phone: b.phone ?? null,
+                        email: b.email ?? null,
+                    })),
                 }));
                 setRows(mapped);
                 setError(null);
@@ -147,96 +118,161 @@ export default function OrderTypes() {
 
     React.useEffect(() => { fetchOrderTypes(); }, [fetchOrderTypes]);
 
-    const columns: Column<RowOrderType>[] = [
-        {
-            key: 'typeCell',
-            label: 'ORDER TYPE',
-            sortable: true,
-            width: 320,
-            minWidth: 240,
-            headerFilter: { type: 'text' },
-        },
-        {
-            key: 'description',
-            label: 'DESCRIPTION',
-            sortable: false,
-            width: 420,
-            minWidth: 260,
-            headerFilter: { type: 'text' },
-            render: (r) => (
-                <Typography variant="body2" color="text.secondary" noWrap title={r.description ?? ''}>
-                    {r.description ?? '—'}
-                </Typography>
-            ),
-        },
-        {
-            key: 'requiredTable',
-            label: 'REQUIRED TABLE',
-            sortable: true,
-            align: 'center',
-            width: 160,
-            minWidth: 130,
-            render: (r) => (
-                <Chip
-                    size="small"
-                    label={r.requiredTable ? 'Yes' : 'No'}
-                    color={r.requiredTable ? 'warning' : 'default'}
-                    variant="outlined"
-                    sx={{ borderRadius: 2 }}
-                />
-            ),
-        },
-        {
-            key: 'branchesCount',
-            label: 'BRANCHES',
-            sortable: true,
-            align: 'center',
-            width: 140,
-            minWidth: 120,
-            render: (r) => (
-                <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={(e) => openBranches(e, r.name, r.branches)}
-                    sx={{ borderRadius: 2, minWidth: 0, px: 1.25 }}
-                    startIcon={<StorefrontRounded />}
-                >
-                    {r.branchesCount}
-                </Button>
-            ),
-        },
-        {
-            key: 'status',
-            label: 'STATUS',
-            sortable: true,
-            align: 'center',
-            width: 120,
-            minWidth: 110,
-            render: (r) => (
-                <Chip
-                    size="small"
-                    label={r.status ? 'Active' : 'Inactive'}
-                    color={r.status ? 'success' : 'default'}
-                    variant="outlined"
-                    sx={{ borderRadius: 2 }}
-                />
-            ),
-        },
-    ];
+    /* ========= Columns (parent vs child rendering) ========= */
+    const columns = React.useMemo<MRT_ColumnDef<OrderTypeParentRow | BranchChildRow>[]>(
+        () => [
+            // ORDER TYPE / BRANCH
+            {
+                id: 'typeOrBranch',
+                header: 'ORDER TYPE / BRANCH',
+                size: 360,
+                Cell: ({ row }) => {
+                    if (row.depth === 0) {
+                        const r = row.original as OrderTypeParentRow;
+                        return (
+                            <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
+                                <Avatar variant="rounded" sx={{ width: 32, height: 32, borderRadius: 1 }}>
+                                    {r.icon ? <Icon fontSize="small">{r.icon}</Icon> : initial(r.name)}
+                                </Avatar>
+                                <Box sx={{ minWidth: 0 }}>
+                                    <Typography variant="body2" fontWeight={600} noWrap title={r.name}>
+                                        {r.name}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" noWrap title={r.code}>
+                                        {r.code}
+                                    </Typography>
+                                </Box>
+                            </Stack>
+                        );
+                    }
+                    const b = row.original as BranchChildRow;
+                    return (
+                        <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
+                            <Avatar variant="rounded" sx={{ width: 28, height: 28, borderRadius: 1 }}>
+                                <StorefrontRounded fontSize="small" />
+                            </Avatar>
+                            <Typography variant="body2" fontWeight={600} noWrap title={b.name}>
+                                {b.name}
+                            </Typography>
+                        </Stack>
+                    );
+                },
+                muiTableBodyCellProps: ({ row }) =>
+                    row.depth === 0 ? {} : ({ sx: { borderLeft: (t) => `3px solid ${t.palette.divider}` } }),
+            },
 
-    return (
-        <Box
-            sx={{
-                p: 2,
-                display: 'grid',
-                gap: 2,
-                height: '100%',
-                minHeight: 0,
-                gridTemplateRows: 'auto 1fr',
-            }}
-        >
-            {/* Header & CTA */}
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
+            // DESCRIPTION (parent only)
+            {
+                id: 'description',
+                header: 'DESCRIPTION',
+                size: 360,
+                Cell: ({ row }) => {
+                    if (row.depth !== 0) return <Typography variant="body2" color="text.disabled">—</Typography>;
+                    const r = row.original as OrderTypeParentRow;
+                    return (
+                        <Typography variant="body2" color="text.secondary" noWrap title={r.description ?? ''}>
+                            {r.description ?? '—'}
+                        </Typography>
+                    );
+                },
+            },
+
+            // REQUIRED TABLE (parent) / CONTACT (child)
+            {
+                id: 'requiredOrContact',
+                header: 'REQUIRED TABLE / CONTACT',
+                size: 260,
+                Cell: ({ row }) => {
+                    if (row.depth === 0) {
+                        const r = row.original as OrderTypeParentRow;
+                        return (
+                            <Chip
+                                size="small"
+                                label={r.requiredTable ? 'Yes' : 'No'}
+                                color={r.requiredTable ? 'warning' : 'default'}
+                                variant="outlined"
+                                sx={{ borderRadius: 2 }}
+                            />
+                        );
+                    }
+                    const b = row.original as BranchChildRow;
+                    const contact = [b.phone, b.email].filter(Boolean).join(' • ') || '—';
+                    return (
+                        <Typography variant="body2" noWrap title={contact}>
+                            {contact}
+                        </Typography>
+                    );
+                },
+                muiTableBodyCellProps: ({ row }) => (row.depth === 0 ? { align: 'center' } : {}),
+                muiTableHeadCellProps: { align: 'center' },
+                muiTableFooterCellProps: { align: 'center' },
+            },
+
+            // ADDRESS (child only)
+            {
+                id: 'address',
+                header: 'ADDRESS',
+                size: 320,
+                Cell: ({ row }) => {
+                    if (row.depth === 0) return <Typography variant="body2" color="text.disabled">—</Typography>;
+                    const b = row.original as BranchChildRow;
+                    return (
+                        <Typography variant="body2" color="text.secondary" noWrap title={b.address ?? ''}>
+                            {b.address ?? '—'}
+                        </Typography>
+                    );
+                },
+            },
+
+            // STATUS (parent only)
+            {
+                id: 'status',
+                header: 'STATUS',
+                size: 120,
+                Cell: ({ row }) => {
+                    if (row.depth !== 0) return <Typography variant="body2" color="text.disabled" textAlign="center">—</Typography>;
+                    const r = row.original as OrderTypeParentRow;
+                    return (
+                        <Chip
+                            size="small"
+                            label={r.status ? 'Active' : 'Inactive'}
+                            color={r.status ? 'success' : 'default'}
+                            variant="outlined"
+                            sx={{ borderRadius: 2 }}
+                        />
+                    );
+                },
+                muiTableBodyCellProps: { align: 'center' },
+                muiTableHeadCellProps: { align: 'center' },
+                muiTableFooterCellProps: { align: 'center' },
+            },
+        ],
+        [],
+    );
+
+    /* ========= MRT Instance (tree/subRows) ========= */
+    const table = useMaterialReactTable({
+        columns,
+        data: rows as any, // parent = OrderTypeParentRow, child = BranchChildRow
+        enableExpanding: true,
+        enableExpandAll: false,
+        filterFromLeafRows: true,
+        getSubRows: (row: OrderTypeParentRow | BranchChildRow) => (row as OrderTypeParentRow).subRows as any,
+        initialState: { density: 'comfortable' },
+        paginateExpandedRows: false,
+
+        // baseline template v2
+        state: { showProgressBars: loading },
+        columnFilterDisplayMode: 'popover',
+        paginationDisplayMode: 'pages',
+        positionToolbarAlertBanner: 'bottom',
+        enableRowSelection: false,
+        enableStickyHeader: true,
+        muiTablePaperProps: { sx: { display: 'flex', flexDirection: 'column', flex: 1 } },
+        muiTableContainerProps: { sx: { flex: 1 } },
+
+        renderTopToolbarCustomActions: () => (
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ width: '100%', gap: 1 }}>
                 <Box>
                     <Typography variant="overline" color="text.secondary">Config / Order Types</Typography>
                     {loading ? (
@@ -252,100 +288,14 @@ export default function OrderTypes() {
                     </Button>
                 </Stack>
             </Stack>
+        ),
+    });
 
-            {/* DataTable */}
-            <DataTable<RowOrderType>
-                columns={columns}
-                rows={rows}
-                initialRowsPerPage={15}
-                enableSelection={false}
-            />
-
-            {/* Popover Branches */}
-            <Popover
-                open={Boolean(branchAnchor)}
-                anchorEl={branchAnchor}
-                onClose={closeBranches}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-                transformOrigin={{ vertical: 'top', horizontal: 'center' }}
-                PaperProps={{ sx: { width: 420, maxWidth: 'calc(100vw - 32px)', borderRadius: 2, overflow: 'hidden' } }}
-            >
-                {/* Header */}
-                <Box
-                    sx={{
-                        px: 2, py: 1,
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        backgroundColor: (t) => t.palette.background.paper,
-                        borderBottom: (t) => `1px solid ${t.palette.divider}`,
-                    }}
-                >
-                    <Typography variant="subtitle2">Branches — {branchTitle}</Typography>
-                    <Chip size="small" variant="outlined" label={`${branchList.length} item`} sx={{ borderRadius: 2 }} />
-                </Box>
-
-                {/* List */}
-                <Box ref={listRef} sx={{ maxHeight: 360, overflow: 'auto', p: 1, pt: 0.5, minWidth: 320, touchAction: 'pan-y', overscrollBehavior: 'contain' }}>
-                    {branchList.length === 0 ? (
-                        <Box sx={{ px: 2, py: 3 }}>
-                            <Typography variant="body2" color="text.secondary">Tidak ada branch.</Typography>
-                        </Box>
-                    ) : (
-                        <List dense disablePadding>
-                            <ListItem
-                                disableGutters
-                                sx={{
-                                    px: 1.5, py: 0.75, position: 'sticky', top: 0, zIndex: 1,
-                                    backgroundColor: (t) => t.palette.background.paper,
-                                    borderBottom: (t) => `1px solid ${t.palette.divider}`,
-                                }}
-                            >
-                                <Typography variant="caption" sx={{ flex: 1, fontWeight: 700, color: 'text.secondary' }}>
-                                    Branch Name
-                                </Typography>
-                                <Typography variant="caption" sx={{ width: 220, textAlign: 'right', fontWeight: 700, color: 'text.secondary' }}>
-                                    Contact
-                                </Typography>
-                            </ListItem>
-
-                            {branchList.map((b) => (
-                                <React.Fragment key={b.id}>
-                                    <ListItem
-                                        disableGutters
-                                        sx={{ px: 1.5, py: 0.75, gap: 1.25, '&:hover': { backgroundColor: (t) => t.palette.action.hover } }}
-                                    >
-                                        <ListItemAvatar>
-                                            <Avatar variant="rounded" sx={{ width: 28, height: 28, borderRadius: 1 }}>
-                                                <StorefrontRounded fontSize="small" />
-                                            </Avatar>
-                                        </ListItemAvatar>
-                                        <ListItemText
-                                            primary={
-                                                <Typography variant="body2" fontWeight={600} noWrap title={b.name}>
-                                                    {b.name}
-                                                </Typography>
-                                            }
-                                            secondary={
-                                                <Typography variant="caption" color="text.secondary" noWrap title={b.address ?? ''}>
-                                                    {b.address ?? '—'}
-                                                </Typography>
-                                            }
-                                            sx={{ m: 0, flex: 1, minWidth: 0 }}
-                                        />
-                                        <Typography variant="body2" sx={{ width: 220, textAlign: 'right' }}>
-                                            {[b.phone, b.email].filter(Boolean).join(' • ') || '—'}
-                                        </Typography>
-                                    </ListItem>
-                                    <Divider sx={{ mx: 1.5 }} />
-                                </React.Fragment>
-                            ))}
-                        </List>
-                    )}
-                </Box>
-
-                <Box sx={{ px: 1.5, py: 1, textAlign: 'right' }}>
-                    <Button size="small" onClick={closeBranches}>Tutup</Button>
-                </Box>
-            </Popover>
-        </Box>
+    return (
+        <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
+                <MaterialReactTable table={table} />
+            </Box>
+        </Paper>
     );
 }

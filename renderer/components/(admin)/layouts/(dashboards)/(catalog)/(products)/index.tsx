@@ -35,6 +35,7 @@ import 'react-perfect-scrollbar/dist/css/styles.css';
 import NewProductModal from './(components)/NewProductModal';
 import EditProductModal from './(components)/EditProductModal';
 import DeleteProduct from './(components)/DeleteProduct';
+import {ImgWithSkeleton} from "../../../../../../utils/ImageProcessingIPC";
 
 /* ==== Types ==== */
 type Variant = { id: string; code: string; name: string; price: string | number };
@@ -113,13 +114,9 @@ export default function CatalogProductsMRT() {
                     const p = row.original;
                     return (
                         <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
-                            <Avatar
-                                src={p.image || undefined}
-                                variant="rounded"
-                                sx={{ width: 32, height: 32, borderRadius: 1, bgcolor: 'background.neutral' }}
-                            >
-                                {p.name?.[0] ?? 'P'}
-                            </Avatar>
+                            <Box sx={{ width: 32, height: 32, borderRadius: 1, overflow: 'hidden', bgcolor: 'background.neutral' }}>
+                                <ImgWithSkeleton path={p.image} alt={p.name} />
+                            </Box>
                             <Box sx={{ minWidth: 0 }}>
                                 <Typography variant="body2" fontWeight={600} noWrap title={p.name}>
                                     {p.name}

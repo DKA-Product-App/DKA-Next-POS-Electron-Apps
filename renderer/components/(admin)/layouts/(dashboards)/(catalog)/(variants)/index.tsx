@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import {
-    Avatar,
     Box,
     Button,
     Paper,
@@ -16,65 +15,15 @@ import {
     useMaterialReactTable,
     type MRT_ColumnDef,
 } from 'material-react-table';
-
-/* ===== Types dari API (tetap) ===== */
-type ApiAccountRef = {
-    id: string;
-    name?: { first_name?: string; last_name?: string };
-    username?: string;
-    password?: string;
-    time_created?: string;
-    time_updated?: string;
-};
-
-type ApiBranch = {
-    id: string;
-    name: string;
-    address?: string | null;
-    phone?: string | null;
-    email?: string | null;
-    website?: string | null;
-    time_created?: string;
-    time_updated?: string;
-};
-
-type ApiProductSlim = {
-    id: string;
-    name: string;
-    description?: string | null;
-    image?: string | null;
-    status?: boolean;
-    time_created?: string;
-    time_updated?: string;
-};
-
-type ApiVariant = {
-    id: string;
-    code: string;
-    name: string;
-    description?: string | null;
-    price: string | number;
-    time_created?: string;
-    time_updated?: string;
-    reference?: ApiAccountRef;
-    branches?: ApiBranch[];
-    product: ApiProductSlim;
-};
-
-/* ===== Tree Types untuk MRT (parent Product -> subRows Variant) ===== */
-type VariantRow = {
-    id: string;
-    code: string;
-    name: string;
-    description?: string | null;
-    price: number;
-};
+import { ImgWithSkeleton } from '../../../../../../utils/ImageProcessingIPC';
+import { ProductsVariants } from '../../../../../../types/product/products.variants.type';
+import { Products } from '../../../../../../types/product/products.type';
 
 type ProductRow = {
     id: string;
-    product: ApiProductSlim;
+    product: Products;
     description?: string | null;
-    subRows?: VariantRow[];
+    subRows?: ProductsVariants[];
 };
 
 /* ===== Utils ===== */
@@ -84,9 +33,17 @@ const toIDR = (v: string | number | null | undefined) => {
         .format(Number.isFinite(n) ? (n as number) : 0);
 };
 
+/** Type guard: parent rows punya subRows */
+const hasSubRows = (row: unknown): row is ProductRow =>
+    !!row && typeof row === 'object' && Array.isArray((row as ProductRow).subRows);
+
+/** Cek child (variant) berdasarkan adanya field price */
+const isVariant = (row: unknown): row is ProductsVariants =>
+    !!row && typeof row === 'object' && (row as any).price !== undefined;
+
 /* ===== Komponen ===== */
 export default function CatalogProductsTree() {
-    const [variants, setVariants] = React.useState<ApiVariant[]>([]);
+    const [variants, setVariants] = React.useState<ProductsVariants[]>([]);
     const [rows, setRows] = React.useState<ProductRow[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
@@ -101,9 +58,8 @@ export default function CatalogProductsTree() {
         }
         setLoading(true);
         window.api
-            .invoke('api.product.variant:read.all', {})
-            .then((result: any) => {
-                const data = (result?.data ?? []) as ApiVariant[];
+            .invoke<any, { data: ProductsVariants[] }>('api.product.variant:read.all', {})
+            .then(({ data }) => {
                 setVariants(Array.isArray(data) ? data : []);
                 setError(null);
             })
@@ -131,37 +87,30 @@ export default function CatalogProductsTree() {
                 code: v.code,
                 name: v.name,
                 description: v.description ?? p.description ?? null,
-                price: Number.isFinite(priceNum) ? priceNum : 0,
-            });
+                price: String(Number.isFinite(priceNum) ? priceNum : 0),
+                product: p,
+            } as ProductsVariants);
         });
         setRows(Object.values(map));
     }, [variants]);
 
-    /* Columns:
-       - Kolom 1 "PRODUCT / VARIANT": parent= product card; child= code + name (dua bagian)
-       - Kolom 2 "PRICE": hanya tampil angka di child; parent tampil '-'
-       - Kolom 3 "DESCRIPTION": fallback ke product desc; parent/child keduanya bisa tampil
-    */
-    const columns = React.useMemo<MRT_ColumnDef<ProductRow | VariantRow>[]>(
+    /* Columns */
+    const columns = React.useMemo<MRT_ColumnDef<ProductsVariants | ProductRow>[]>(
         () => [
             {
                 id: 'productVariant',
                 header: 'PRODUCT / VARIANT',
                 size: 420,
-                Cell: ({ row, table }) => {
+                Cell: ({ row }) => {
                     const depth = row.depth; // 0 = product (parent), 1 = variant (child)
                     if (depth === 0) {
                         const pRow = row.original as ProductRow;
                         const p = pRow.product;
                         return (
                             <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
-                                <Avatar
-                                    src={p?.image || undefined}
-                                    variant="rounded"
-                                    sx={{ width: 32, height: 32, borderRadius: 1, bgcolor: 'background.neutral' }}
-                                >
-                                    {(p?.name?.[0] ?? 'P')}
-                                </Avatar>
+                                <Box sx={{ width: 32, height: 32, borderRadius: 1, overflow: 'hidden', bgcolor: 'background.neutral' }}>
+                                    <ImgWithSkeleton path={p?.image || undefined} alt={p?.name || 'Product'} />
+                                </Box>
                                 <Box sx={{ minWidth: 0 }}>
                                     <Typography variant="body2" fontWeight={700} noWrap title={p?.name}>
                                         {p?.name ?? '-'}
@@ -176,7 +125,7 @@ export default function CatalogProductsTree() {
                         );
                     }
                     // child row (variant)
-                    const vRow = row.original as unknown as VariantRow;
+                    const vRow = row.original as ProductsVariants;
                     return (
                         <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
                             <Typography variant="caption" sx={{ px: 1, py: 0.25, border: (t) => `1px solid ${t.palette.divider}`, borderRadius: 1.5 }}>
@@ -188,7 +137,6 @@ export default function CatalogProductsTree() {
                         </Stack>
                     );
                 },
-                // garis vertikal tipis untuk child rows biar "terlihat satu product"
                 muiTableBodyCellProps: ({ row }) => row.depth === 0 ? {} : ({
                     sx: { borderLeft: (t) => `3px solid ${t.palette.divider}` },
                 }),
@@ -197,15 +145,10 @@ export default function CatalogProductsTree() {
                 id: 'price',
                 header: 'PRICE',
                 size: 160,
-                accessorFn: (row) => {
-                    // parent (ProductRow) tidak punya price → NaN supaya sorting/format aman
-                    const isChild = (row as any).price !== undefined;
-                    return isChild ? (row as VariantRow).price : Number.NaN;
-                },
+                accessorFn: (row) => (isVariant(row) ? Number(row.price) : Number.NaN),
                 Cell: ({ row, cell }) => {
-                    const depth = row.depth;
-                    if (depth === 0) return <Typography variant="body2" color="text.disabled" textAlign="right">—</Typography>;
-                    const val = cell.getValue<number>();
+                    if (row.depth === 0) return <Typography variant="body2" color="text.disabled" textAlign="right">—</Typography>;
+                    const val = Number(cell.getValue<number>());
                     return <Typography variant="body2" textAlign="right" fontWeight={600}>{toIDR(Number.isFinite(val) ? val : 0)}</Typography>;
                 },
                 muiTableBodyCellProps: { align: 'right' },
@@ -219,9 +162,8 @@ export default function CatalogProductsTree() {
                 header: 'DESCRIPTION',
                 size: 260,
                 accessorFn: (row) => {
-                    const isChild = (row as any).price !== undefined;
-                    if (isChild) return (row as VariantRow).description ?? '—';
-                    const p = (row as ProductRow).product;
+                    if (isVariant(row)) return row?.description ?? '—';
+                    const p = (row as ProductRow)?.product;
                     return p?.description ?? '—';
                 },
                 Cell: ({ cell }) => (
@@ -239,11 +181,11 @@ export default function CatalogProductsTree() {
     /* MRT Table Instance — tree mode (subRows) */
     const table = useMaterialReactTable({
         columns,
-        data: rows as any, // tree: ProductRow[] parent, VariantRow[] child
+        data: rows as unknown as (ProductRow | ProductsVariants)[], // parent: ProductRow[], child: ProductsVariants[]
         enableExpanding: true,
         enableExpandAll: false,
         filterFromLeafRows: true,
-        getSubRows: (row: ProductRow | VariantRow) => (row as ProductRow).subRows as any,
+        getSubRows: (row) => hasSubRows(row) ? row.subRows : undefined, // <- FIX: type-safe
         initialState: { density: 'comfortable' },
         paginateExpandedRows: false,
 

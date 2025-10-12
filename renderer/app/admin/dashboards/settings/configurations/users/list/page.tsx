@@ -2,13 +2,14 @@ import dynamic from "next/dynamic";
 import ShimmerLoading from "../../../../../../../components/(shared)/(loading)/ShimmerLoading";
 import * as React from "react";
 
-const DataConfigPaymentMethod = dynamic(() => import("../../../../../../../components/(admin)/layouts/(dashboards)/(data)/(payment-method)"), {
+const Accounts = dynamic(() => import("../../../../../../../components/(admin)/layouts/(dashboards)/(account)"), {
     loading : () => <ShimmerLoading/>,
     ssr : false,
 })
 
-export default function ProductsPage(){
+export default function AccountsPage(){
     return (
-        <DataConfigPaymentMethod/>
+        <Accounts/>
     )
 };
+
