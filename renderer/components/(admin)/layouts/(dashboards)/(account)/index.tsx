@@ -21,6 +21,7 @@ import {
     type MRT_ColumnDef,
 } from 'material-react-table';
 import NewAccountModal from "./(components)/NewAccountModal";
+import {ImgWithSkeleton} from "../../../../../utils/ImageProcessingIPC";
 
 /* ========= Types dari response (disederhanakan untuk UI) ========= */
 type ApiName = { first_name?: string; last_name?: string };
@@ -268,7 +269,9 @@ export default function AccountsTree() {
                         return (
                             <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
                                 {/* Ganti Avatar → InitialsBox; kalau nanti ada image: taruh ImgWithSkeleton di sini */}
-                                <InitialsBox name={r.fullName} />
+                                <Box sx={{ width: 32, height: 32, borderRadius: 1, overflow: 'hidden', bgcolor: 'background.neutral' }}>
+                                    <ImgWithSkeleton path={r.fullName} alt={r.fullName} />
+                                </Box>
                                 <Box sx={{ minWidth: 0 }}>
                                     <Typography variant="body2" fontWeight={700} noWrap title={r.fullName}>
                                         {r.fullName}

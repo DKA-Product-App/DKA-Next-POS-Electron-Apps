@@ -26,6 +26,8 @@ import AdminPanelSettingsRounded from '@mui/icons-material/AdminPanelSettingsRou
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 import { useThemeCharger } from '../../../../../../contexts/ThemeCharger'
+import {useSession} from "../../../../../../contexts/SessionProviderContext";
+import {Accounts} from "../../../../../../types/account/accounts.type";
 
 type ApiShift = { id: string; name: string; start_time: string; end_time: string; status?: boolean }
 type ApiRole  = { id: string; code: string; name: string; status?: boolean }
@@ -62,6 +64,7 @@ export default function NewAccountModal({ onCreated, triggerLabel = 'Tambah Acco
     const { mode, toggleMode } = useThemeCharger()
 
     const [open, setOpen] = React.useState(false)
+    const { Session } = useSession();
     const [fullScreen, setFullScreen] = React.useState(false)
 
     // form state
@@ -79,7 +82,7 @@ export default function NewAccountModal({ onCreated, triggerLabel = 'Tambah Acco
 
     // shift
     const [shifts, setShifts] = React.useState<ApiShift[]>([])
-    const [shiftId, setShiftId] = React.useState<string>('')
+    const [shiftId, setShiftId] = React.useState<string | undefined>(undefined)
     const [loadingShifts, setLoadingShifts] = React.useState(false)
 
     // roles (multi)
@@ -145,22 +148,14 @@ export default function NewAccountModal({ onCreated, triggerLabel = 'Tambah Acco
     }, [open])
 
     const buildPayload = async () => {
-        const payload: any = {
+        const payload : Accounts = {
+            reference: { id : Session?.id },
+            branches: Session?.branches,
             name: { first_name: t(firstName), last_name: t(lastName) },
             username: t(username),
             password: t(password),
-            shift_id: t(shiftId) || null,
+            shift: (shiftId !== undefined) ? { id : t(shiftId) } : undefined,
             roles: roleIds.map(id => ({ id })), // <<<<<<<<<< roles array
-        }
-        if (imageFile) {
-            const dataUrl = await readAsDataUrl(imageFile)
-            const [meta, b64] = dataUrl.split(',')
-            const mimetype = meta?.match(/data:(.*?);base64/)?.[1] || 'image/jpeg'
-            payload.image = { type: 'Buffer', data: b64ToBytes(b64) }
-            payload.imageName = imageFile.name
-            payload.imageMime = mimetype
-        } else {
-            payload.image = null
         }
         return payload
     }
