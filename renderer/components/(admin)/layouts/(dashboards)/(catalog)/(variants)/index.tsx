@@ -5,17 +5,19 @@ import {
     Avatar,
     Box,
     Button,
+    Paper,
     Stack,
     Typography,
 } from '@mui/material';
 import AddRounded from '@mui/icons-material/AddRounded';
 
 import {
-    DataTable,
-    Column,
-} from './(components)/TablesLayoutConstructor';
+    MaterialReactTable,
+    useMaterialReactTable,
+    type MRT_ColumnDef,
+} from 'material-react-table';
 
-/* ===== Types: sesuai bentuk response ===== */
+/* ===== Types dari API (tetap) ===== */
 type ApiAccountRef = {
     id: string;
     name?: { first_name?: string; last_name?: string };
@@ -59,28 +61,33 @@ type ApiVariant = {
     product: ApiProductSlim;
 };
 
-type RowVariant = {
+/* ===== Tree Types untuk MRT (parent Product -> subRows Variant) ===== */
+type VariantRow = {
     id: string;
-    productName: string;
-    productImage?: string | null;
-    variantCode: string;
-    variantName: string;
+    code: string;
+    name: string;
     description?: string | null;
     price: number;
-    productCell: React.ReactNode;
 };
 
+type ProductRow = {
+    id: string;
+    product: ApiProductSlim;
+    description?: string | null;
+    subRows?: VariantRow[];
+};
+
+/* ===== Utils ===== */
 const toIDR = (v: string | number | null | undefined) => {
     const n = typeof v === 'string' ? Number(v) : v ?? 0;
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        maximumFractionDigits: 0,
-    }).format(Number.isFinite(n) ? (n as number) : 0);
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
+        .format(Number.isFinite(n) ? (n as number) : 0);
 };
 
-export default function CatalogProducts() {
-    const [rows, setRows] = React.useState<RowVariant[]>([]);
+/* ===== Komponen ===== */
+export default function CatalogProductsTree() {
+    const [variants, setVariants] = React.useState<ApiVariant[]>([]);
+    const [rows, setRows] = React.useState<ProductRow[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
 
@@ -88,26 +95,65 @@ export default function CatalogProducts() {
         if (window.api === undefined) {
             console.error('Failed Get Window Api Bridge');
             setError('Bridge tidak tersedia');
+            setVariants([]);
+            setRows([]);
             return;
         }
         setLoading(true);
-        // ✅ ganti endpoint ke varian: setiap item = 1 varian (punya product di dalamnya)
         window.api
             .invoke('api.product.variant:read.all', {})
             .then((result: any) => {
                 const data = (result?.data ?? []) as ApiVariant[];
-                const mapped: RowVariant[] = data.map((v) => {
-                    const p = v.product;
-                    const priceNum = Number(v.price);
-                    return {
-                        id: v.id,
-                        productName: p?.name ?? '-',
-                        productImage: p?.image ?? null,
-                        variantCode: v.code,
-                        variantName: v.name,
-                        description: v.description ?? p?.description ?? null,
-                        price: Number.isFinite(priceNum) ? priceNum : 0,
-                        productCell: (
+                setVariants(Array.isArray(data) ? data : []);
+                setError(null);
+            })
+            .catch((err: any) => {
+                console.error(err);
+                setVariants([]);
+                setRows([]);
+                setError(err?.msg ?? 'Gagal memuat varian. Periksa Koneksi Jaringan / Server');
+            })
+            .finally(() => setLoading(false));
+    }, []);
+
+    React.useEffect(() => { fetchVariants(); }, [fetchVariants]);
+
+    /* Map flat variants -> tree (ProductRow with subRows of VariantRow) */
+    React.useEffect(() => {
+        const map: Record<string, ProductRow> = {};
+        variants.forEach(v => {
+            const p = v.product;
+            if (!p?.id) return;
+            if (!map[p.id]) map[p.id] = { id: p.id, product: p, description: p.description ?? undefined, subRows: [] };
+            const priceNum = Number(v.price);
+            map[p.id].subRows!.push({
+                id: v.id,
+                code: v.code,
+                name: v.name,
+                description: v.description ?? p.description ?? null,
+                price: Number.isFinite(priceNum) ? priceNum : 0,
+            });
+        });
+        setRows(Object.values(map));
+    }, [variants]);
+
+    /* Columns:
+       - Kolom 1 "PRODUCT / VARIANT": parent= product card; child= code + name (dua bagian)
+       - Kolom 2 "PRICE": hanya tampil angka di child; parent tampil '-'
+       - Kolom 3 "DESCRIPTION": fallback ke product desc; parent/child keduanya bisa tampil
+    */
+    const columns = React.useMemo<MRT_ColumnDef<ProductRow | VariantRow>[]>(
+        () => [
+            {
+                id: 'productVariant',
+                header: 'PRODUCT / VARIANT',
+                size: 420,
+                Cell: ({ row, table }) => {
+                    const depth = row.depth; // 0 = product (parent), 1 = variant (child)
+                    if (depth === 0) {
+                        const pRow = row.original as ProductRow;
+                        const p = pRow.product;
+                        return (
                             <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
                                 <Avatar
                                     src={p?.image || undefined}
@@ -117,91 +163,104 @@ export default function CatalogProducts() {
                                     {(p?.name?.[0] ?? 'P')}
                                 </Avatar>
                                 <Box sx={{ minWidth: 0 }}>
-                                    <Typography variant="body2" fontWeight={600} noWrap title={p?.name}>
+                                    <Typography variant="body2" fontWeight={700} noWrap title={p?.name}>
                                         {p?.name ?? '-'}
                                     </Typography>
-                                    <Typography variant="caption" color="text.secondary" noWrap title={v.name}>
-                                        {v.code} — {v.name}
-                                    </Typography>
+                                    {p?.description ? (
+                                        <Typography variant="caption" color="text.secondary" noWrap title={p.description}>
+                                            {p.description}
+                                        </Typography>
+                                    ) : null}
                                 </Box>
                             </Stack>
-                        ),
-                    };
-                });
-                setRows(mapped);
-                setError(null);
-            })
-            .catch((err: any) => {
-                console.error(err);
-                setRows([]);
-                setError(err?.msg ?? 'Gagal memuat varian. Periksa Koneksi Jaringan / Server');
-            })
-            .finally(() => setLoading(false));
-    }, []);
+                        );
+                    }
+                    // child row (variant)
+                    const vRow = row.original as unknown as VariantRow;
+                    return (
+                        <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
+                            <Typography variant="caption" sx={{ px: 1, py: 0.25, border: (t) => `1px solid ${t.palette.divider}`, borderRadius: 1.5 }}>
+                                {vRow.code}
+                            </Typography>
+                            <Typography variant="body2" fontWeight={600} noWrap title={vRow.name}>
+                                {vRow.name}
+                            </Typography>
+                        </Stack>
+                    );
+                },
+                // garis vertikal tipis untuk child rows biar "terlihat satu product"
+                muiTableBodyCellProps: ({ row }) => row.depth === 0 ? {} : ({
+                    sx: { borderLeft: (t) => `3px solid ${t.palette.divider}` },
+                }),
+            },
+            {
+                id: 'price',
+                header: 'PRICE',
+                size: 160,
+                accessorFn: (row) => {
+                    // parent (ProductRow) tidak punya price → NaN supaya sorting/format aman
+                    const isChild = (row as any).price !== undefined;
+                    return isChild ? (row as VariantRow).price : Number.NaN;
+                },
+                Cell: ({ row, cell }) => {
+                    const depth = row.depth;
+                    if (depth === 0) return <Typography variant="body2" color="text.disabled" textAlign="right">—</Typography>;
+                    const val = cell.getValue<number>();
+                    return <Typography variant="body2" textAlign="right" fontWeight={600}>{toIDR(Number.isFinite(val) ? val : 0)}</Typography>;
+                },
+                muiTableBodyCellProps: { align: 'right' },
+                muiTableHeadCellProps: { align: 'right' },
+                muiTableFooterCellProps: { align: 'right' },
+                enableColumnFilter: true,
+                sortingFn: 'basic',
+            },
+            {
+                id: 'description',
+                header: 'DESCRIPTION',
+                size: 260,
+                accessorFn: (row) => {
+                    const isChild = (row as any).price !== undefined;
+                    if (isChild) return (row as VariantRow).description ?? '—';
+                    const p = (row as ProductRow).product;
+                    return p?.description ?? '—';
+                },
+                Cell: ({ cell }) => (
+                    <Typography variant="body2" color="text.secondary" noWrap title={String(cell.getValue() ?? '')}>
+                        {String(cell.getValue() ?? '—')}
+                    </Typography>
+                ),
+                enableSorting: false,
+                enableColumnFilter: true,
+            },
+        ],
+        [],
+    );
 
-    React.useEffect(() => {
-        fetchVariants();
-    }, [fetchVariants]);
+    /* MRT Table Instance — tree mode (subRows) */
+    const table = useMaterialReactTable({
+        columns,
+        data: rows as any, // tree: ProductRow[] parent, VariantRow[] child
+        enableExpanding: true,
+        enableExpandAll: false,
+        filterFromLeafRows: true,
+        getSubRows: (row: ProductRow | VariantRow) => (row as ProductRow).subRows as any,
+        initialState: { density: 'comfortable' },
+        paginateExpandedRows: false,
 
-    const columns: Column<RowVariant>[] = [
-        {
-            key: 'productCell',
-            label: 'PRODUCT',
-            sortable: true,
-            width: 360,
-            minWidth: 240,
-            headerFilter: { type: 'text' },
-        },
-        {
-            key: 'variantName',
-            label: 'VARIANT',
-            sortable: true,
-            width: 200,
-            minWidth: 160,
-            headerFilter: { type: 'text' },
-            render: (r) => `${r.variantName} (${r.variantCode})`,
-        },
-        {
-            key: 'price',
-            label: 'PRICE',
-            sortable: true,
-            align: 'right',
-            width: 160,
-            minWidth: 140,
-            headerFilter: { type: 'text' },
-            render: (r) => toIDR(r.price),
-        },
-        {
-            key: 'description',
-            label: 'DESCRIPTION',
-            sortable: false,
-            width: 180,
-            minWidth: 160,
-            headerFilter: { type: 'text' },
-            render: (r) => (
-                <Typography variant="body2" color="text.secondary" noWrap title={r.description ?? ''}>
-                    {r.description ?? '—'}
-                </Typography>
-            ),
-        },
-    ];
-
-    return (
-        <Box
-            sx={{
-                p: 2,
-                display: 'grid',
-                gap: 2,
-                height: '100%',
-                minHeight: 0,
-                gridTemplateRows: 'auto 1fr',
-            }}
-        >
-            {/* Header & CTA */}
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
+        // baseline template v2
+        state: { showProgressBars: loading },
+        columnFilterDisplayMode: 'popover',
+        paginationDisplayMode: 'pages',
+        positionToolbarAlertBanner: 'bottom',
+        enableRowSelection: false,
+        enableStickyHeader: true,
+        muiTablePaperProps: { sx: { display: 'flex', flexDirection: 'column', flex: 1 } },
+        muiTableContainerProps: { sx: { flex: 1 } },
+        renderTopToolbarCustomActions: () => (
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ width: '100%', gap: 1 }}>
                 <Box>
                     <Typography variant="overline" color="text.secondary">
-                        Catalog / Daftar Varian Produk
+                        Catalog / Daftar Varian Produk (Grouped by Product)
                     </Typography>
                     {loading ? (
                         <Typography variant="body2" color="text.secondary">Loading…</Typography>
@@ -216,13 +275,14 @@ export default function CatalogProducts() {
                     </Button>
                 </Stack>
             </Stack>
+        ),
+    });
 
-            <DataTable<RowVariant>
-                columns={columns}
-                rows={rows}
-                initialRowsPerPage={15}
-                enableSelection={false}
-            />
-        </Box>
+    return (
+        <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
+                <MaterialReactTable table={table} />
+            </Box>
+        </Paper>
     );
 }

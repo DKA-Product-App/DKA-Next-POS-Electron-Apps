@@ -6,34 +6,30 @@ import {
     Box,
     Button,
     Chip,
-    Divider,
-    IconButton,
-    List,
-    ListItem,
-    ListItemAvatar,
-    ListItemText,
-    Popover,
-    Stack,
-    Typography,
-    Paper,
-    Tooltip,
     Dialog,
-    DialogTitle,
-    DialogContent,
     DialogActions,
-    TextField,
-    Switch,
+    DialogContent,
+    DialogTitle,
     FormControlLabel,
+    IconButton,
+    Paper,
+    Stack,
+    Switch,
+    TextField,
+    Tooltip,
+    Typography,
 } from '@mui/material';
 import Grid2 from '@mui/material/Grid';
-import TableRestaurantRounded from '@mui/icons-material/TableRestaurantRounded';
 import AddRounded from '@mui/icons-material/AddRounded';
 import EditRounded from '@mui/icons-material/EditRounded';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
+import TableRestaurantRounded from '@mui/icons-material/TableRestaurantRounded';
+
 import {
     MaterialReactTable,
     useMaterialReactTable,
     createMRTColumnHelper,
+    type MRT_ColumnDef,
 } from 'material-react-table';
 import SweetAlert2, { SweetAlert2Props } from 'react-sweetalert2';
 
@@ -84,29 +80,38 @@ type ApiFloor = {
     tables?: ApiTable[];
 };
 
-/* ====== Row & Form ====== */
-type RowFloor = {
+/* ====== Tree Row Types ====== */
+type TableRow = {
+    kind: 'table';
+    id: string;
+    code: string;
+    name: string;
+    shape?: string | null;
+    capacity?: number | null;
+    state?: string | null;
+    coordinate?: TableCoordinate;
+    dimension?: TableDimension;
+    status?: boolean;
+};
+type FloorRow = {
+    kind: 'floor';
     id: string;
     code: string;
     name: string;
     status: boolean;
     branchName?: string | null;
-    tablesCount: number;
-    tables: ApiTable[];
+    subRows?: TableRow[];
 };
+
+/* ====== Form ====== */
 type FloorForm = { id?: string; code: string; name: string; status: boolean };
 const emptyForm: FloorForm = { code: '', name: '', status: true };
 
-export default function Floors() {
-    const column = createMRTColumnHelper<RowFloor>();
+export default function FloorsTree() {
+    const column = createMRTColumnHelper<FloorRow | TableRow>();
 
-    const [rows, setRows] = React.useState<RowFloor[]>([]);
+    const [rows, setRows] = React.useState<FloorRow[]>([]);
     const [loading, setLoading] = React.useState(false);
-
-    // Popover tables
-    const [tablesAnchor, setTablesAnchor] = React.useState<HTMLElement | null>(null);
-    const [tablesTitle, setTablesTitle] = React.useState<string>('');
-    const [tablesList, setTablesList] = React.useState<ApiTable[]>([]);
 
     // Form modal (Add/Edit)
     const [formOpen, setFormOpen] = React.useState(false);
@@ -116,17 +121,6 @@ export default function Floors() {
 
     // SweetAlert2 controlled props
     const [swalProps, setSwalProps] = React.useState<SweetAlert2Props>({});
-
-    const openTables = (e: React.MouseEvent<HTMLElement>, floorName: string, tables: ApiTable[]) => {
-        setTablesAnchor(e.currentTarget);
-        setTablesTitle(floorName);
-        setTablesList(tables ?? []);
-    };
-    const closeTables = () => {
-        setTablesAnchor(null);
-        setTablesTitle('');
-        setTablesList([]);
-    };
 
     const fetchFloors = React.useCallback(() => {
         if (!window.api) {
@@ -139,14 +133,25 @@ export default function Floors() {
             .invoke('api.config.data.floors:read.all', {})
             .then((result: any) => {
                 const data = (result?.data ?? []) as ApiFloor[];
-                const mapped: RowFloor[] = data.map((f) => ({
+                const mapped: FloorRow[] = data.map((f) => ({
+                    kind: 'floor',
                     id: f.id,
                     code: f.code,
                     name: f.name,
                     status: !!f.status,
                     branchName: f.branches?.[0]?.name ?? null,
-                    tablesCount: f.tables?.length ?? 0,
-                    tables: f.tables ?? [],
+                    subRows: (f.tables ?? []).map<TableRow>((t) => ({
+                        kind: 'table',
+                        id: t.id,
+                        code: t.code,
+                        name: t.name,
+                        shape: t.shape ?? null,
+                        capacity: Number.isFinite(t.capacity) ? t.capacity : null,
+                        state: t.state ?? null,
+                        coordinate: t.coordinate,
+                        dimension: t.dimension,
+                        status: !!t.status,
+                    })),
                 }));
                 setRows(mapped);
             })
@@ -165,7 +170,7 @@ export default function Floors() {
     const openCreate = React.useCallback(() => {
         setFormMode('create'); setForm(emptyForm); setFormOpen(true);
     }, []);
-    const openEdit = React.useCallback((row: RowFloor) => {
+    const openEdit = React.useCallback((row: FloorRow) => {
         setFormMode('edit'); setForm({ id: row.id, code: row.code, name: row.name, status: row.status }); setFormOpen(true);
     }, []);
     const closeForm = React.useCallback(() => setFormOpen(false), []);
@@ -193,7 +198,7 @@ export default function Floors() {
     }, [form, formMode, fetchFloors]);
 
     /* ====== Delete with SweetAlert2 (component) ====== */
-    const onDelete = React.useCallback((row: RowFloor) => {
+    const onDelete = React.useCallback((row: FloorRow) => {
         setSwalProps({
             show: true,
             icon: 'warning',
@@ -203,17 +208,12 @@ export default function Floors() {
             confirmButtonText: 'Ya, hapus',
             cancelButtonText: 'Batal',
             reverseButtons: true,
-            // simpan id di "willOpen" dataset? lebih simpel: closure di onResolve:
-            // (lihat di onResolve di bawah)
-            // tidak perlu apa-apa di sini.
         });
-        // simpan target row di ref state untuk diakses saat resolve:
-        (onDelete as any)._target = row as RowFloor;
+        (onDelete as any)._target = row as FloorRow;
     }, []);
-    // handler resolve swal (confirm/cancel)
     const handleSwalResolve = React.useCallback((result: any) => {
         if (!result?.isConfirmed) { setSwalProps({}); return; }
-        const row: RowFloor | undefined = (onDelete as any)._target;
+        const row: FloorRow | undefined = (onDelete as any)._target;
         if (!row || !window.api) { setSwalProps({}); return; }
         window.api
             .invoke('api.config.data.floors:delete.one', { id: row.id })
@@ -223,85 +223,116 @@ export default function Floors() {
             .finally(() => { (onDelete as any)._target = undefined; });
     }, [fetchFloors]);
 
-    /* ====== Table ====== */
-    const table = useMaterialReactTable({
-        columns: [
-            // CODE / NAME
+    /* ====== Columns (Tree: Floor parent, Table child) ====== */
+    const columns = React.useMemo<MRT_ColumnDef<FloorRow | TableRow>[]>(
+        () => [
+            // CODE / NAME (floor vs table)
             column.display({
                 id: 'codeName',
                 header: 'CODE / NAME',
-                size: 320,
+                size: 360,
                 Cell: ({ row }) => {
-                    const r = row.original;
+                    const depth = row.depth; // 0 floor, 1 table
+                    if (depth === 0) {
+                        const r = row.original as FloorRow;
+                        return (
+                            <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
+                                <Avatar variant="rounded" sx={{ width: 32, height: 32, borderRadius: 1 }}>
+                                    {r.code?.[0] ?? 'F'}
+                                </Avatar>
+                                <Box sx={{ minWidth: 0 }}>
+                                    <Typography variant="body2" fontWeight={600} noWrap title={r.code}>{r.code}</Typography>
+                                    <Typography variant="caption" color="text.secondary" noWrap title={r.name}>{r.name}</Typography>
+                                </Box>
+                            </Stack>
+                        );
+                    }
+                    const t = row.original as TableRow;
+                    const coord = t.coordinate ? `(${t.coordinate.x}, ${t.coordinate.y})` : '';
+                    const dim = t.dimension ? `${t.dimension.width}×${t.dimension.height}${Number.isFinite(t.dimension.rotate) && t.dimension.rotate !== 0 ? ` • rot ${t.dimension.rotate}°` : ''}` : '';
                     return (
                         <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
-                            <Avatar variant="rounded" sx={{ width: 32, height: 32, borderRadius: 1 }}>
-                                {r.code?.[0] ?? 'F'}
+                            <Avatar variant="rounded" sx={{ width: 28, height: 28, borderRadius: 1 }}>
+                                <TableRestaurantRounded fontSize="small" />
                             </Avatar>
                             <Box sx={{ minWidth: 0 }}>
-                                <Typography variant="body2" fontWeight={600} noWrap title={r.code}>{r.code}</Typography>
-                                <Typography variant="caption" color="text.secondary" noWrap title={r.name}>{r.name}</Typography>
+                                <Typography variant="body2" fontWeight={600} noWrap title={t.code}>{t.code}</Typography>
+                                <Typography variant="caption" color="text.secondary" noWrap title={`${t.name}${coord || dim ? ` • ${coord}${coord && dim ? ' ' : ''}${dim}` : ''}`}>
+                                    {t.name}{coord || dim ? <> • {coord}{coord && dim ? ' ' : ''}{dim}</> : null}
+                                </Typography>
                             </Box>
                         </Stack>
                     );
                 },
+                muiTableBodyCellProps: ({ row }) =>
+                    row.depth === 0 ? {} : { sx: { borderLeft: (t) => `3px solid ${t.palette.divider}` } },
             }),
-            // BRANCH
-            column.accessor('branchName', {
+            // BRANCH (only on floor)
+            column.display({
+                id: 'branch',
                 header: 'BRANCH',
-                size: 260,
-                Cell: ({ renderedCellValue }) => (
-                    <Typography variant="body2" color="text.secondary" noWrap title={String(renderedCellValue ?? '')}>
-                        {renderedCellValue ?? '—'}
-                    </Typography>
-                ),
-            }),
-            // TABLES
-            column.display({
-                id: 'tables',
-                header: 'TABLES',
-                size: 140,
+                size: 240,
                 Cell: ({ row }) => {
-                    const r = row.original;
-                    return (
-                        <Button
-                            size="small" variant="outlined"
-                            onClick={(e) => openTables(e, `${r.code} — ${r.name}`, r.tables)}
-                            sx={{ borderRadius: 2, minWidth: 0, px: 1.25 }}
-                            startIcon={<TableRestaurantRounded />}
-                        >
-                            {r.tablesCount}
-                        </Button>
-                    );
+                    if (row.depth === 0) {
+                        const r = row.original as FloorRow;
+                        return (
+                            <Typography variant="body2" color="text.secondary" noWrap title={r.branchName ?? ''}>
+                                {r.branchName ?? '—'}
+                            </Typography>
+                        );
+                    }
+                    return <Typography variant="body2" color="text.disabled">—</Typography>;
+                },
+            }),
+            // SHAPE • CAPACITY (only table)
+            column.display({
+                id: 'shapeCap',
+                header: 'SHAPE • CAPACITY',
+                size: 180,
+                Cell: ({ row }) => {
+                    if (row.depth === 0) return <Typography variant="body2" color="text.disabled" textAlign="right">—</Typography>;
+                    const t = row.original as TableRow;
+                    const shape = t.shape ?? '—';
+                    const cap = Number.isFinite(t.capacity as number) ? t.capacity : '—';
+                    return <Typography variant="body2" textAlign="right"><strong>{shape}</strong>{' '}•{' '}{cap}</Typography>;
+                },
+                muiTableBodyCellProps: { align: 'right' },
+                muiTableHeadCellProps: { align: 'right' },
+                muiTableFooterCellProps: { align: 'right' },
+            }),
+            // STATUS / STATE
+            column.display({
+                id: 'statusState',
+                header: 'STATUS / STATE',
+                size: 160,
+                Cell: ({ row }) => {
+                    if (row.depth === 0) {
+                        const r = row.original as FloorRow;
+                        return (
+                            <Chip
+                                size="small"
+                                label={r.status ? 'Active' : 'Inactive'}
+                                color={r.status ? 'success' : 'default'}
+                                variant="outlined"
+                                sx={{ borderRadius: 2 }}
+                            />
+                        );
+                    }
+                    const t = row.original as TableRow;
+                    return <Typography variant="body2" textAlign="center">{t.state ?? '—'}</Typography>;
                 },
                 muiTableBodyCellProps: { align: 'center' },
             }),
-            // STATUS
-            column.display({
-                id: 'status',
-                header: 'STATUS',
-                size: 120,
-                Cell: ({ row }) => {
-                    const active = row.original.status;
-                    return (
-                        <Chip
-                            size="small"
-                            label={active ? 'Active' : 'Inactive'}
-                            color={active ? 'success' : 'default'}
-                            variant="outlined"
-                            sx={{ borderRadius: 2 }}
-                        />
-                    );
-                },
-                muiTableBodyCellProps: { align: 'center' },
-            }),
-            // ACTIONS
+            // ACTIONS (only floor rows)
             column.display({
                 id: 'actions',
                 header: 'ACTIONS',
                 size: 120,
+                enableColumnFilter: false,
+                enableSorting: false,
                 Cell: ({ row }) => {
-                    const r = row.original;
+                    if (row.depth !== 0) return null;
+                    const r = row.original as FloorRow;
                     return (
                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                             <Tooltip title="Edit">
@@ -318,101 +349,49 @@ export default function Floors() {
                     );
                 },
                 muiTableBodyCellProps: { align: 'right' },
-                enableColumnFilter: false,
-                enableSorting: false,
             }),
         ],
-        data: rows,
-        state: { isLoading: loading },
-        initialState: { density: 'compact' },
-        enableRowSelection: false,
+        [column, openEdit, onDelete],
+    );
+
+    /* ====== MRT (Tree with subRows) ====== */
+    const table = useMaterialReactTable({
+        columns,
+        data: rows as any, // parent = FloorRow, child = TableRow
+        enableExpanding: true,
+        enableExpandAll: false,
+        filterFromLeafRows: true,
+        getSubRows: (row: FloorRow | TableRow) => (row as FloorRow).subRows as any,
+        initialState: { expanded: true, density: 'compact' },
+        paginateExpandedRows: false,
+
+        // baseline template v2
+        state: { showProgressBars: loading },
         columnFilterDisplayMode: 'popover',
         paginationDisplayMode: 'pages',
         positionToolbarAlertBanner: 'bottom',
+        enableRowSelection: false,
         enableStickyHeader: true,
         muiTablePaperProps: { sx: { display: 'flex', flexDirection: 'column', flex: 1 } },
         muiTableContainerProps: { sx: { flex: 1 } },
         renderTopToolbarCustomActions: () => (
-            <Stack direction="row" alignItems="center" justifyContent="flex-end" sx={{ mb: 1.5, width: '100%' }}>
-                <Button variant="outlined" startIcon={<AddRounded />} onClick={openCreate}>
-                    Tambah Floor
-                </Button>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ width: '100%', gap: 1, mb: 1.5 }}>
+                <Box>
+                    <Typography variant="overline" color="text.secondary">Config / Floors & Tables</Typography>
+                </Box>
+                <Stack direction="row" spacing={1}>
+                    <Button variant="outlined" onClick={fetchFloors}>Refresh</Button>
+                    <Button variant="contained" startIcon={<AddRounded />} onClick={openCreate}>Tambah Floor</Button>
+                </Stack>
             </Stack>
         ),
     });
 
     return (
-        <Paper
-            variant="outlined"
-            sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}
-        >
+        <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
                 <MaterialReactTable table={table} />
             </Box>
-
-            {/* Popover Tables */}
-            <Popover
-                open={Boolean(tablesAnchor)}
-                anchorEl={tablesAnchor}
-                onClose={closeTables}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-                transformOrigin={{ vertical: 'top', horizontal: 'center' }}
-                PaperProps={{ sx: { width: 560, maxWidth: 'calc(100vw - 32px)', borderRadius: 2, overflow: 'hidden' } }}
-            >
-                <Box sx={{ px: 2, py: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: (t) => t.palette.background.paper, borderBottom: (t) => `1px solid ${t.palette.divider}` }}>
-                    <Typography variant="subtitle2">Tables — {tablesTitle}</Typography>
-                    <Chip size="small" variant="outlined" label={`${tablesList.length} item`} sx={{ borderRadius: 2 }} />
-                </Box>
-                <Box sx={{ maxHeight: 420, overflow: 'auto', p: 1, pt: 0.5, minWidth: 360, touchAction: 'pan-y', overscrollBehavior: 'contain' }}>
-                    {tablesList.length === 0 ? (
-                        <Box sx={{ px: 2, py: 3 }}>
-                            <Typography variant="body2" color="text.secondary">Tidak ada meja.</Typography>
-                        </Box>
-                    ) : (
-                        <List dense disablePadding>
-                            <ListItem disableGutters sx={{ px: 1.5, py: 0.75, position: 'sticky', top: 0, zIndex: 1, backgroundColor: (t) => t.palette.background.paper, borderBottom: (t) => `1px solid ${t.palette.divider}` }}>
-                                <Typography variant="caption" sx={{ flex: 1, fontWeight: 700, color: 'text.secondary' }}>Code / Name</Typography>
-                                <Typography variant="caption" sx={{ width: 160, textAlign: 'right', fontWeight: 700, color: 'text.secondary' }}>Shape • Capacity</Typography>
-                                <Typography variant="caption" sx={{ width: 140, textAlign: 'right', fontWeight: 700, color: 'text.secondary' }}>State</Typography>
-                            </ListItem>
-                            {tablesList.map((t) => {
-                                const shape = t.shape ?? '—';
-                                const capacity = Number.isFinite(t.capacity) ? t.capacity : '—';
-                                const state = t.state ?? '—';
-                                const coord = t.coordinate ? `(${t.coordinate.x}, ${t.coordinate.y})` : '';
-                                const dim = t.dimension ? `${t.dimension.width}×${t.dimension.height}${Number.isFinite(t.dimension.rotate) && t.dimension.rotate !== 0 ? ` • rot ${t.dimension.rotate}°` : ''}` : '';
-                                return (
-                                    <React.Fragment key={t.id}>
-                                        <ListItem disableGutters sx={{ px: 1.5, py: 0.75, gap: 1.25, '&:hover': { backgroundColor: (th) => th.palette.action.hover } }}>
-                                            <ListItemAvatar>
-                                                <Avatar variant="rounded" sx={{ width: 28, height: 28, borderRadius: 1 }}>
-                                                    <TableRestaurantRounded fontSize="small" />
-                                                </Avatar>
-                                            </ListItemAvatar>
-                                            <ListItemText
-                                                primary={
-                                                    <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                                                        <Typography variant="body2" fontWeight={600} noWrap title={t.code}>{t.code}</Typography>
-                                                        <Typography variant="body2" color="text.secondary" noWrap title={t.name}>— {t.name}</Typography>
-                                                    </Stack>
-                                                }
-                                                secondary={(coord || dim) ? (<Typography variant="caption" color="text.secondary" noWrap title={`${coord} ${dim}`.trim()}>{coord}{coord && dim ? ' • ' : ''}{dim}</Typography>) : null}
-                                                sx={{ m: 0, flex: 1, minWidth: 0 }}
-                                            />
-                                            <Typography variant="body2" sx={{ width: 160, textAlign: 'right' }}><strong>{shape}</strong>{' '}•{' '}{capacity}</Typography>
-                                            <Typography variant="body2" sx={{ width: 140, textAlign: 'right' }}>{state}</Typography>
-                                        </ListItem>
-                                        <Divider sx={{ mx: 1.5 }} />
-                                    </React.Fragment>
-                                );
-                            })}
-                        </List>
-                    )}
-                </Box>
-                <Box sx={{ px: 1.5, py: 1, textAlign: 'right' }}>
-                    <Button size="small" onClick={() => setTablesAnchor(null)}>Tutup</Button>
-                </Box>
-            </Popover>
 
             {/* SweetAlert2 (controlled) */}
             <SweetAlert2
@@ -433,10 +412,7 @@ export default function Floors() {
                             <TextField label="Name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} fullWidth />
                         </Grid2>
                         <Grid2 size={{ xs: 12, sm: 6 }}>
-                            <FormControlLabel
-                                control={<Switch checked={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.checked }))} />}
-                                label="Active"
-                            />
+                            <FormControlLabel control={<Switch checked={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.checked }))} />} label="Active" />
                         </Grid2>
                     </Grid2>
                 </DialogContent>

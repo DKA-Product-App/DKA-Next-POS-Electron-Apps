@@ -6,6 +6,7 @@ import {
     Box,
     Button,
     Chip,
+    Paper,
     Stack,
     Typography,
 } from '@mui/material';
@@ -13,9 +14,11 @@ import TableRestaurantRounded from '@mui/icons-material/TableRestaurantRounded';
 import AddRounded from '@mui/icons-material/AddRounded';
 
 import {
-    DataTable,
-    Column,
-} from './(components)/TablesLayoutConstructor';
+    MaterialReactTable,
+    useMaterialReactTable,
+    createMRTColumnHelper,
+    type MRT_ColumnDef,
+} from 'material-react-table';
 
 /* ========= Types dari response ========= */
 type ApiAccountRef = {
@@ -68,8 +71,10 @@ type ApiTable = {
     floor: ApiFloorSlim;
 };
 
-/* ========= Row type untuk DataTable ========= */
-type RowTable = {
+/* ========= Tree Row Types ========= */
+/** Parent row: table */
+type TableParentRow = {
+    kind: 'table';
     id: string;
     code: string;
     name: string;
@@ -78,13 +83,26 @@ type RowTable = {
     floorCode?: string | null;
     floorName?: string | null;
     branchName?: string | null;
-    shape?: string | null;
-    capacity?: number | null;
-    codeCell: React.ReactNode;
+    subRows?: TableChildRow[];
+};
+/** Child row: property details (coordinate, dimension, capacity, dll.) */
+type TableChildRow = {
+    kind: 'prop';
+    id: string;
+    label: 'Coordinate' | 'Dimension' | 'Capacity' | 'Shape' | 'Created' | 'Updated';
+    value: string;
 };
 
-export default function Tables() {
-    const [rows, setRows] = React.useState<RowTable[]>([]);
+/* ========= Helpers ========= */
+const fmtCoord = (c?: TableCoordinate) => (c ? `(${c.x}, ${c.y})` : '—');
+const fmtDim = (d?: TableDimension) =>
+    d ? `${d.width}×${d.height}${Number.isFinite(d.rotate) && d.rotate !== 0 ? ` • rot ${d.rotate}°` : ''}` : '—';
+
+/* ========= Component ========= */
+export default function TablesTree() {
+    const column = createMRTColumnHelper<TableParentRow | TableChildRow>();
+
+    const [rows, setRows] = React.useState<TableParentRow[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
 
@@ -92,6 +110,7 @@ export default function Tables() {
         if (!window.api) {
             console.error('Failed Get Window Api Bridge');
             setError('Bridge tidak tersedia');
+            setRows([]);
             return;
         }
         setLoading(true);
@@ -99,33 +118,34 @@ export default function Tables() {
             .invoke('api.config.data.floors.tables:read.all', {})
             .then((result: any) => {
                 const data = (result?.data ?? []) as ApiTable[];
-                const mapped: RowTable[] = data.map((t) => ({
-                    id: t.id,
-                    code: t.code,
-                    name: t.name,
-                    state: t.state ?? '—',
-                    status: !!t.status,
-                    floorCode: t.floor?.code ?? null,
-                    floorName: t.floor?.name ?? null,
-                    branchName: t.branches?.[0]?.name ?? null,
-                    shape: t.shape ?? null,
-                    capacity: Number.isFinite(t.capacity) ? t.capacity : null,
-                    codeCell: (
-                        <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
-                            <Avatar variant="rounded" sx={{ width: 32, height: 32, borderRadius: 1 }}>
-                                <TableRestaurantRounded fontSize="small" />
-                            </Avatar>
-                            <Box sx={{ minWidth: 0 }}>
-                                <Typography variant="body2" fontWeight={600} noWrap title={t.code}>
-                                    {t.code}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" noWrap title={t.name}>
-                                    {t.name}
-                                </Typography>
-                            </Box>
-                        </Stack>
-                    ),
-                }));
+                const mapped: TableParentRow[] = data.map((t) => {
+                    const shape = t.shape ?? '—';
+                    const capacity = Number.isFinite(t.capacity) ? t.capacity : '—';
+                    const created = t.time_created ? new Date(t.time_created).toLocaleString('id-ID') : '—';
+                    const updated = t.time_updated ? new Date(t.time_updated).toLocaleString('id-ID') : '—';
+
+                    const subRows: TableChildRow[] = [
+                        { kind: 'prop', id: `${t.id}-p1`, label: 'Coordinate', value: fmtCoord(t.coordinate) },
+                        { kind: 'prop', id: `${t.id}-p2`, label: 'Dimension', value: fmtDim(t.dimension) },
+                        { kind: 'prop', id: `${t.id}-p3`, label: 'Capacity', value: String(capacity) },
+                        { kind: 'prop', id: `${t.id}-p4`, label: 'Shape', value: String(shape) },
+                        { kind: 'prop', id: `${t.id}-p5`, label: 'Created', value: created },
+                        { kind: 'prop', id: `${t.id}-p6`, label: 'Updated', value: updated },
+                    ];
+
+                    return {
+                        kind: 'table',
+                        id: t.id,
+                        code: t.code,
+                        name: t.name,
+                        state: t.state ?? '—',
+                        status: !!t.status,
+                        floorCode: t.floor?.code ?? null,
+                        floorName: t.floor?.name ?? null,
+                        branchName: t.branches?.[0]?.name ?? null,
+                        subRows,
+                    };
+                });
                 setRows(mapped);
                 setError(null);
             })
@@ -137,102 +157,169 @@ export default function Tables() {
             .finally(() => setLoading(false));
     }, []);
 
-    React.useEffect(() => {
-        fetchTables();
-    }, [fetchTables]);
+    React.useEffect(() => { fetchTables(); }, [fetchTables]);
 
-    const columns: Column<RowTable>[] = [
-        {
-            key: 'codeCell',
-            label: 'CODE / NAME',
-            sortable: true,
-            width: 320,
-            minWidth: 220,
-            headerFilter: { type: 'text' },
-        },
-        {
-            key: 'floorName',
-            label: 'FLOOR',
-            sortable: true,
-            width: 240,
-            minWidth: 200,
-            headerFilter: { type: 'text' },
-            render: (r) => (
-                <Typography variant="body2" color="text.secondary" noWrap title={`${r.floorCode ?? ''} — ${r.floorName ?? ''}`.trim()}>
-                    {r.floorCode ? `${r.floorCode} — ${r.floorName ?? ''}` : (r.floorName ?? '—')}
-                </Typography>
-            ),
-        },
-        {
-            key: 'branchName',
-            label: 'BRANCH',
-            sortable: true,
-            width: 260,
-            minWidth: 200,
-            headerFilter: { type: 'text' },
-            render: (r) => (
-                <Typography variant="body2" color="text.secondary" noWrap title={r.branchName ?? ''}>
-                    {r.branchName ?? '—'}
-                </Typography>
-            ),
-        },
-        {
-            key: 'shape',
-            label: 'SHAPE • CAPACITY',
-            sortable: true,
-            width: 200,
-            minWidth: 160,
-            headerFilter: { type: 'text' },
-            render: (r) => (
-                <Typography variant="body2" noWrap title={`${r.shape ?? '—'} • ${r.capacity ?? '—'}`}>
-                    <strong>{r.shape ?? '—'}</strong>{' '}•{' '}{r.capacity ?? '—'}
-                </Typography>
-            ),
-        },
-        {
-            key: 'state',
-            label: 'STATE',
-            sortable: true,
-            align: 'center',
-            width: 140,
-            minWidth: 120,
-        },
-        {
-            key: 'status',
-            label: 'STATUS',
-            sortable: true,
-            align: 'center',
-            width: 120,
-            minWidth: 110,
-            render: (r) => (
-                <Chip
-                    size="small"
-                    label={r.status ? 'Active' : 'Inactive'}
-                    color={r.status ? 'success' : 'default'}
-                    variant="outlined"
-                    sx={{ borderRadius: 2 }}
-                />
-            ),
-        },
-    ];
+    /* ========= Columns (parent vs child rendering) ========= */
+    const columns = React.useMemo<MRT_ColumnDef<TableParentRow | TableChildRow>[]>(
+        () => [
+            // TABLE / PROPERTY
+            column.display({
+                id: 'tableOrProp',
+                header: 'TABLE / PROPERTY',
+                size: 360,
+                Cell: ({ row }) => {
+                    if (row.depth === 0) {
+                        const r = row.original as TableParentRow;
+                        return (
+                            <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
+                                <Avatar variant="rounded" sx={{ width: 32, height: 32, borderRadius: 1 }}>
+                                    <TableRestaurantRounded fontSize="small" />
+                                </Avatar>
+                                <Box sx={{ minWidth: 0 }}>
+                                    <Typography variant="body2" fontWeight={600} noWrap title={r.code}>
+                                        {r.code}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" noWrap title={r.name}>
+                                        {r.name}
+                                    </Typography>
+                                </Box>
+                            </Stack>
+                        );
+                    }
+                    const p = row.original as TableChildRow;
+                    return (
+                        <Typography variant="body2" fontWeight={600} noWrap title={p.label}>
+                            {p.label}
+                        </Typography>
+                    );
+                },
+                // garis vertikal halus untuk anak biar terlihat satu grup
+                muiTableBodyCellProps: ({ row }) => row.depth === 0 ? {} : ({ sx: { borderLeft: (t) => `3px solid ${t.palette.divider}` } }),
+            }),
 
-    return (
-        <Box
-            sx={{
-                p: 2,
-                display: 'grid',
-                gap: 2,
-                height: '100%',
-                minHeight: 0,
-                gridTemplateRows: 'auto 1fr',
-            }}
-        >
-            {/* Header & CTA */}
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
+            // FLOOR (hanya parent)
+            column.display({
+                id: 'floor',
+                header: 'FLOOR',
+                size: 220,
+                Cell: ({ row }) => {
+                    if (row.depth === 0) {
+                        const r = row.original as TableParentRow;
+                        return (
+                            <Typography variant="body2" color="text.secondary" noWrap title={`${r.floorCode ?? ''} — ${r.floorName ?? ''}`.trim()}>
+                                {r.floorCode ? `${r.floorCode} — ${r.floorName ?? ''}` : (r.floorName ?? '—')}
+                            </Typography>
+                        );
+                    }
+                    return <Typography variant="body2" color="text.disabled">—</Typography>;
+                },
+            }),
+
+            // BRANCH (hanya parent)
+            column.display({
+                id: 'branch',
+                header: 'BRANCH',
+                size: 240,
+                Cell: ({ row }) => {
+                    if (row.depth === 0) {
+                        const r = row.original as TableParentRow;
+                        return (
+                            <Typography variant="body2" color="text.secondary" noWrap title={r.branchName ?? ''}>
+                                {r.branchName ?? '—'}
+                            </Typography>
+                        );
+                    }
+                    return <Typography variant="body2" color="text.disabled">—</Typography>;
+                },
+            }),
+
+            // DETAIL (nilai dari property untuk child; parent bisa tampil ringkas atau —)
+            column.display({
+                id: 'detail',
+                header: 'DETAIL',
+                size: 260,
+                Cell: ({ row }) => {
+                    if (row.depth === 0) {
+                        // parent: tampil ringkas info utama (opsional), di sini biarkan '—'
+                        return <Typography variant="body2" color="text.disabled">—</Typography>;
+                    }
+                    const p = row.original as TableChildRow;
+                    return (
+                        <Typography variant="body2" noWrap title={p.value}>
+                            {p.value}
+                        </Typography>
+                    );
+                },
+            }),
+
+            // STATE (hanya parent)
+            column.display({
+                id: 'state',
+                header: 'STATE',
+                size: 140,
+                Cell: ({ row }) => {
+                    if (row.depth === 0) {
+                        const r = row.original as TableParentRow;
+                        return <Typography variant="body2" textAlign="center">{r.state ?? '—'}</Typography>;
+                    }
+                    return <Typography variant="body2" color="text.disabled" textAlign="center">—</Typography>;
+                },
+                muiTableBodyCellProps: { align: 'center' },
+                muiTableHeadCellProps: { align: 'center' },
+                muiTableFooterCellProps: { align: 'center' },
+            }),
+
+            // STATUS (hanya parent)
+            column.display({
+                id: 'status',
+                header: 'STATUS',
+                size: 120,
+                Cell: ({ row }) => {
+                    if (row.depth === 0) {
+                        const r = row.original as TableParentRow;
+                        return (
+                            <Chip
+                                size="small"
+                                label={r.status ? 'Active' : 'Inactive'}
+                                color={r.status ? 'success' : 'default'}
+                                variant="outlined"
+                                sx={{ borderRadius: 2 }}
+                            />
+                        );
+                    }
+                    return <Typography variant="body2" color="text.disabled" textAlign="center">—</Typography>;
+                },
+                muiTableBodyCellProps: { align: 'center' },
+            }),
+        ],
+        [column],
+    );
+
+    /* ========= MRT Instance (tree/subRows) ========= */
+    const table = useMaterialReactTable({
+        columns,
+        data: rows as any,                 // parent = TableParentRow, child = TableChildRow
+        enableExpanding: true,
+        enableExpandAll: false,
+        filterFromLeafRows: true,
+        getSubRows: (row: TableParentRow | TableChildRow) => (row as TableParentRow).subRows as any,
+        initialState: { density: 'comfortable' }, // default collapsed biar hemat layar
+        paginateExpandedRows: false,
+
+        // baseline template v2
+        state: { showProgressBars: loading },
+        columnFilterDisplayMode: 'popover',
+        paginationDisplayMode: 'pages',
+        positionToolbarAlertBanner: 'bottom',
+        enableRowSelection: false,
+        enableStickyHeader: true,
+        muiTablePaperProps: { sx: { display: 'flex', flexDirection: 'column', flex: 1 } },
+        muiTableContainerProps: { sx: { flex: 1 } },
+
+        renderTopToolbarCustomActions: () => (
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ width: '100%', gap: 1 }}>
                 <Box>
-                    <Typography variant="overline" color="text.secondary">
-                        Config / Tables
-                    </Typography>
+                    <Typography variant="overline" color="text.secondary">Config / Tables</Typography>
                     {loading ? (
                         <Typography variant="body2" color="text.secondary">Loading…</Typography>
                     ) : error ? (
@@ -246,13 +333,14 @@ export default function Tables() {
                     </Button>
                 </Stack>
             </Stack>
+        ),
+    });
 
-            <DataTable<RowTable>
-                columns={columns}
-                rows={rows}
-                initialRowsPerPage={15}
-                enableSelection={false}
-            />
-        </Box>
+    return (
+        <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
+                <MaterialReactTable table={table} />
+            </Box>
+        </Paper>
     );
 }
