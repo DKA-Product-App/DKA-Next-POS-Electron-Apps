@@ -2,21 +2,13 @@
 
 import * as React from 'react';
 import {
-    Box,
-    Button,
-    Chip,
-    Typography,
-    Stack,
-    Avatar,
-    Popover,
-    List,
-    ListItem,
-    ListItemText,
-    Divider,
+    Box, Button, Chip, Stack, Typography, Avatar,
 } from '@mui/material';
+import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import AddRounded from '@mui/icons-material/AddRounded';
-import PrintRounded from '@mui/icons-material/PrintRounded';
-import ReceiptLongRounded from '@mui/icons-material/ReceiptLongRounded';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import ReceiptLongRounded from '@mui/icons-material/ReceiptLongRounded'; // Transaction
+import PrintRounded from '@mui/icons-material/PrintRounded';            // Bill
 
 import {
     MaterialReactTable,
@@ -24,9 +16,11 @@ import {
     type MRT_ColumnDef,
 } from 'material-react-table';
 
-import PerfectScrollbar from 'react-perfect-scrollbar';
-import 'react-perfect-scrollbar/dist/css/styles.css';
-import { useGodModeProvider } from '../../../../context/GodModeProviderContext';
+import { mkConfig, generateCsv, download } from 'export-to-csv';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+import { ImgWithSkeleton } from '../../../../../../utils/ImageProcessingIPC';
 
 /* ================= Helpers ================= */
 const toNum = (v?: string | number | null) =>
@@ -34,418 +28,526 @@ const toNum = (v?: string | number | null) =>
 const fmtID = (n: number) =>
     new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(n);
 
-/* ================== API types ================== */
-type ApiAccountRef = {
-    id: string;
-    name?: { first_name?: string; last_name?: string };
-    username?: string;
-};
-type ApiPrinter = {
-    id: string;
-    name: string;
-    options?: { mode?: string; port?: number; ip_address?: string; timeout?: number } | null;
-    description?: string | null;
-    status?: boolean;
-};
-type ApiCategory = {
-    id: string;
-    name: string;
-    printer?: ApiPrinter[];
-    description?: string | null;
-    status?: boolean;
-};
-type ApiProduct = {
-    id: string;
-    name: string;
-    image?: string | null;
-    description?: string | null;
-    status?: boolean;
-    category?: ApiCategory[];
-};
-type ApiVariant = {
-    id: string;
-    code?: string;
-    name?: string;
-    description?: string | null;
-    price?: string;
-};
+/* ============== API types (yang kamu kasih) ============== */
+type ApiPrinterOptions = { mode?: string; port?: number; timeout?: number; ip_address?: string };
+type ApiPrinter = { id: string; name: string; description?: string | null; options?: ApiPrinterOptions | null; status?: boolean };
+type ApiCategory = { id: string; name: string; description?: string | null; status?: boolean; printer?: ApiPrinter[] };
+type ApiProduct = { id: string; name: string; image?: string | null; description?: string | null; status?: boolean; category?: ApiCategory[] };
 type ApiItem = {
-    id: string;
-    qty: number;
-    price: string;
-    sub_total: string;
-    productVariant?: {
-        id: string;
-        code?: string;
-        name?: string;
-        price?: string;
-        product?: ApiProduct;
-    };
+    id: string; qty: number; price: string; sub_total: string; status?: boolean;
+    productVariant?: { id: string; code?: string; name?: string; price?: string; product?: ApiProduct };
 };
 type ApiOrderType = { id: string; code: string; name: string };
 type ApiShift = { id: string; name: string; start_time?: string; end_time?: string; status?: boolean };
 type ApiBranch = { id: string; name: string };
 type ApiTransaction = {
-    id: string;
-    invoice: string;
-    branch?: ApiBranch[];
-    shift?: ApiShift;
-    order_type?: ApiOrderType;
+    id: string; invoice: string; time_created?: string; time_updated?: string; time_deleted?: string | null; time_closed?: string | null;
+    branch?: ApiBranch[]; shift?: ApiShift; order_type?: ApiOrderType;
 };
 type ApiPaid = { id: string; status: boolean; tender: string };
 type ApiBill = {
-    id: string;
-    bill: string; // <-- number string
-    tax: number;  // 0.1 = 10%
-    time_created?: string;
-    reference?: ApiAccountRef;
-    branch?: ApiBranch[];
-    transaction: ApiTransaction;
-    items: ApiItem[];
-    paid: ApiPaid;
+    id: string; bill: string; tax: number; time_created?: string; time_updated?: string; time_deleted?: string | null;
+    branch?: ApiBranch[]; transaction: ApiTransaction; items: ApiItem[]; paid: ApiPaid;
 };
 type ApiBillsResponse = { status: boolean; code: number; msg: string; data: ApiBill[] };
 
-/* ================= Popover for items ================= */
-function useItemsPopover() {
-    const [anchor, setAnchor] = React.useState<HTMLElement | null>(null);
-    const [ctx, setCtx] = React.useState<{ title: string; items: ApiItem[] } | null>(null);
-
-    const open = (e: React.MouseEvent<HTMLElement>, title: string, items: ApiItem[]) => {
-        setAnchor(e.currentTarget);
-        setCtx({ title, items });
-    };
-    const close = () => {
-        setAnchor(null);
-        setCtx(null);
-    };
-
-    const node = (
-        <Popover
-            open={Boolean(anchor)}
-            anchorEl={anchor}
-            onClose={close}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-            transformOrigin={{ vertical: 'top', horizontal: 'center' }}
-            PaperProps={{ sx: { width: 440, maxWidth: 'calc(100vw - 32px)', borderRadius: 2, overflow: 'hidden' } }}
-        >
-            <Box
-                sx={{
-                    px: 2,
-                    py: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    borderBottom: (t) => `1px solid ${t.palette.divider}`,
-                }}
-            >
-                <Typography variant="subtitle2">Items — {ctx?.title ?? ''}</Typography>
-                <Chip size="small" variant="outlined" label={`${ctx?.items?.length ?? 0} item`} sx={{ borderRadius: 2 }} />
-            </Box>
-
-            <Box sx={{ maxHeight: 360 }}>
-                <PerfectScrollbar options={{ suppressScrollX: true }}>
-                    {!ctx?.items?.length ? (
-                        <Box sx={{ px: 2, py: 3 }}>
-                            <Typography variant="body2" color="text.secondary">
-                                Tidak ada item.
-                            </Typography>
-                        </Box>
-                    ) : (
-                        <List dense disablePadding>
-                            {ctx.items.map((it, i) => {
-                                const p = it.productVariant?.product?.name ?? '—';
-                                const v = it.productVariant?.name ? ` · ${it.productVariant?.name}` : '';
-                                const qty = it.qty;
-                                const price = toNum(it.price);
-                                const sub = toNum(it.sub_total) || qty * price;
-                                return (
-                                    <React.Fragment key={it.id}>
-                                        <ListItem
-                                            disableGutters
-                                            sx={{
-                                                px: 1.5,
-                                                py: 0.75,
-                                                gap: 1.25,
-                                                cursor: 'pointer',
-                                                '&:hover': { bgcolor: (t) => t.palette.action.hover },
-                                            }}
-                                            onClick={() => console.log('item clicked', it)}
-                                        >
-                                            <ListItemText
-                                                primary={
-                                                    <Typography variant="body2" fontWeight={600} noWrap>
-                                                        {p}
-                                                        {v}
-                                                    </Typography>
-                                                }
-                                                secondary={
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        {qty} × {fmtID(price)}
-                                                    </Typography>
-                                                }
-                                                sx={{ m: 0, pr: 1 }}
-                                            />
-                                            <Typography variant="body2">{fmtID(sub)}</Typography>
-                                        </ListItem>
-                                        {i < (ctx.items.length - 1) ? <Divider sx={{ mx: 1.5 }} /> : null}
-                                    </React.Fragment>
-                                );
-                            })}
-                        </List>
-                    )}
-                </PerfectScrollbar>
-            </Box>
-
-            <Box sx={{ px: 1.5, py: 1, textAlign: 'right' }}>
-                <Button size="small" onClick={close}>
-                    Tutup
-                </Button>
-            </Box>
-        </Popover>
-    );
-
-    return { node, open };
-}
-
-/* ================= Row type for MRT ================= */
-type RowBill = {
+/* ============== Row union: tx -> bill -> item ============== */
+type TxRow = {
+    kind: 'tx';
     id: string;
-    billNo: string;
     invoice: string;
-    branch: string | null;
     orderType: string | null;
-    itemsCount: number;
-    total: number;
-    taxRate: number;
-    grandTotal: number;
-    paid: boolean;
-    tender: number;
-
-    billCell: React.ReactNode;
-    _itemsRaw: ApiItem[];
+    billsCount: number;
+    total: number;          // sum grand total semua bills (total+tax)
+    subRows: BillRow[];
+    node: React.ReactNode;
 };
 
-/* ================ Mapper ================ */
-const mapToRows = (list: ApiBill[]): RowBill[] =>
-    (list ?? []).map((b) => {
-        const branch = b.branch?.[0]?.name ?? b.transaction?.branch?.[0]?.name ?? null;
-        const orderType = b.transaction?.order_type?.name ?? null;
-        const items = b.items ?? [];
-        const total = items
-            .map((it) => toNum(it.sub_total) || toNum(it.price) * it.qty)
-            .reduce((a, n) => a + n, 0);
-        const taxRate = Number.isFinite(b.tax) ? b.tax : 0;
-        const grandTotal = Math.round(total + total * taxRate);
-        const tender = toNum(b.paid?.tender);
-        const paid = !!b.paid?.status;
+type BillRow = {
+    kind: 'bill';
+    id: string;
+    billNo: string;
+    taxRate: number;        // 0.1 = 10%
+    total: number;          // sum items (qty*price atau sub_total)
+    grandTotal: number;     // total + tax
+    paid: boolean;
+    tender: number;
+    subRows: ItemRow[];
+    node: React.ReactNode;
+};
 
-        return {
+type ItemRow = {
+    kind: 'item';
+    id: string;
+    title: string;          // product · variant
+    qty: number;
+    price: number;
+    subTotal: number;
+    node: React.ReactNode;
+};
+
+type AnyRow = TxRow | BillRow | ItemRow;
+
+/* ============== Mapper: ApiBill[] -> TxRow[] (tree) ============== */
+function mapToTree(bills: ApiBill[]): TxRow[] {
+    const txMap = new Map<string, TxRow>();
+
+    for (const b of bills ?? []) {
+        const tx = b.transaction;
+        const txId = tx?.id ?? 'unknown';
+
+        if (!txMap.has(txId)) {
+            const orderType = tx?.order_type?.name ?? null;
+
+            txMap.set(txId, {
+                kind: 'tx',
+                id: txId,
+                invoice: tx?.invoice ?? '—',
+                orderType,
+                billsCount: 0,
+                total: 0,
+                subRows: [],
+                node: (
+                    <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
+                        <Avatar variant="rounded" sx={{ width: 32, height: 32, borderRadius: 1 }}>
+                            <ReceiptLongRounded fontSize="small" />
+                        </Avatar>
+                        <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="body2" fontWeight={700} noWrap title={`Invoice ${tx?.invoice ?? ''}`}>
+                                Invoice {tx?.invoice ?? '—'}
+                            </Typography>
+                        </Box>
+                    </Stack>
+                ),
+            });
+        }
+
+        const txNode = txMap.get(txId)!;
+
+        // Build bill -> items
+        const items: ItemRow[] = (b.items ?? []).map((it) => {
+            const p = it.productVariant?.product?.name ?? '—';
+            const v = it.productVariant?.name ? ` · ${it.productVariant?.name}` : '';
+            const price = toNum(it.price);
+            const sub = toNum(it.sub_total) || price * it.qty;
+            return {
+                kind: 'item',
+                id: it.id,
+                title: `${p}${v}`,
+                qty: it.qty,
+                price,
+                subTotal: sub,
+                node: (
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                        <Box sx={{ width: 32, height: 32, borderRadius: 1, overflow: 'hidden', bgcolor: 'background.neutral' }}>
+                            <ImgWithSkeleton path={it?.productVariant?.product?.image} alt={it?.productVariant?.product?.name} />
+                        </Box>
+                        <Typography variant="body2" fontWeight={600} noWrap title={`${p}${v}`}>
+                            {p}{v}
+                        </Typography>
+                    </Stack>
+                ),
+            };
+        });
+
+        const itemsTotal = items.reduce((a, r) => a + r.subTotal, 0);
+        const taxRate = Number.isFinite(b.tax) ? b.tax : 0;
+        const grand = Math.round(itemsTotal + itemsTotal * taxRate);
+
+        const billRow: BillRow = {
+            kind: 'bill',
             id: b.id,
             billNo: b.bill,
-            invoice: b.transaction?.invoice ?? '—',
-            branch,
-            orderType,
-            itemsCount: items.length,
-            total,
             taxRate,
-            grandTotal,
-            paid,
-            tender,
-            billCell: (
+            total: itemsTotal,
+            grandTotal: grand,
+            paid: !!b.paid?.status,
+            tender: toNum(b.paid?.tender),
+            subRows: items,
+            node: (
                 <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
-                    <Avatar variant="rounded" sx={{ width: 32, height: 32, borderRadius: 1 }}>
+                    <Avatar variant="rounded" sx={{ width: 28, height: 28, borderRadius: 1 }}>
                         <PrintRounded fontSize="small" />
                     </Avatar>
                     <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="body2" fontWeight={700} noWrap title={`#${b.bill} · Inv ${b.transaction?.invoice ?? ''}`}>
-                            #{b.bill}
+                        <Typography variant="body2" fontWeight={700} noWrap title={`Bill #${b.bill}`}>
+                            Bill #{b.bill}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary" noWrap title={orderType ?? ''}>
-                            Inv {b.transaction?.invoice ?? '—'} · {orderType ?? '—'}
+                        <Typography variant="caption" color="text.secondary" noWrap>
+                            Tax {Math.round(taxRate * 100)}% • {b.paid?.status ? 'Paid' : 'Unpaid'}
                         </Typography>
                     </Box>
                 </Stack>
             ),
-            _itemsRaw: items,
         };
+
+        txNode.subRows.push(billRow);
+    }
+
+    // finalize totals + counts di tx level
+    // @ts-ignore
+    for (const tx of txMap.values()) {
+        tx.billsCount = tx.subRows.length;
+        tx.total = tx.subRows.reduce((a, b) => a + b.grandTotal, 0);
+    }
+
+    return Array.from(txMap.values());
+}
+
+/* ============== Export helpers (flatten tree) ============== */
+type ExportRow = {
+    level: 'TRANSACTION' | 'BILL' | 'ITEM';
+    invoice?: string;
+    bill?: string;
+    orderType?: string | null;
+    title?: string;   // item name
+    qty?: number | '';
+    price?: number | '';
+    subTotal?: number | '';
+    taxPct?: string | '';
+    paid?: string | '';
+    txGrandTotal?: number | '';
+    billGrandTotal?: number | '';
+};
+
+const flattenForExport = (txRows: TxRow[]): ExportRow[] => {
+    const out: ExportRow[] = [];
+    for (const tx of txRows) {
+        // TRANSACTION
+        out.push({
+            level: 'TRANSACTION',
+            invoice: tx.invoice,
+            orderType: tx.orderType,
+            txGrandTotal: tx.total,
+            billGrandTotal: '',
+            bill: '',
+            title: '',
+            qty: '',
+            price: '',
+            subTotal: '',
+            taxPct: '',
+            paid: '',
+        });
+
+        for (const b of tx.subRows) {
+            // BILL
+            out.push({
+                level: 'BILL',
+                invoice: tx.invoice,
+                bill: b.billNo,
+                orderType: tx.orderType,
+                billGrandTotal: b.grandTotal,
+                txGrandTotal: '',
+                title: '',
+                qty: '',
+                price: '',
+                subTotal: '',
+                taxPct: `${Math.round(b.taxRate * 100)}%`,
+                paid: b.paid ? 'Paid' : 'Unpaid',
+            });
+
+            for (const it of b.subRows) {
+                // ITEM
+                out.push({
+                    level: 'ITEM',
+                    invoice: tx.invoice,
+                    bill: b.billNo,
+                    title: it.title,
+                    qty: it.qty,
+                    price: it.price,
+                    subTotal: it.subTotal,
+                    orderType: '',
+                    txGrandTotal: '',
+                    billGrandTotal: '',
+                    taxPct: '',
+                    paid: '',
+                });
+            }
+        }
+    }
+    return out;
+};
+
+// hitung total dari semua transaksi (hindari double-count dari bills/items)
+const calcOverallTxTotal = (tree: TxRow[]) =>
+    (tree ?? []).reduce((sum, tx) => sum + (tx.total || 0), 0);
+
+const csvConfig = mkConfig({
+    useKeysAsHeaders: true,
+    fieldSeparator: ',',
+    decimalSeparator: '.',
+    filename: 'transactions-bills-items',
+});
+
+const handleExportCSV = (tree: TxRow[]) => {
+    const rows = flattenForExport(tree);
+    const overallTxTotal = calcOverallTxTotal(tree);
+
+    // header sesuai PDF
+    const headers = [
+        'Level',
+        'Invoice',
+        'Bill',
+        'Order Type',
+        'Title (Item)',
+        'Qty',
+        'Price',
+        'Sub-Total',
+        'Tax %',
+        'Paid',
+        'Tx Grand',
+        'Bill Grand',
+    ];
+
+    const dataRows = rows.map((r) => ({
+        Level: r.level,
+        Invoice: r.invoice ?? '',
+        Bill: r.bill ?? '',
+        'Order Type': r.orderType ?? '',
+        'Title (Item)': r.title ?? '',
+        Qty: r.qty === '' ? '' : String(r.qty),
+        Price: r.price === '' ? '' : String(r.price),
+        'Sub-Total': r.subTotal === '' ? '' : String(r.subTotal),
+        'Tax %': r.taxPct ?? '',
+        Paid: r.paid ?? '',
+        'Tx Grand': r.txGrandTotal === '' ? '' : String(r.txGrandTotal),
+        'Bill Grand': r.billGrandTotal === '' ? '' : String(r.billGrandTotal),
+    }));
+
+    // tambahkan baris kosong + baris total (angka masuk kolom "Tx Grand")
+    dataRows.push({
+        // @ts-ignore
+        Level: '', Invoice: '', Bill: '', 'Order Type': '',
+        'Title (Item)': '', Qty: '', Price: '', 'Sub-Total': '',
+        'Tax %': '', Paid: '', 'Tx Grand': '', 'Bill Grand': '',
     });
 
-/* ================ Component ================ */
-export default function TransactionBillsMRT() {
-    const [rows, setRows] = React.useState<RowBill[]>([]);
+    dataRows.push({
+        // @ts-ignore
+        Level: '', Invoice: '', Bill: '', 'Order Type': '',
+        'Title (Item)': 'AKUMULASI TOTAL',
+        Qty: '', Price: '', 'Sub-Total': '', 'Tax %': '', Paid: '',
+        'Tx Grand': String(overallTxTotal),
+        'Bill Grand': '',
+    });
+
+    const csv = generateCsv({
+        fieldSeparator: ',',
+        decimalSeparator: '.',
+        useKeysAsHeaders: true, // gunakan keys object sebagai header
+    })(dataRows);
+
+    download({
+        fieldSeparator: ',',
+        decimalSeparator: '.',
+        useKeysAsHeaders: true,
+        filename: 'transactions-bills-items',
+    })(csv);
+};
+
+
+const handleExportPDF = (tree: TxRow[]) => {
+    const rows = flattenForExport(tree);
+    const overallTxTotal = calcOverallTxTotal(tree);
+
+    const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: [330, 216], // F4 landscape
+    });
+
+    const head = [[
+        'Level','Invoice','Bill','Order Type','Title (Item)',
+        'Qty','Price','Sub-Total','Tax %','Paid','Tx Grand','Bill Grand',
+    ]];
+
+    const body = rows.map((r) => ([
+        r.level,
+        r.invoice ?? '',
+        r.bill ?? '',
+        r.orderType ?? '',
+        r.title ?? '',
+        r.qty === '' ? '' : String(r.qty),
+        r.price === '' ? '' : fmtID(Number(r.price)),
+        r.subTotal === '' ? '' : fmtID(Number(r.subTotal)),
+        r.taxPct ?? '',
+        r.paid ?? '',
+        r.txGrandTotal === '' ? '' : fmtID(Number(r.txGrandTotal)),
+        r.billGrandTotal === '' ? '' : fmtID(Number(r.billGrandTotal)),
+    ]));
+
+    const foot = [[
+        { content: 'AKUMULASI TOTAL', colSpan: 11, styles: { halign: 'right', fontStyle: 'bold' } },
+        { content: fmtID(overallTxTotal), styles: { halign: 'right', fontStyle: 'bold' } },
+        { content: '' },
+    ]];
+
+
+    autoTable(doc, {
+        head,
+        body,
+        // @ts-ignore
+        foot,
+        showFoot: 'lastPage',               // <<— hanya tampil di halaman terakhir
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [33,150,243] },
+        footStyles: { fillColor: [33,150,243] },
+        margin: { top: 12, left: 8, right: 8, bottom: 10 },
+        theme: 'grid',
+        didParseCell: (data) => {
+            if (data.section === 'body') {
+                const level = data.row.raw?.[0];
+                if (level === 'TRANSACTION') {
+                    data.cell.styles.fontStyle = 'bold';
+                    data.cell.styles.fillColor = [240,248,255];
+                } else if (level === 'BILL') {
+                    data.cell.styles.fontStyle = 'bold';
+                    data.cell.styles.fillColor = [248,248,248];
+                } else if (level === 'ITEM' && data.column.index === 5) {
+                    data.cell.text = ['   • ' + (data.cell.text?.[0] ?? '')];
+                }
+            }
+        },
+    });
+
+    doc.save('transactions-bills-items-F4-landscape.pdf');
+};
+
+
+
+
+/* ============== Main component ============== */
+export default function TransactionsWithBillsTree() {
+    const [rows, setRows] = React.useState<TxRow[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
-    const { godMode } = useGodModeProvider();
 
-    const { node: itemsPopover, open: openItems } = useItemsPopover();
-
-    const fetchBills = React.useCallback(() => {
+    const fetchAll = React.useCallback(() => {
         if (!window?.api?.invoke) {
-            setError('Bridge tidak tersedia');
-            setRows([]);
-            return;
+            setError('Bridge tidak tersedia'); setRows([]); return;
         }
         setLoading(true);
         window.api
-            .invoke<any, ApiBillsResponse>('api.transaction.bills:read.all', { is_hide: godMode })
+            .invoke<any, ApiBillsResponse>('api.transaction.bills:read.all', {})
             .then((res) => {
                 const data = Array.isArray(res?.data) ? res.data : [];
-                setRows(mapToRows(data));
+                setRows(mapToTree(data));
                 setError(null);
             })
             .catch((err: any) => {
                 console.error(err);
+                setError(err?.msg ?? 'Gagal memuat data');
                 setRows([]);
-                setError(err?.msg ?? 'Gagal memuat bills. Periksa Koneksi Jaringan/Server');
             })
             .finally(() => setLoading(false));
-    }, [godMode]);
+    }, []);
 
-    React.useEffect(() => {
-        fetchBills();
-    }, [fetchBills]);
+    React.useEffect(() => { fetchAll(); }, [fetchAll]);
 
-    /* ===== Columns ===== */
-    const columns = React.useMemo<MRT_ColumnDef<RowBill>[]>(
-        () => [
-            {
-                id: 'bill',
-                header: 'BILL',
-                size: 320,
-                accessorFn: (r) => r.billNo,
-                Cell: ({ row }) => row.original.billCell,
-            },
-            {
-                id: 'branch',
-                header: 'BRANCH',
-                size: 220,
-                accessorKey: 'branch',
-                Cell: ({ cell }) => (
-                    <Typography variant="body2" color="text.secondary" noWrap title={String(cell.getValue() ?? '')}>
-                        {String(cell.getValue() ?? '—')}
+    /* ============== Columns ============== */
+    const columns = React.useMemo<MRT_ColumnDef<AnyRow>[]>(() => [
+        {
+            id: 'tree',
+            header: 'TRANSACTION / BILL / ITEM',
+            size: 420,
+            Cell: ({ row }) => (row.original as AnyRow as TxRow | BillRow | ItemRow).node,
+            muiTableBodyCellProps: ({ row }) =>
+                row.depth === 0 ? {} : ({ sx: { borderLeft: (t) => `3px solid ${t.palette.divider}` } }),
+        },
+        {
+            id: 'info',
+            header: 'INFO',
+            size: 260,
+            Cell: ({ row }) => {
+                const o = row.original as AnyRow;
+                if ((o as TxRow).kind === 'tx') {
+                    const tx = o as TxRow;
+                    return (
+                        <Stack direction="row" spacing={1}>
+                            <Chip size="small" variant="outlined" label={`${tx.billsCount} Bill`} sx={{ borderRadius: 2 }} />
+                            <Chip size="small" variant="outlined" label={tx.orderType ?? '—'} sx={{ borderRadius: 2 }} />
+                        </Stack>
+                    );
+                }
+                if ((o as BillRow).kind === 'bill') {
+                    const b = o as BillRow;
+                    return (
+                        <Stack direction="row" spacing={1}>
+                            <Chip size="small" label={b.paid ? 'Paid' : 'Unpaid'} color={b.paid ? 'success' : 'default'} variant="outlined" sx={{ borderRadius: 2 }} />
+                            <Chip size="small" variant="outlined" label={`Tax ${Math.round(b.taxRate * 100)}%`} sx={{ borderRadius: 2 }} />
+                        </Stack>
+                    );
+                }
+                const it = o as ItemRow;
+                return (
+                    <Typography variant="body2" color="text.secondary" noWrap title={it.title}>
+                        Qty {it.qty}
                     </Typography>
-                ),
+                );
             },
-            {
-                id: 'orderType',
-                header: 'ORDER TYPE',
-                size: 160,
-                accessorKey: 'orderType',
-                Cell: ({ cell }) => (
-                    <Chip size="small" label={String(cell.getValue() ?? '—')} variant="outlined" sx={{ borderRadius: 2 }} />
-                ),
+        },
+        {
+            id: 'total',
+            header: 'TOTAL',
+            size: 160,
+            muiTableBodyCellProps: { align: 'right' },
+            muiTableHeadCellProps: { align: 'right' },
+            Cell: ({ row }) => {
+                const o = row.original as AnyRow;
+                if ((o as TxRow).kind === 'tx') {
+                    return <Typography variant="body2" fontWeight={700}>{fmtID((o as TxRow).total)}</Typography>;
+                }
+                if ((o as BillRow).kind === 'bill') {
+                    const b = o as BillRow;
+                    return (
+                        <Stack alignItems="flex-end" spacing={0}>
+                            <Typography variant="body2">{fmtID(b.total)}</Typography>
+                            <Typography variant="caption" color="text.secondary">Grand {fmtID(b.grandTotal)}</Typography>
+                        </Stack>
+                    );
+                }
+                const it = o as ItemRow;
+                return <Typography variant="body2">{fmtID(it.subTotal)}</Typography>;
             },
-            {
-                id: 'items',
-                header: 'ITEMS',
-                size: 120,
-                accessorKey: 'itemsCount',
-                muiTableBodyCellProps: { align: 'center' },
-                muiTableHeadCellProps: { align: 'center' },
-                Cell: ({ row }) => (
-                    <Button
-                        size="small"
-                        variant="outlined"
-                        startIcon={<ReceiptLongRounded />}
-                        onClick={(e) => openItems(e, `#${row.original.billNo}`, row.original._itemsRaw)}
-                        sx={{ borderRadius: 2, minWidth: 0, px: 1.25 }}
-                    >
-                        {row.original.itemsCount}
-                    </Button>
-                ),
-            },
-            {
-                id: 'total',
-                header: 'TOTAL',
-                size: 140,
-                accessorKey: 'total',
-                muiTableBodyCellProps: { align: 'right' },
-                muiTableHeadCellProps: { align: 'right' },
-                Cell: ({ cell }) => <Typography variant="body2">{fmtID(toNum(cell.getValue() as number))}</Typography>,
-            },
-            {
-                id: 'grandTotal',
-                header: 'GRAND TOTAL',
-                size: 160,
-                accessorKey: 'grandTotal',
-                muiTableBodyCellProps: { align: 'right' },
-                muiTableHeadCellProps: { align: 'right' },
-                Cell: ({ row }) => (
-                    <Stack alignItems="flex-end">
-                        <Typography variant="body2" fontWeight={700}>
-                            {fmtID(row.original.grandTotal)}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                            Tax {Math.round(row.original.taxRate * 100)}%
-                        </Typography>
-                    </Stack>
-                ),
-            },
-            {
-                id: 'paid',
-                header: 'PAID',
-                size: 120,
-                accessorKey: 'paid',
-                muiTableBodyCellProps: { align: 'center' },
-                muiTableHeadCellProps: { align: 'center' },
-                Cell: ({ row }) => (
-                    <Chip
-                        size="small"
-                        label={row.original.paid ? 'Paid' : 'Unpaid'}
-                        color={row.original.paid ? 'success' : 'default'}
-                        variant="outlined"
-                        sx={{ borderRadius: 2 }}
-                    />
-                ),
-            },
-        ],
-        [openItems]
-    );
+        },
+    ], []);
 
     const table = useMaterialReactTable({
         columns,
-        data: rows,
-        enableExpanding: false,
+        data: rows as AnyRow[],
+        enableExpanding: true,
+        enableExpandAll: false,
+        paginateExpandedRows: false,
+        filterFromLeafRows: true,
+        getSubRows: (row: AnyRow) => (row as TxRow).subRows ?? (row as BillRow).subRows ?? undefined,
+        initialState: { density: 'comfortable' },
         state: { showProgressBars: loading },
         columnFilterDisplayMode: 'popover',
         paginationDisplayMode: 'pages',
         positionToolbarAlertBanner: 'bottom',
         enableRowSelection: false,
         enableStickyHeader: true,
-        initialState: { density: 'comfortable', pagination: { pageSize: 15, pageIndex: 0 } },
         muiTablePaperProps: { sx: { display: 'flex', flexDirection: 'column', flex: 1 } },
         muiTableContainerProps: { sx: { flex: 1 } },
         renderTopToolbarCustomActions: () => (
-            <Stack
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-                sx={{ width: '100%', gap: 1 }}
-            >
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ width: '100%', gap: 1 }}>
                 <Box>
-                    <Typography variant="overline" color="text.secondary">
-                        Transactions / Bills
-                    </Typography>
+                    <Typography variant="overline" color="text.secondary">Transactions / Bills / Items (Tree)</Typography>
                     {loading ? (
-                        <Typography variant="body2" color="text.secondary">
-                            Loading…
-                        </Typography>
+                        <Typography variant="body2" color="text.secondary">Loading…</Typography>
                     ) : error ? (
-                        <Typography variant="body2" color="error.main">
-                            {error}
-                        </Typography>
+                        <Typography variant="body2" color="error.main">{error}</Typography>
                     ) : null}
                 </Box>
                 <Stack direction="row" spacing={1}>
-                    <Button variant="outlined" onClick={fetchBills}>
-                        Refresh
+                    <Button variant="outlined" startIcon={<RefreshRounded />} onClick={fetchAll}>Refresh</Button>
+                    <Button variant="outlined" startIcon={<FileDownloadIcon />} onClick={() => handleExportCSV(rows)}>
+                        Export CSV
                     </Button>
-                    <Button
-                        variant="contained"
-                        startIcon={<AddRounded />}
-                        onClick={() => console.log('open create bill')}
-                    >
+                    <Button variant="outlined" startIcon={<FileDownloadIcon />} onClick={() => handleExportPDF(rows)}>
+                        Export PDF
+                    </Button>
+                    <Button variant="contained" startIcon={<AddRounded />} onClick={() => console.log('open create bill')}>
                         Tambah Bill
                     </Button>
                 </Stack>
@@ -456,7 +558,6 @@ export default function TransactionBillsMRT() {
     return (
         <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <MaterialReactTable table={table} />
-            {itemsPopover}
         </Box>
     );
 }
