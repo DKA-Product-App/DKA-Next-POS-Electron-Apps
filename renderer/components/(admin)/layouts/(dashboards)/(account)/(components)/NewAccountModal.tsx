@@ -4,7 +4,8 @@ import * as React from 'react'
 import {
     Dialog, DialogTitle, DialogContent, DialogActions,
     Box, Stack, TextField, Button, IconButton, Tooltip, Divider, Avatar, MenuItem, Typography,
-    LinearProgress, InputAdornment, Chip
+    LinearProgress, InputAdornment, Chip,
+    Grid
 } from '@mui/material'
 import AddRounded from '@mui/icons-material/AddRounded'
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded'
@@ -26,8 +27,8 @@ import AdminPanelSettingsRounded from '@mui/icons-material/AdminPanelSettingsRou
 import PerfectScrollbar from 'react-perfect-scrollbar'
 import 'react-perfect-scrollbar/dist/css/styles.css'
 import { useThemeCharger } from '../../../../../../contexts/ThemeCharger'
-import {useSession} from "../../../../../../contexts/SessionProviderContext";
-import {Accounts} from "../../../../../../types/account/accounts.type";
+import { useSession } from '../../../../../../contexts/SessionProviderContext'
+import { Accounts } from '../../../../../../types/account/accounts.type'
 
 type ApiShift = { id: string; name: string; start_time: string; end_time: string; status?: boolean }
 type ApiRole  = { id: string; code: string; name: string; status?: boolean }
@@ -40,8 +41,14 @@ export type NewAccountModalProps = {
 
 /* utils */
 const t = (s?: string | null) => (s ?? '').trim()
-const readAsDataUrl = (file: File) => new Promise<string>((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = () => rej(new Error('Gagal membaca file')); fr.readAsDataURL(file) })
-const b64ToBytes = (b64: string) => Array.from((typeof atob === 'function' ? atob(b64) : Buffer.from(b64, 'base64').toString('binary')), ch => ch.charCodeAt(0))
+const readAsDataUrl = (file: File) => new Promise<string>((res, rej) => {
+    const fr = new FileReader()
+    fr.onload = () => res(String(fr.result))
+    fr.onerror = () => rej(new Error('Gagal membaca file'))
+    fr.readAsDataURL(file)
+})
+const b64ToBytes = (b64: string) =>
+    Array.from((typeof atob === 'function' ? atob(b64) : Buffer.from(b64, 'base64').toString('binary')), ch => ch.charCodeAt(0))
 
 /* password strength */
 const scorePassword = (pwd: string) => {
@@ -62,9 +69,9 @@ const scorePassword = (pwd: string) => {
 
 export default function NewAccountModal({ onCreated, triggerLabel = 'Tambah Account', triggerProps }: NewAccountModalProps) {
     const { mode, toggleMode } = useThemeCharger()
+    const { Session } = useSession()
 
     const [open, setOpen] = React.useState(false)
-    const { Session } = useSession();
     const [fullScreen, setFullScreen] = React.useState(false)
 
     // form state
@@ -82,10 +89,10 @@ export default function NewAccountModal({ onCreated, triggerLabel = 'Tambah Acco
 
     // shift
     const [shifts, setShifts] = React.useState<ApiShift[]>([])
-    const [shiftId, setShiftId] = React.useState<string | undefined>(undefined)
+    const [shiftId, setShiftId] = React.useState<string>('') // empty = tanpa shift
     const [loadingShifts, setLoadingShifts] = React.useState(false)
 
-    // roles (multi)
+    // roles (multi) — REQUIRED ≥ 1
     const [rolesList, setRolesList] = React.useState<ApiRole[]>([])
     const [roleIds, setRoleIds] = React.useState<string[]>([])
     const [loadingRoles, setLoadingRoles] = React.useState(false)
@@ -106,11 +113,15 @@ export default function NewAccountModal({ onCreated, triggerLabel = 'Tambah Acco
         setImageFile(f); readAsDataUrl(f).then(setImagePreview).catch(() => setImagePreview(null))
     }
 
+    // VALIDATION — roles must be ≥ 1
+    const rolesInvalid = roleIds.length === 0
+
     const canSubmit =
         t(username).length > 0 &&
         t(password).length > 0 &&
         !mismatch &&
-        (t(firstName).length > 0 || t(lastName).length > 0)
+        (t(firstName).length > 0 || t(lastName).length > 0) &&
+        !rolesInvalid
 
     // fetch shifts
     const fetchShifts = React.useCallback(() => {
@@ -148,21 +159,36 @@ export default function NewAccountModal({ onCreated, triggerLabel = 'Tambah Acco
     }, [open])
 
     const buildPayload = async () => {
-        const payload : Accounts = {
-            reference: { id : Session?.id },
+        const payload: Accounts = {
+            reference: Session?.id ? { id: Session.id } : undefined,
             branches: Session?.branches,
             name: { first_name: t(firstName), last_name: t(lastName) },
             username: t(username),
             password: t(password),
-            shift: (shiftId !== undefined) ? { id : t(shiftId) } : undefined,
-            roles: roleIds.map(id => ({ id })), // <<<<<<<<<< roles array
+            shift: shiftId ? { id: t(shiftId) } : undefined,
+            roles: roleIds.map(id => ({ id })), // REQUIRED
+        }
+        // jika image diikutkan (opsional): backend lo bisa terima nanti, tinggal diaktifkan
+        if (imageFile) {
+            const dataUrl = await readAsDataUrl(imageFile)
+            const [meta, b64] = dataUrl.split(',')
+            const mimetype = meta?.match(/data:(.*?);base64/)?.[1] || 'image/jpeg'
+            ;(payload as any).image = { type: 'Buffer', data: b64ToBytes(b64) }
+            ;(payload as any).imageName = imageFile.name
+            ;(payload as any).imageMime = mimetype
         }
         return payload
     }
 
     const handleSubmit = () =>
         (!window?.api?.invoke || !canSubmit)
-            ? setError(!window?.api?.invoke ? 'IPC bridge tidak tersedia' : (mismatch ? 'Konfirmasi password tidak cocok' : 'Lengkapi form minimal Nama/Username/Password'))
+            ? setError(
+                !window?.api?.invoke
+                    ? 'IPC bridge tidak tersedia'
+                    : (rolesInvalid
+                        ? 'Minimal pilih 1 role'
+                        : (mismatch ? 'Konfirmasi password tidak cocok' : 'Lengkapi form minimal Nama/Username/Password'))
+            )
             : (setSubmitting(true), setError(null),
                     buildPayload()
                         .then(payload => window.api.invoke('api.account:create', payload))
@@ -276,59 +302,100 @@ export default function NewAccountModal({ onCreated, triggerLabel = 'Tambah Acco
                                                 InputProps={{ startAdornment: <InputAdornment position="start"><AlternateEmailRounded fontSize="small" /></InputAdornment> }}
                                             />
 
-                                            {/* Password + Confirm + Strength */}
-                                            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
-                                                <TextField
-                                                    fullWidth
-                                                    label="Password"
-                                                    type={showPwd ? 'text' : 'password'}
-                                                    value={password}
-                                                    onChange={e => setPassword(e.target.value)}
-                                                    InputProps={{
-                                                        startAdornment: <InputAdornment position="start"><LockRounded fontSize="small" /></InputAdornment>,
-                                                        endAdornment: (
-                                                            <InputAdornment position="end">
-                                                                <IconButton size="small" onClick={() => setShowPwd(v => !v)} edge="end" aria-label="toggle password">
-                                                                    {showPwd ? <VisibilityOffRounded /> : <VisibilityRounded />}
-                                                                </IconButton>
-                                                            </InputAdornment>
-                                                        ),
-                                                    }}
-                                                />
-                                                <TextField
-                                                    fullWidth
-                                                    label="Konfirmasi Password"
-                                                    type={showConfirm ? 'text' : 'password'}
-                                                    value={confirm}
-                                                    onChange={e => setConfirm(e.target.value)}
-                                                    error={mismatch}
-                                                    helperText={mismatch ? 'Konfirmasi tidak cocok' : ' '}
-                                                    InputProps={{
-                                                        startAdornment: <InputAdornment position="start"><LockResetRounded fontSize="small" /></InputAdornment>,
-                                                        endAdornment: (
-                                                            <InputAdornment position="end">
-                                                                <IconButton size="small" onClick={() => setShowConfirm(v => !v)} edge="end" aria-label="toggle confirm">
-                                                                    {showConfirm ? <VisibilityOffRounded /> : <VisibilityRounded />}
-                                                                </IconButton>
-                                                            </InputAdornment>
-                                                        ),
-                                                    }}
-                                                />
-                                            </Stack>
+                                            {/* Password + Confirm (strength di bawah Password, no overlap) */}
+                                            <Grid container spacing={1.5}>
+                                                {/* PASSWORD */}
+                                                <Grid size={{ xs: 12, md: 6}}>
+                                                    <Stack>
+                                                        <TextField
+                                                            fullWidth
+                                                            label="Password"
+                                                            type={showPwd ? 'text' : 'password'}
+                                                            value={password}
+                                                            onChange={e => setPassword(e.target.value)}
+                                                            InputProps={{
+                                                                startAdornment: (
+                                                                    <InputAdornment position="start">
+                                                                        <LockRounded fontSize="small" />
+                                                                    </InputAdornment>
+                                                                ),
+                                                                endAdornment: (
+                                                                    <InputAdornment position="end">
+                                                                        <IconButton
+                                                                            size="small"
+                                                                            onClick={() => setShowPwd(v => !v)}
+                                                                            edge="end"
+                                                                            aria-label="toggle password"
+                                                                        >
+                                                                            {showPwd ? <VisibilityOffRounded /> : <VisibilityRounded />}
+                                                                        </IconButton>
+                                                                    </InputAdornment>
+                                                                ),
+                                                            }}
+                                                        />
 
-                                            <Stack spacing={0.5}>
-                                                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                                                    <Typography variant="caption" color="text.secondary">Password Strength</Typography>
-                                                    <Typography
-                                                        variant="caption"
-                                                        fontWeight={700}
-                                                        color={strength.color === 'success' ? 'success.main' : strength.color === 'warning' ? 'warning.main' : 'error.main'}
-                                                    >
-                                                        {strength.label}
-                                                    </Typography>
-                                                </Stack>
-                                                <LinearProgress variant="determinate" value={strength.pct} color={strength.color} sx={{ height: 8, borderRadius: 2 }} />
-                                            </Stack>
+                                                        {/* strength persis di bawah password */}
+                                                        <Stack spacing={0.5} sx={{ mt: 0.75 }}>
+                                                            <Stack direction="row" alignItems="center" justifyContent="space-between">
+                                                                <Typography variant="caption" color="text.secondary">
+                                                                    Password Strength
+                                                                </Typography>
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    fontWeight={700}
+                                                                    color={
+                                                                        strength.color === 'success'
+                                                                            ? 'success.main'
+                                                                            : strength.color === 'warning'
+                                                                                ? 'warning.main'
+                                                                                : 'error.main'
+                                                                    }
+                                                                >
+                                                                    {strength.label}
+                                                                </Typography>
+                                                            </Stack>
+                                                            <LinearProgress
+                                                                variant="determinate"
+                                                                value={strength.pct}
+                                                                color={strength.color}
+                                                                sx={{ height: 8, borderRadius: 2 }}
+                                                            />
+                                                        </Stack>
+                                                    </Stack>
+                                                </Grid>
+
+                                                {/* CONFIRM */}
+                                                <Grid size={{ xs: 12, md: 6 }}>
+                                                    <TextField
+                                                        fullWidth
+                                                        label="Konfirmasi Password"
+                                                        type={showConfirm ? 'text' : 'password'}
+                                                        value={confirm}
+                                                        onChange={e => setConfirm(e.target.value)}
+                                                        error={mismatch}
+                                                        helperText={mismatch ? 'Konfirmasi tidak cocok' : ' '}
+                                                        InputProps={{
+                                                            startAdornment: (
+                                                                <InputAdornment position="start">
+                                                                    <LockResetRounded fontSize="small" />
+                                                                </InputAdornment>
+                                                            ),
+                                                            endAdornment: (
+                                                                <InputAdornment position="end">
+                                                                    <IconButton
+                                                                        size="small"
+                                                                        onClick={() => setShowConfirm(v => !v)}
+                                                                        edge="end"
+                                                                        aria-label="toggle confirm"
+                                                                    >
+                                                                        {showConfirm ? <VisibilityOffRounded /> : <VisibilityRounded />}
+                                                                    </IconButton>
+                                                                </InputAdornment>
+                                                            ),
+                                                        }}
+                                                    />
+                                                </Grid>
+                                            </Grid>
 
                                             <Divider />
 
@@ -359,9 +426,10 @@ export default function NewAccountModal({ onCreated, triggerLabel = 'Tambah Acco
                                                 }
                                             </TextField>
 
-                                            {/* Roles multi-select */}
+                                            {/* Roles multi-select (REQUIRED ≥ 1) */}
                                             <TextField
                                                 select
+                                                required
                                                 fullWidth
                                                 SelectProps={{
                                                     multiple: true,
@@ -381,7 +449,8 @@ export default function NewAccountModal({ onCreated, triggerLabel = 'Tambah Acco
                                                 }}
                                                 label="Roles"
                                                 disabled={loadingRoles}
-                                                helperText="Pilih satu atau lebih role"
+                                                error={rolesInvalid}
+                                                helperText={rolesInvalid ? 'Minimal pilih 1 role' : 'Pilih satu atau lebih role'}
                                                 InputProps={{ startAdornment: <InputAdornment position="start"><AdminPanelSettingsRounded fontSize="small" /></InputAdornment> }}
                                             >
                                                 {loadingRoles

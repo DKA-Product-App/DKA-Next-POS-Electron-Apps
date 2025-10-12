@@ -2,169 +2,123 @@
 
 import * as React from 'react';
 import {
-    Avatar,
     Box,
     Button,
     Chip,
-    Divider,
+    Typography,
+    Stack,
+    Avatar,
+    Popover,
     List,
     ListItem,
     ListItemText,
-    Popover,
-    Stack,
-    Typography,
+    Divider,
 } from '@mui/material';
-import ReceiptLongRounded from '@mui/icons-material/ReceiptLongRounded';
-import PrintRounded from '@mui/icons-material/PrintRounded';
 import AddRounded from '@mui/icons-material/AddRounded';
+import PrintRounded from '@mui/icons-material/PrintRounded';
+import ReceiptLongRounded from '@mui/icons-material/ReceiptLongRounded';
 
 import {
-    DataTable,
-    Column,
-    useNonPassiveWheel,
-} from './(components)/TablesLayoutConstructor';
+    MaterialReactTable,
+    useMaterialReactTable,
+    type MRT_ColumnDef,
+} from 'material-react-table';
+
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
-import {useGodModeProvider} from "../../../../context/GodModeProviderContext";
+import { useGodModeProvider } from '../../../../context/GodModeProviderContext';
 
-/* =========================================================
- * Helpers
- * =======================================================*/
-const toNum = (v?: string | number | null) => v == null ? 0 : (typeof v === 'number' ? v : Number(v));
-const formatRupiahNoPrefix = (n: number) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(n);
+/* ================= Helpers ================= */
+const toNum = (v?: string | number | null) =>
+    v == null ? 0 : typeof v === 'number' ? v : Number(v);
+const fmtID = (n: number) =>
+    new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(n);
 
-/* =========================================================
- * API Types (disesuaikan dari response yang kamu kirim)
- * =======================================================*/
-type ApiNameRef = { first_name?: string; last_name?: string };
+/* ================== API types ================== */
 type ApiAccountRef = {
     id: string;
-    name?: ApiNameRef;
+    name?: { first_name?: string; last_name?: string };
     username?: string;
-    password?: string;
-    time_created?: string;
-    time_updated?: string;
 };
-
-type ApiPrinterOptions = { mode?: 'USB' | 'SERIAL' | 'NETWORK' | string; port?: number; timeout?: number; ip_address?: string };
 type ApiPrinter = {
-    id: string; name: string; description?: string | null; options?: ApiPrinterOptions | null;
-    time_created?: string; time_updated?: string; status?: boolean;
+    id: string;
+    name: string;
+    options?: { mode?: string; port?: number; ip_address?: string; timeout?: number } | null;
+    description?: string | null;
+    status?: boolean;
 };
-
 type ApiCategory = {
-    id: string; name: string; description?: string | null; status?: boolean;
-    time_created?: string; time_updated?: string; printer?: ApiPrinter[];
+    id: string;
+    name: string;
+    printer?: ApiPrinter[];
+    description?: string | null;
+    status?: boolean;
 };
-
 type ApiProduct = {
-    id: string; name: string; description?: string | null; image?: string | null; status?: boolean;
-    time_created?: string; time_updated?: string; category?: ApiCategory[];
+    id: string;
+    name: string;
+    image?: string | null;
+    description?: string | null;
+    status?: boolean;
+    category?: ApiCategory[];
 };
-
 type ApiVariant = {
-    id: string; code?: string; name?: string; description?: string | null; price?: string;
-    time_created?: string; time_updated?: string;
+    id: string;
+    code?: string;
+    name?: string;
+    description?: string | null;
+    price?: string;
 };
-
-type ApiTransactionItem = {
-    id: string; qty: number; price: string; sub_total: string; note?: string | null;
-    time_created?: string; time_updated?: string;
-    reference?: ApiAccountRef;
-    product?: ApiProduct;
-    variant?: ApiVariant;
+type ApiItem = {
+    id: string;
+    qty: number;
+    price: string;
+    sub_total: string;
+    productVariant?: {
+        id: string;
+        code?: string;
+        name?: string;
+        price?: string;
+        product?: ApiProduct;
+    };
 };
-
-type ApiLineItem = {
-    id: string; qty: number; price: string; sub_total: string;
-    time_created?: string; time_updated?: string;
-    branch?: any[];
-    transactionItem: ApiTransactionItem;
-};
-
-type ApiShift = {
-    id: string; name: string; start_time?: string; end_time?: string; status?: boolean;
-    time_created?: string; time_updated?: string; reference?: ApiAccountRef;
-};
-
-type ApiOrderType = {
-    id: string; code: string; name: string; icon?: string; description?: string; required_table_select?: boolean; status?: boolean;
-    time_created?: string; time_updated?: string; reference?: ApiAccountRef;
-};
-
-type ApiBranchSlim = {
-    id: string; name: string; address?: string | null; phone?: string | null; email?: string | null; website?: string | null;
-    time_created?: string; time_updated?: string; reference?: ApiAccountRef;
-};
-
+type ApiOrderType = { id: string; code: string; name: string };
+type ApiShift = { id: string; name: string; start_time?: string; end_time?: string; status?: boolean };
+type ApiBranch = { id: string; name: string };
 type ApiTransaction = {
-    id: string; invoice: string; time_created?: string; time_updated?: string; time_closed?: string | null;
-    reference?: ApiAccountRef;
-    branch?: ApiBranchSlim[];
+    id: string;
+    invoice: string;
+    branch?: ApiBranch[];
     shift?: ApiShift;
     order_type?: ApiOrderType;
-    table?: any | null;
-    batches?: { id: string; batch: number; note?: string | null; time_created?: string; time_updated?: string; reference?: ApiAccountRef }[];
 };
-
-type ApiPaid = {
-    id: string; status: boolean; tender: string;
-    time_created?: string; time_updated?: string;
-};
-
-type ApiBranchRoot = ApiBranchSlim;
-
+type ApiPaid = { id: string; status: boolean; tender: string };
 type ApiBill = {
     id: string;
-    number: string;
+    bill: string; // <-- number string
+    tax: number;  // 0.1 = 10%
     time_created?: string;
-    time_updated?: string;
-    is_hide?: boolean;
     reference?: ApiAccountRef;
-    branch?: ApiBranchRoot[];
+    branch?: ApiBranch[];
     transaction: ApiTransaction;
-    items: ApiLineItem[];
+    items: ApiItem[];
     paid: ApiPaid;
 };
+type ApiBillsResponse = { status: boolean; code: number; msg: string; data: ApiBill[] };
 
-type ApiBillsResponse = {
-    status: boolean; code: number; msg: string; data: ApiBill[];
-};
-
-/* =========================================================
- * Row untuk DataTable
- * =======================================================*/
-type RowTransactionBill = {
-    id: string;
-    number: string;
-    invoice: string;
-    branchName?: string | null;
-    orderType?: string | null;
-
-    itemsCount: number;
-    total: number;       // sum(items[i].qty * price) atau sub_total
-    grandTotal: number;  // sementara = total (hook pajak/discount gampang)
-    paidStatus: boolean;
-    paidTender: number;
-
-    billCell: React.ReactNode;
-    itemsCell: React.ReactNode;
-    statusCell: React.ReactNode;
-
-    _itemsRaw: ApiLineItem[];
-};
-
-/* =========================================================
- * Hook Popover Items (PerfectScrollbar + klik-able)
- * =======================================================*/
-function useBillItemPopover() {
+/* ================= Popover for items ================= */
+function useItemsPopover() {
     const [anchor, setAnchor] = React.useState<HTMLElement | null>(null);
-    const [ctx, setCtx] = React.useState<{ title: string; items: ApiLineItem[] } | null>(null);
-    const ref = React.useRef<HTMLDivElement>(null);
-    useNonPassiveWheel(ref);
+    const [ctx, setCtx] = React.useState<{ title: string; items: ApiItem[] } | null>(null);
 
-    const open = (e: React.MouseEvent<HTMLElement>, title: string, items: ApiLineItem[]) => { setAnchor(e.currentTarget); setCtx({ title, items }); };
-    const close = () => { setAnchor(null); setCtx(null); };
+    const open = (e: React.MouseEvent<HTMLElement>, title: string, items: ApiItem[]) => {
+        setAnchor(e.currentTarget);
+        setCtx({ title, items });
+    };
+    const close = () => {
+        setAnchor(null);
+        setCtx(null);
+    };
 
     const node = (
         <Popover
@@ -173,52 +127,80 @@ function useBillItemPopover() {
             onClose={close}
             anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             transformOrigin={{ vertical: 'top', horizontal: 'center' }}
-            PaperProps={{ sx: { width: 420, maxWidth: 'calc(100vw - 32px)', borderRadius: 2, overflow: 'hidden' } }}
+            PaperProps={{ sx: { width: 440, maxWidth: 'calc(100vw - 32px)', borderRadius: 2, overflow: 'hidden' } }}
         >
-            <Box sx={{ px: 2, py: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: t => `1px solid ${t.palette.divider}` }}>
+            <Box
+                sx={{
+                    px: 2,
+                    py: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderBottom: (t) => `1px solid ${t.palette.divider}`,
+                }}
+            >
                 <Typography variant="subtitle2">Items — {ctx?.title ?? ''}</Typography>
                 <Chip size="small" variant="outlined" label={`${ctx?.items?.length ?? 0} item`} sx={{ borderRadius: 2 }} />
             </Box>
 
-            <Box ref={ref} sx={{ maxHeight: 320, overflow: 'auto', p: 1, pt: 0.5, minWidth: 320, touchAction: 'pan-y', overscrollBehavior: 'contain' }}>
-                {!ctx?.items?.length ? (
-                    <Box sx={{ px: 2, py: 3 }}>
-                        <Typography variant="body2" color="text.secondary">Tidak ada item.</Typography>
-                    </Box>
-                ) : (
-                    <PerfectScrollbar options={{ suppressScrollX: true }}>
+            <Box sx={{ maxHeight: 360 }}>
+                <PerfectScrollbar options={{ suppressScrollX: true }}>
+                    {!ctx?.items?.length ? (
+                        <Box sx={{ px: 2, py: 3 }}>
+                            <Typography variant="body2" color="text.secondary">
+                                Tidak ada item.
+                            </Typography>
+                        </Box>
+                    ) : (
                         <List dense disablePadding>
-                            {ctx.items.map((li, i) => {
-                                const p = li.transactionItem?.product?.name ?? '—';
-                                const v = li.transactionItem?.variant?.name ? ` · ${li.transactionItem?.variant?.name}` : '';
-                                const qty = li.qty;
-                                const price = toNum(li.price);
-                                const sub = toNum(li.sub_total) || (price * qty);
+                            {ctx.items.map((it, i) => {
+                                const p = it.productVariant?.product?.name ?? '—';
+                                const v = it.productVariant?.name ? ` · ${it.productVariant?.name}` : '';
+                                const qty = it.qty;
+                                const price = toNum(it.price);
+                                const sub = toNum(it.sub_total) || qty * price;
                                 return (
-                                    <React.Fragment key={li.id}>
+                                    <React.Fragment key={it.id}>
                                         <ListItem
                                             disableGutters
-                                            onClick={() => console.log('click item', li)} // TODO: ganti ke aksi kamu
-                                            sx={{ px: 1.5, py: 0.75, gap: 1.25, cursor: 'pointer', '&:hover': { backgroundColor: t => t.palette.action.hover } }}
+                                            sx={{
+                                                px: 1.5,
+                                                py: 0.75,
+                                                gap: 1.25,
+                                                cursor: 'pointer',
+                                                '&:hover': { bgcolor: (t) => t.palette.action.hover },
+                                            }}
+                                            onClick={() => console.log('item clicked', it)}
                                         >
                                             <ListItemText
-                                                primary={<Typography variant="body2" fontWeight={600} noWrap>{p}{v}</Typography>}
-                                                secondary={<Typography variant="caption" color="text.secondary">{qty} × {formatRupiahNoPrefix(price)}</Typography>}
+                                                primary={
+                                                    <Typography variant="body2" fontWeight={600} noWrap>
+                                                        {p}
+                                                        {v}
+                                                    </Typography>
+                                                }
+                                                secondary={
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {qty} × {fmtID(price)}
+                                                    </Typography>
+                                                }
                                                 sx={{ m: 0, pr: 1 }}
                                             />
-                                            <Typography variant="body2">{formatRupiahNoPrefix(sub)}</Typography>
+                                            <Typography variant="body2">{fmtID(sub)}</Typography>
                                         </ListItem>
                                         {i < (ctx.items.length - 1) ? <Divider sx={{ mx: 1.5 }} /> : null}
                                     </React.Fragment>
                                 );
                             })}
                         </List>
-                    </PerfectScrollbar>
-                )}
+                    )}
+                </PerfectScrollbar>
             </Box>
 
             <Box sx={{ px: 1.5, py: 1, textAlign: 'right' }}>
-                <Button size="small" onClick={close}>Tutup</Button>
+                <Button size="small" onClick={close}>
+                    Tutup
+                </Button>
             </Box>
         </Popover>
     );
@@ -226,45 +208,58 @@ function useBillItemPopover() {
     return { node, open };
 }
 
-/* =========================================================
- * Mapper: Api → Row
- * =======================================================*/
-const mapBillsToRows = (bills: ApiBill[]): RowTransactionBill[] =>
-    (bills ?? []).map(b => {
-        const branchName = b.branch?.[0]?.name ?? b.transaction?.branch?.[0]?.name ?? null;
+/* ================= Row type for MRT ================= */
+type RowBill = {
+    id: string;
+    billNo: string;
+    invoice: string;
+    branch: string | null;
+    orderType: string | null;
+    itemsCount: number;
+    total: number;
+    taxRate: number;
+    grandTotal: number;
+    paid: boolean;
+    tender: number;
+
+    billCell: React.ReactNode;
+    _itemsRaw: ApiItem[];
+};
+
+/* ================ Mapper ================ */
+const mapToRows = (list: ApiBill[]): RowBill[] =>
+    (list ?? []).map((b) => {
+        const branch = b.branch?.[0]?.name ?? b.transaction?.branch?.[0]?.name ?? null;
         const orderType = b.transaction?.order_type?.name ?? null;
         const items = b.items ?? [];
-        const itemsCount = items.length;
-
-        // total = sum(qty * price) fallback ke sub_total kalo ada
         const total = items
-            .map(it => (toNum(it.sub_total) || (toNum(it.price) * it.qty)))
-            .reduce((acc, n) => acc + n, 0);
-
-        const grandTotal = total; // hook pajak/discount tinggal disini
-        const paidTender = toNum(b.paid?.tender);
-        const paidStatus = !!b.paid?.status;
+            .map((it) => toNum(it.sub_total) || toNum(it.price) * it.qty)
+            .reduce((a, n) => a + n, 0);
+        const taxRate = Number.isFinite(b.tax) ? b.tax : 0;
+        const grandTotal = Math.round(total + total * taxRate);
+        const tender = toNum(b.paid?.tender);
+        const paid = !!b.paid?.status;
 
         return {
             id: b.id,
-            number: b.number,
+            billNo: b.bill,
             invoice: b.transaction?.invoice ?? '—',
-            branchName,
+            branch,
             orderType,
-            itemsCount,
+            itemsCount: items.length,
             total,
+            taxRate,
             grandTotal,
-            paidStatus,
-            paidTender,
-
+            paid,
+            tender,
             billCell: (
                 <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
                     <Avatar variant="rounded" sx={{ width: 32, height: 32, borderRadius: 1 }}>
                         <PrintRounded fontSize="small" />
                     </Avatar>
                     <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="body2" fontWeight={600} noWrap title={`#${b.number} · Inv ${b.transaction?.invoice ?? ''}`}>
-                            #{b.number}
+                        <Typography variant="body2" fontWeight={700} noWrap title={`#${b.bill} · Inv ${b.transaction?.invoice ?? ''}`}>
+                            #{b.bill}
                         </Typography>
                         <Typography variant="caption" color="text.secondary" noWrap title={orderType ?? ''}>
                             Inv {b.transaction?.invoice ?? '—'} · {orderType ?? '—'}
@@ -272,183 +267,195 @@ const mapBillsToRows = (bills: ApiBill[]): RowTransactionBill[] =>
                     </Box>
                 </Stack>
             ),
-
-            itemsCell: <></>,
-            statusCell: <></>,
             _itemsRaw: items,
         };
     });
 
-/* =========================================================
- * Kolom DataTable
- * =======================================================*/
-const makeColumns = (openItems: (e: React.MouseEvent<HTMLElement>, title: string, items: ApiLineItem[]) => void): Column<RowTransactionBill>[] => [
-    {
-        key: 'billCell',
-        label: 'BILL',
-        sortable: true,
-        width: 320,
-        minWidth: 240,
-    },
-    {
-        key: 'branchName',
-        label: 'BRANCH',
-        sortable: true,
-        width: 220,
-        minWidth: 180,
-        render: r => (
-            <Typography variant="body2" color="text.secondary" noWrap title={r.branchName ?? ''}>
-                {r.branchName ?? '—'}
-            </Typography>
-        ),
-    },
-    {
-        key: 'orderType',
-        label: 'ORDER TYPE',
-        sortable: true,
-        width: 160,
-        minWidth: 140,
-        render: r => <Chip size="small" label={r.orderType ?? '—'} variant="outlined" sx={{ borderRadius: 2 }} />,
-    },
-    {
-        key: 'itemsCount',
-        label: 'ITEMS',
-        sortable: true,
-        align: 'center',
-        width: 120,
-        minWidth: 100,
-        render: r => (
-            <Button
-                size="small"
-                variant="outlined"
-                startIcon={<ReceiptLongRounded />}
-                onClick={e => openItems(e, `#${r.number}`, r._itemsRaw)}
-                sx={{ borderRadius: 2, minWidth: 0, px: 1.25 }}
-            >
-                {r.itemsCount}
-            </Button>
-        ),
-    },
-    {
-        key: 'total',
-        label: 'TOTAL',
-        sortable: true,
-        align: 'right',
-        width: 140,
-        minWidth: 120,
-        render: r => <Typography variant="body2">{formatRupiahNoPrefix(r.total)}</Typography>,
-    },
-    {
-        key: 'grandTotal',
-        label: 'GRAND TOTAL',
-        sortable: true,
-        align: 'right',
-        width: 160,
-        minWidth: 140,
-        render: r => <Typography variant="body2" fontWeight={700}>{formatRupiahNoPrefix(r.grandTotal)}</Typography>,
-    },
-    {
-        key: 'paidStatus',
-        label: 'PAID',
-        sortable: true,
-        align: 'center',
-        width: 120,
-        minWidth: 110,
-        render: r => (
-            <Chip
-                size="small"
-                label={r.paidStatus ? 'Paid' : 'Unpaid'}
-                color={r.paidStatus ? 'success' : 'default'}
-                variant="outlined"
-                sx={{ borderRadius: 2 }}
-            />
-        ),
-    },
-];
-
-/* =========================================================
- * Komponen Halaman
- * =======================================================*/
-export default function TransactionBills() {
-    const [rows, setRows] = React.useState<RowTransactionBill[]>([]);
+/* ================ Component ================ */
+export default function TransactionBillsMRT() {
+    const [rows, setRows] = React.useState<RowBill[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
-    const { godMode, setGodMode } = useGodModeProvider();
+    const { godMode } = useGodModeProvider();
 
-    // Popover Items
-    const { node: itemsPopover, open: openItems } = useBillItemPopover();
+    const { node: itemsPopover, open: openItems } = useItemsPopover();
 
-    // FETCH
     const fetchBills = React.useCallback(() => {
-        if (!window.api) {
-            console.error('Failed Get Window Api Bridge');
+        if (!window?.api?.invoke) {
             setError('Bridge tidak tersedia');
+            setRows([]);
             return;
         }
         setLoading(true);
-
-        // TODO: sesuaikan channel IPC kamu di sini:
-        // misal 'api.transaction.bill:read.all' atau 'api.resources.transaction.bill:read.all'
         window.api
-            .invoke('api.transaction.bills:read.all', {
-                is_hide: godMode
-            })
-            .then((result: ApiBillsResponse) => {
-                const data = (result?.data ?? []) as ApiBill[];
-                const mapped = mapBillsToRows(data);
-                setRows(mapped);
+            .invoke<any, ApiBillsResponse>('api.transaction.bills:read.all', { is_hide: godMode })
+            .then((res) => {
+                const data = Array.isArray(res?.data) ? res.data : [];
+                setRows(mapToRows(data));
                 setError(null);
             })
             .catch((err: any) => {
                 console.error(err);
                 setRows([]);
-                setError(err?.msg ?? 'Gagal memuat bills. Periksa Koneksi Jaringan / Server');
+                setError(err?.msg ?? 'Gagal memuat bills. Periksa Koneksi Jaringan/Server');
             })
             .finally(() => setLoading(false));
     }, [godMode]);
 
-    React.useEffect(() => { fetchBills(); }, [fetchBills, godMode]);
+    React.useEffect(() => {
+        fetchBills();
+    }, [fetchBills]);
 
-    const columns = React.useMemo(() => makeColumns(openItems), [openItems]);
+    /* ===== Columns ===== */
+    const columns = React.useMemo<MRT_ColumnDef<RowBill>[]>(
+        () => [
+            {
+                id: 'bill',
+                header: 'BILL',
+                size: 320,
+                accessorFn: (r) => r.billNo,
+                Cell: ({ row }) => row.original.billCell,
+            },
+            {
+                id: 'branch',
+                header: 'BRANCH',
+                size: 220,
+                accessorKey: 'branch',
+                Cell: ({ cell }) => (
+                    <Typography variant="body2" color="text.secondary" noWrap title={String(cell.getValue() ?? '')}>
+                        {String(cell.getValue() ?? '—')}
+                    </Typography>
+                ),
+            },
+            {
+                id: 'orderType',
+                header: 'ORDER TYPE',
+                size: 160,
+                accessorKey: 'orderType',
+                Cell: ({ cell }) => (
+                    <Chip size="small" label={String(cell.getValue() ?? '—')} variant="outlined" sx={{ borderRadius: 2 }} />
+                ),
+            },
+            {
+                id: 'items',
+                header: 'ITEMS',
+                size: 120,
+                accessorKey: 'itemsCount',
+                muiTableBodyCellProps: { align: 'center' },
+                muiTableHeadCellProps: { align: 'center' },
+                Cell: ({ row }) => (
+                    <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<ReceiptLongRounded />}
+                        onClick={(e) => openItems(e, `#${row.original.billNo}`, row.original._itemsRaw)}
+                        sx={{ borderRadius: 2, minWidth: 0, px: 1.25 }}
+                    >
+                        {row.original.itemsCount}
+                    </Button>
+                ),
+            },
+            {
+                id: 'total',
+                header: 'TOTAL',
+                size: 140,
+                accessorKey: 'total',
+                muiTableBodyCellProps: { align: 'right' },
+                muiTableHeadCellProps: { align: 'right' },
+                Cell: ({ cell }) => <Typography variant="body2">{fmtID(toNum(cell.getValue() as number))}</Typography>,
+            },
+            {
+                id: 'grandTotal',
+                header: 'GRAND TOTAL',
+                size: 160,
+                accessorKey: 'grandTotal',
+                muiTableBodyCellProps: { align: 'right' },
+                muiTableHeadCellProps: { align: 'right' },
+                Cell: ({ row }) => (
+                    <Stack alignItems="flex-end">
+                        <Typography variant="body2" fontWeight={700}>
+                            {fmtID(row.original.grandTotal)}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            Tax {Math.round(row.original.taxRate * 100)}%
+                        </Typography>
+                    </Stack>
+                ),
+            },
+            {
+                id: 'paid',
+                header: 'PAID',
+                size: 120,
+                accessorKey: 'paid',
+                muiTableBodyCellProps: { align: 'center' },
+                muiTableHeadCellProps: { align: 'center' },
+                Cell: ({ row }) => (
+                    <Chip
+                        size="small"
+                        label={row.original.paid ? 'Paid' : 'Unpaid'}
+                        color={row.original.paid ? 'success' : 'default'}
+                        variant="outlined"
+                        sx={{ borderRadius: 2 }}
+                    />
+                ),
+            },
+        ],
+        [openItems]
+    );
 
-    return (
-        <Box
-            sx={{
-                p: 2,
-                display: 'grid',
-                gap: 2,
-                height: '100%',
-                minHeight: 0,
-                gridTemplateRows: 'auto 1fr',
-            }}
-        >
-            {/* Header & CTA */}
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
+    const table = useMaterialReactTable({
+        columns,
+        data: rows,
+        enableExpanding: false,
+        state: { showProgressBars: loading },
+        columnFilterDisplayMode: 'popover',
+        paginationDisplayMode: 'pages',
+        positionToolbarAlertBanner: 'bottom',
+        enableRowSelection: false,
+        enableStickyHeader: true,
+        initialState: { density: 'comfortable', pagination: { pageSize: 15, pageIndex: 0 } },
+        muiTablePaperProps: { sx: { display: 'flex', flexDirection: 'column', flex: 1 } },
+        muiTableContainerProps: { sx: { flex: 1 } },
+        renderTopToolbarCustomActions: () => (
+            <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{ width: '100%', gap: 1 }}
+            >
                 <Box>
-                    <Typography variant="overline" color="text.secondary">Transactions / Bills</Typography>
+                    <Typography variant="overline" color="text.secondary">
+                        Transactions / Bills
+                    </Typography>
                     {loading ? (
-                        <Typography variant="body2" color="text.secondary">Loading…</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Loading…
+                        </Typography>
                     ) : error ? (
-                        <Typography variant="body2" color="error.main">{error}</Typography>
+                        <Typography variant="body2" color="error.main">
+                            {error}
+                        </Typography>
                     ) : null}
                 </Box>
                 <Stack direction="row" spacing={1}>
-                    <Button variant="outlined" onClick={fetchBills}>Refresh</Button>
-                    <Button variant="contained" startIcon={<AddRounded />} onClick={() => console.log('open create bill')}>
+                    <Button variant="outlined" onClick={fetchBills}>
+                        Refresh
+                    </Button>
+                    <Button
+                        variant="contained"
+                        startIcon={<AddRounded />}
+                        onClick={() => console.log('open create bill')}
+                    >
                         Tambah Bill
                     </Button>
                 </Stack>
             </Stack>
+        ),
+    });
 
-            {/* DataTable */}
-            <DataTable<RowTransactionBill>
-                columns={columns}
-                rows={rows}
-                initialRowsPerPage={15}
-                enableSelection={false}
-            />
-
-            {/* Popover Items */}
+    return (
+        <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <MaterialReactTable table={table} />
             {itemsPopover}
         </Box>
     );
