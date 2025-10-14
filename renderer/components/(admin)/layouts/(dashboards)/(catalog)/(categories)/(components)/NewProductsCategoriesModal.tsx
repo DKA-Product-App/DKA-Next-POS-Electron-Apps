@@ -27,8 +27,9 @@ import CloseRounded from '@mui/icons-material/CloseRounded';
 import {useSession} from "../../../../../../../contexts/SessionProviderContext";
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
-import {useThemeCharger} from "../../../../../../../contexts/ThemeCharger";
+import { useThemeCharger } from "../../../../../../../contexts/ThemeCharger";
 import type { DevicePrinter } from "../../../../../../../types/config/device/device.printer.type";
+import SweetAlert2, { SweetAlert2Props } from "react-sweetalert2";
 
 export type NewCategoryModalProps = {
     onCreated?: (created?: any) => void
@@ -39,6 +40,7 @@ export type NewCategoryModalProps = {
 export const NewProductsCategoriesModal: React.FC<NewCategoryModalProps> = ({ onCreated, triggerLabel = 'Tambah Kategori', triggerProps }) => {
     const { Session } = useSession();
     const { mode, toggleMode } = useThemeCharger();
+    const [swalProps, setSwalProps] = useState<SweetAlert2Props>({ show: false });
 
     const [open, setOpen] = useState(false);
     const [fullScreen, setFullScreen] = useState(false);
@@ -92,7 +94,7 @@ export const NewProductsCategoriesModal: React.FC<NewCategoryModalProps> = ({ on
 
     useEffect(() => { if (open) fetchPrinters(); }, [open, fetchPrinters]);
 
-    const buildPayload = async () => {
+    const buildPayload = React.useCallback(async () => {
         const payload: any = {
             reference: (Session?.id) ? { id: Session?.id } : undefined,
             branches: (Session?.id) ? Session?.branches : [],
@@ -112,19 +114,35 @@ export const NewProductsCategoriesModal: React.FC<NewCategoryModalProps> = ({ on
             payload.image = null; // biar backend eksplisit kosong
         }
         return payload;
-    };
+    }, [ name, description, status, selectedPrinterIds, imageFile]);
 
-    const handleSubmit = () => {
+    const handleSubmit = React.useCallback(() => {
         if (!window?.api?.invoke) { setError('IPC bridge tidak tersedia'); return; }
         if (!canSubmit) { setError('Nama kategori wajib diisi'); return; }
         setSubmitting(true); setError(null);
         buildPayload()
             .then((payload) => window.api.invoke('api.product.category:create', payload))
-            .then((res: any) => onCreated?.(res))
-            .then(() => setOpen(false))
+            .then((res) => {
+                setOpen(false);
+                return res;
+            })
+            .then((res) => {
+                setSwalProps({
+                    show: true,
+                    icon: 'success',
+                    title: 'Berhasil Ditambahkan',
+                    theme: mode,
+                    timer: 2000,
+                    text: 'Kategori telah Ditambahkan.',
+                    showConfirmButton: false,
+                    onResolve: () => {
+                        onCreated?.(res);
+                    }
+                })
+            })
             .catch((err: any) => setError(err?.msg || err?.message || 'Gagal membuat kategori'))
             .finally(() => setSubmitting(false));
-    };
+    },[name, description, status, selectedPrinterIds, imageFile, mode]);
 
     return (
         <>
@@ -250,6 +268,7 @@ export const NewProductsCategoriesModal: React.FC<NewCategoryModalProps> = ({ on
                     </Button>
                 </DialogActions>
             </Dialog>
+            <SweetAlert2 {...swalProps} didClose={() => setSwalProps(prev => ({ ...prev, show: false }))}  />
         </>
     );
 };

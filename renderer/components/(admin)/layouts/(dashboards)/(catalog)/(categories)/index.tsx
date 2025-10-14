@@ -152,7 +152,10 @@ const CatalogProductCategories = () => {
                             <DeleteModal
                                 id={cat.id}
                                 name={cat.name}
-                                onDeleted={() => fetchProducts()}
+                                onDeleted={() => {
+                                    console.log('data dihapus')
+                                    fetchProducts()
+                                }}
                             />
                         </Stack>
                     );

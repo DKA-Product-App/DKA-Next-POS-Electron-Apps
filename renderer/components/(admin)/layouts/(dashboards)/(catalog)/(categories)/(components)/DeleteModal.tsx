@@ -2,12 +2,12 @@ import { DeleteOutlineRounded } from "@mui/icons-material";
 import {IconButton, Tooltip } from "@mui/material";
 import React, { useState } from "react";
 import SweetAlert2, { SweetAlert2Props } from "react-sweetalert2";
-import Swal from "sweetalert2";
+import {useThemeCharger} from "../../../../../../../contexts/ThemeCharger";
 
 export const DeleteModal = ({ id, name, onDeleted }: { id: string; name?: string; onDeleted?: () => void }) => {
     const [swalProps, setSwalProps] = useState<SweetAlert2Props>({ show: false });
-
-    const openConfirm = () =>
+    const { mode } = useThemeCharger()
+    const openConfirm = React.useCallback(() =>
         setSwalProps({
             show: true,
             icon: 'warning',
@@ -17,47 +17,39 @@ export const DeleteModal = ({ id, name, onDeleted }: { id: string; name?: string
             confirmButtonText: 'Ya, hapus',
             cancelButtonText: 'Batal',
             reverseButtons: true,
+            theme: mode,
             focusCancel: true,
-            onConfirm: () => doDelete(),
-            didClose: () => setSwalProps({ show: false }),
-        });
-
-    const doDelete = () => {
-        setSwalProps({
-            show: true,
-            title: 'Menghapus…',
-            allowEscapeKey: false,
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading(),
-        });
-
-        Promise.resolve()
-            .then(() => {
-                if (!window?.api?.invoke) throw new Error('IPC bridge tidak tersedia');
-                return window.api.invoke('api.product.category:delete.one', { id });
-            })
-            .then((resolve) => {
-                console.log(resolve);
-                setSwalProps({
-                    show: true,
-                    icon: 'success',
-                    title: 'Terhapus',
-                    text: 'Kategori telah dihapus.',
-                    timer: 2000,
-                    showConfirmButton: false,
-                    onResolve: () => onDeleted?.(),
-                })
-            })
-            .catch((err: any) =>
-                setSwalProps({
-                    show: true,
-                    icon: 'error',
-                    title: 'Gagal',
-                    text: err?.msg || err?.message || 'Gagal menghapus kategori',
-                    confirmButtonText: 'Tutup',
-                }),
-            );
-    };
+            onConfirm: () => {
+                setSwalProps(prev => ({ ...prev, show: false }))
+                window?.api?.invoke?.('api.product.category:delete.one', { id })
+                    .then((resolve) => {
+                        console.log(resolve);
+                        setSwalProps({
+                            show: true,
+                            icon: 'success',
+                            title: 'Terhapus',
+                            theme: mode,
+                            timer: 2000,
+                            text: 'Kategori telah dihapus.',
+                            showConfirmButton: false,
+                            onResolve: () => onDeleted?.(),
+                        })
+                    })
+                    .catch((err) => {
+                        console.error(err)
+                        onDeleted?.();
+                        setSwalProps({
+                            show: true,
+                            icon: 'error',
+                            title: 'Gagal',
+                            theme: mode,
+                            timer: 5000,
+                            text: err?.msg || err?.message || 'Gagal menghapus kategori',
+                            confirmButtonText: 'Tutup',
+                        })
+                    });
+            },
+        }),[ mode ]);
 
     return (
         <>
@@ -66,7 +58,7 @@ export const DeleteModal = ({ id, name, onDeleted }: { id: string; name?: string
                     <DeleteOutlineRounded fontSize="small" />
                 </IconButton>
             </Tooltip>
-            <SweetAlert2 {...swalProps} />
+            <SweetAlert2 {...swalProps} didClose={() => setSwalProps(prev => ({ ...prev, show: false }))}  />
         </>
     );
 };
