@@ -3,12 +3,16 @@
 import * as React from 'react';
 import {
     Box, Button, Chip, Stack, Typography, Avatar,
+    Menu, MenuItem, ListItemIcon, ListItemText,
 } from '@mui/material';
 import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import AddRounded from '@mui/icons-material/AddRounded';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import ReceiptLongRounded from '@mui/icons-material/ReceiptLongRounded'; // Transaction
 import PrintRounded from '@mui/icons-material/PrintRounded';            // Bill
+import ArrowDropDownRounded from '@mui/icons-material/ArrowDropDownRounded';
+import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
+import TableViewRounded from '@mui/icons-material/TableViewRounded';
 
 import {
     MaterialReactTable,
@@ -382,7 +386,6 @@ const handleExportPDF = (tree: TxRow[]) => {
         { content: '' },
     ]];
 
-
     autoTable(doc, {
         head,
         body,
@@ -413,19 +416,19 @@ const handleExportPDF = (tree: TxRow[]) => {
     doc.save('transactions-bills-items-F4-landscape.pdf');
 };
 
-
-
-
 /* ============== Main component ============== */
 export default function TransactionsWithBillsTree() {
     const [rows, setRows] = React.useState<TxRow[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
 
+    // state untuk export dropdown
+    const [exportAnchor, setExportAnchor] = React.useState<null | HTMLElement>(null);
+    const openExport = (e: React.MouseEvent<HTMLButtonElement>) => setExportAnchor(e.currentTarget);
+    const closeExport = () => setExportAnchor(null);
+
     const fetchAll = React.useCallback(() => {
-        if (!window?.api?.invoke) {
-            setError('Bridge tidak tersedia'); setRows([]); return;
-        }
+        if (!window?.api?.invoke) { setError('Bridge tidak tersedia'); setRows([]); return; }
         setLoading(true);
         window.api
             .invoke<any, ApiBillsResponse>('api.transaction.bills:read.all', {})
@@ -539,17 +542,44 @@ export default function TransactionsWithBillsTree() {
                         <Typography variant="body2" color="error.main">{error}</Typography>
                     ) : null}
                 </Box>
+
                 <Stack direction="row" spacing={1}>
                     <Button variant="outlined" startIcon={<RefreshRounded />} onClick={fetchAll}>Refresh</Button>
-                    <Button variant="outlined" startIcon={<FileDownloadIcon />} onClick={() => handleExportCSV(rows)}>
-                        Export CSV
-                    </Button>
-                    <Button variant="outlined" startIcon={<FileDownloadIcon />} onClick={() => handleExportPDF(rows)}>
-                        Export PDF
-                    </Button>
-                    <Button variant="contained" startIcon={<AddRounded />} onClick={() => console.log('open create bill')}>
-                        Tambah Bill
-                    </Button>
+
+                    {/* === Export Dropdown === */}
+                    <React.Fragment>
+                        <Button
+                            variant="outlined"
+                            startIcon={<FileDownloadIcon />}
+                            endIcon={<ArrowDropDownRounded />}
+                            onClick={openExport}
+                        >
+                            Export
+                        </Button>
+                        <Menu
+                            anchorEl={exportAnchor}
+                            open={Boolean(exportAnchor)}
+                            onClose={closeExport}
+                            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                        >
+                            <MenuItem onClick={() => { closeExport(); handleExportCSV(rows); }}>
+                                <ListItemIcon><TableViewRounded fontSize="small" /></ListItemIcon>
+                                <ListItemText
+                                    primary="CSV (Spreadsheet)"
+                                    secondary="Cocok untuk Excel/Google Sheets. Termasuk baris 'AKUMULASI TOTAL'."
+                                />
+                            </MenuItem>
+                            <MenuItem onClick={() => { closeExport(); handleExportPDF(rows); }}>
+                                <ListItemIcon><PictureAsPdfRounded fontSize="small" /></ListItemIcon>
+                                <ListItemText
+                                    primary="PDF (F4 Landscape)"
+                                    secondary="Tabel rapi; footer total hanya di halaman terakhir."
+                                />
+                            </MenuItem>
+                        </Menu>
+                    </React.Fragment>
+                    {/* === End Export Dropdown === */}
                 </Stack>
             </Stack>
         ),

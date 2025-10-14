@@ -15,8 +15,20 @@ import {
     Stack,
     Tooltip,
     Typography,
+    Dialog, DialogTitle, DialogContent, DialogActions,
+    TextField, IconButton, Avatar
 } from '@mui/material';
 import AddRounded from '@mui/icons-material/AddRounded';
+import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
+import UploadRounded from '@mui/icons-material/UploadRounded';
+import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
+import AutoAwesomeRounded from '@mui/icons-material/AutoAwesomeRounded';
+import FullscreenExitRounded from '@mui/icons-material/FullscreenExitRounded';
+import FullscreenRounded from '@mui/icons-material/FullscreenRounded';
+import DarkModeRounded from '@mui/icons-material/DarkModeRounded';
+import LightModeRounded from '@mui/icons-material/LightModeRounded';
+import CloseRounded from '@mui/icons-material/CloseRounded';
+
 import {
     MaterialReactTable,
     useMaterialReactTable,
@@ -27,12 +39,18 @@ import 'react-perfect-scrollbar/dist/css/styles.css';
 import moment from 'moment-timezone';
 import {ProductsCategories} from "../../../../../../types/product/product.categories.type";
 import {DevicePrinter} from "../../../../../../types/config/device/device.printer.type";
+import {NewProductsCategoriesModal} from "./(components)/NewProductsCategoriesModal";
+import {DeleteModal} from "./(components)/DeleteModal";
+import { useGodModeProvider } from '../../../../context/GodModeProviderContext';
 
+/* ======================================================
+ * CatalogProductCategories — terhubung ke NewCategoryModal
+ * ====================================================== */
 
 const CatalogProductCategories = () => {
     const columnHelper = createMRTColumnHelper<ProductsCategories>();
     const [productCatalog, setProductCatalog] = useState<ProductsCategories[]>([]);
-
+    const { godMode, setGodMode } = useGodModeProvider();
     // ==== Popover state (anchored to Chip) ====
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const [selectedPrinters, setSelectedPrinters] = useState<DevicePrinter[]>([]);
@@ -57,22 +75,17 @@ const CatalogProductCategories = () => {
             return;
         }
         window.api
-            .invoke<any, { data: ProductsCategories[] }>('api.product.category:read.all', {})
+            .invoke<any, { data: ProductsCategories[] }>('api.product.category:read.all', {
+                god_mode: godMode,
+            })
             .then(({ data }) => setProductCatalog(data ?? []))
             .catch((err: any) => {
                 console.error(err);
                 setProductCatalog([]);
             });
-    }, []);
+    }, [godMode]);
 
-    useEffect(() => {
-        fetchProducts();
-    }, [fetchProducts]);
-
-    const onAddCategory = useCallback(() => {
-        // TODO: buka modal/form tambah kategori
-        console.info('Tambah Kategori clicked');
-    }, []);
+    useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
     // ==== Columns ====
     const columns = useMemo(
@@ -125,6 +138,26 @@ const CatalogProductCategories = () => {
                     );
                 },
             }),
+            columnHelper.display({
+                id: 'actions',
+                header: 'Actions',
+                size: 90,
+                enableColumnFilter: false,
+                enableSorting: false,
+                enableHiding: false,
+                Cell: ({ row }) => {
+                    const cat = row.original;
+                    return (
+                        <Stack direction="row" spacing={0.5}>
+                            <DeleteModal
+                                id={cat.id}
+                                name={cat.name}
+                                onDeleted={() => fetchProducts()}
+                            />
+                        </Stack>
+                    );
+                },
+            }),
         ],
         [columnHelper, openPopover],
     );
@@ -143,9 +176,7 @@ const CatalogProductCategories = () => {
         muiTableContainerProps: { sx: { flex: 1 } },
         renderTopToolbarCustomActions: () => (
             <Stack direction="row" alignItems="center" justifyContent="flex-end" sx={{ mb: 1.5 }}>
-                <Button variant="outlined" startIcon={<AddRounded />} onClick={onAddCategory}>
-                    Tambah Kategori
-                </Button>
+                <NewProductsCategoriesModal triggerLabel="Tambah Kategori" onCreated={() => fetchProducts()} />
             </Stack>
         ),
     });
@@ -154,10 +185,7 @@ const CatalogProductCategories = () => {
     const popId = popoverOpen ? 'popover-printers' : undefined;
 
     return (
-        <Paper
-            variant="outlined"
-            sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}
-        >
+        <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
                 <MaterialReactTable table={table} />
             </Box>
@@ -192,37 +220,16 @@ const CatalogProductCategories = () => {
                                     const createdAt = p?.time_created ? moment(p.time_created).format('DD MMM YYYY, HH:mm') : '—';
                                     return (
                                         <React.Fragment key={p.id}>
-                                            <ListItem
-                                                sx={{ alignItems: 'flex-start', py: 1.25 }}
-                                                secondaryAction={
-                                                    <Chip
-                                                        size="small"
-                                                        variant="outlined"
-                                                        color={p.status ? 'success' : 'default'}
-                                                        label={status}
-                                                    />
-                                                }
+                                            <ListItem sx={{ alignItems: 'flex-start', py: 1.25 }}
+                                                      secondaryAction={<Chip size="small" variant="outlined" color={p.status ? 'success' : 'default'} label={status} />}
                                             >
                                                 <ListItemText
-                                                    primary={
-                                                        <Stack direction="row" spacing={1} alignItems="center">
-                                                            <Typography variant="body1" fontWeight={600}>{p.name}</Typography>
-                                                            <Chip size="small" label={mode} />
-                                                        </Stack>
-                                                    }
-                                                    secondary={
-                                                        <Stack spacing={0.5} sx={{ mt: 0.5 }}>
-                                                            <Typography variant="body2" color="text.secondary">
-                                                                {p.description || '—'}
-                                                            </Typography>
-                                                            <Typography variant="caption" color="text.secondary">
-                                                                IP/Port: {ip}:{port}
-                                                            </Typography>
-                                                            <Typography variant="caption" color="text.secondary">
-                                                                Created: {createdAt}
-                                                            </Typography>
-                                                        </Stack>
-                                                    }
+                                                    primary={<Stack direction="row" spacing={1} alignItems="center"><Typography variant="body1" fontWeight={600}>{p.name}</Typography><Chip size="small" label={mode} /></Stack>}
+                                                    secondary={<Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                                                        <Typography variant="body2" color="text.secondary">{p.description || '—'}</Typography>
+                                                        <Typography variant="caption" color="text.secondary">IP/Port: {ip}:{port}</Typography>
+                                                        <Typography variant="caption" color="text.secondary">Created: {createdAt}</Typography>
+                                                    </Stack>}
                                                 />
                                             </ListItem>
                                             <Divider component="li" />

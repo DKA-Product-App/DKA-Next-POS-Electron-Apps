@@ -36,6 +36,7 @@ import NewProductModal from './(components)/NewProductModal';
 import EditProductModal from './(components)/EditProductModal';
 import DeleteProduct from './(components)/DeleteProduct';
 import {ImgWithSkeleton} from "../../../../../../utils/ImageProcessingIPC";
+import {useGodModeProvider} from "../../../../context/GodModeProviderContext";
 
 /* ==== Types ==== */
 type Variant = { id: string; code: string; name: string; price: string | number };
@@ -57,6 +58,7 @@ export default function CatalogProductsMRT() {
     /* ==== Data ==== */
     const [products, setProducts] = React.useState<ProductWithVariants[]>([]);
     const [loading, setLoading] = React.useState(false);
+    const { godMode, setGodMode } = useGodModeProvider();
     const [error, setError] = React.useState<string | null>(null);
 
     const fetchProducts = React.useCallback(() => {
@@ -68,7 +70,9 @@ export default function CatalogProductsMRT() {
         }
         setLoading(true);
         window.api
-            .invoke('api.product:read.all', {})
+            .invoke('api.product:read.all', {
+                god_mode: godMode,
+            })
             .then((result: any) => {
                 const data = (result?.data ?? []) as ProductWithVariants[];
                 setProducts(Array.isArray(data) ? data : []);
@@ -80,7 +84,7 @@ export default function CatalogProductsMRT() {
                 setError(err?.msg ?? 'Gagal memuat produk. Periksa Koneksi Jaringan / Server');
             })
             .finally(() => setLoading(false));
-    }, []);
+    }, [godMode]);
 
     React.useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
@@ -202,11 +206,6 @@ export default function CatalogProductsMRT() {
                                 productId={p.id}
                                 productName={p.name}
                                 onDeleted={fetchProducts}
-                                trigger={
-                                    <Tooltip title="Hapus">
-                                        <IconButton size="small" color="error"><DeleteOutlineRounded fontSize="small" /></IconButton>
-                                    </Tooltip>
-                                }
                             />
                         </Stack>
                     );
