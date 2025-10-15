@@ -11,8 +11,8 @@ export const DeleteModal = ({ id, name, onDeleted }: { id: string; name?: string
         setSwalProps({
             show: true,
             icon: 'warning',
-            title: 'Hapus kategori?',
-            html: `Anda akan menghapus <b>${name || 'kategori ini'}</b>. Tindakan ini tidak dapat dibatalkan.`,
+            title: 'Hapus Product?',
+            html: `Anda akan menghapus <b>${name || 'Product ini'}</b>. Tindakan ini tidak dapat dibatalkan.`,
             showCancelButton: true,
             confirmButtonText: 'Ya, hapus',
             cancelButtonText: 'Batal',
@@ -21,7 +21,7 @@ export const DeleteModal = ({ id, name, onDeleted }: { id: string; name?: string
             focusCancel: true,
             onConfirm: () => {
                 setSwalProps(prev => ({ ...prev, show: false }))
-                window?.api?.invoke?.('api.product.category:delete.one', { id })
+                window?.api?.invoke?.('api.product:delete.one', { id })
                     .then((resolve) => {
                         console.log(resolve);
                         setSwalProps({
@@ -30,7 +30,7 @@ export const DeleteModal = ({ id, name, onDeleted }: { id: string; name?: string
                             title: 'Terhapus',
                             theme: mode,
                             timer: 2000,
-                            text: 'Kategori telah dihapus.',
+                            text: `${name} telah dihapus.`,
                             showConfirmButton: false,
                             onResolve: () => onDeleted?.(),
                         })
@@ -63,3 +63,6 @@ export const DeleteModal = ({ id, name, onDeleted }: { id: string; name?: string
         </>
     );
 };
+
+
+export default DeleteModal;

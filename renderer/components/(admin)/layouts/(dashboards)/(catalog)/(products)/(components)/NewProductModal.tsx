@@ -3,8 +3,8 @@
 import * as React from 'react'
 import {
     Dialog, DialogTitle, DialogContent, DialogActions,
-    Box, Stack, TextField, Button, IconButton, Tooltip, Divider, Avatar, MenuItem, Typography,
-    Card, CardContent, Collapse
+    Box, Stack, TextField, Button, IconButton, Tooltip, Divider, Avatar, Typography,
+    Card, CardContent, Collapse, Chip, Autocomplete
 } from '@mui/material'
 import AddRounded from '@mui/icons-material/AddRounded'
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded'
@@ -21,7 +21,6 @@ import FullscreenRounded from "@mui/icons-material/FullscreenRounded";
 import DarkModeRounded from "@mui/icons-material/DarkModeRounded";
 import LightModeRounded from "@mui/icons-material/LightModeRounded";
 import CloseRounded from "@mui/icons-material/CloseRounded";
-import {useTheme} from "@mui/material/styles";
 import {useThemeCharger} from "../../../../../../../contexts/ThemeCharger";
 
 type VariantDraft = ProductsVariants & {
@@ -126,7 +125,7 @@ export default function NewProductModal(props: NewProductModalProps) {
     const [name, setName] = React.useState('') // Nama Produk
     const [categoriesList, setCategoryList] = React.useState<ProductsCategories[]>([])
     const [description, setDescription] = React.useState('')
-    const [categoryId, setCategoryId] = React.useState<string>('')
+    const [categoryIds, setCategoryIds] = React.useState<string[]>([]) // multi-select
     const [variants, setVariants] = React.useState<VariantDraft[]>([{
         id: uuid(), code: '', name: '', price: '', description: '', codeTouched: false, expanded: false
     }])
@@ -140,7 +139,7 @@ export default function NewProductModal(props: NewProductModalProps) {
 
     React.useEffect(() => {
         if (!open) {
-            setName(''); setDescription(''); setCategoryId('')
+            setName(''); setDescription(''); setCategoryIds([])
             setVariants([{
                 id: uuid(), code: '', name: '', price: '', description: '', codeTouched: false, expanded: false
             }])
@@ -203,7 +202,7 @@ export default function NewProductModal(props: NewProductModalProps) {
             branches: (Session?.id) ? Session?.branches : [],
             name: name.trim(),
             description: description.trim() || undefined,
-            category: categoryId ? [{ id : categoryId }] : [],
+            category: (categoryIds || []).map(id => ({ id })), // kirim banyak kategori
             variants: variants
                 .filter(v => v.code.trim() && v.name.trim())
                 .map(v => ({
@@ -211,7 +210,7 @@ export default function NewProductModal(props: NewProductModalProps) {
                     branches: (Session?.id) ? Session?.branches : [],
                     code: normalizeCodePattern(v.code.trim()), // pastikan final XXX-XXX
                     name: v.name.trim(),                        // sudah uppercase
-                    price: Number((v.price || '').replace(/\D/g, '')),
+                    price: Number((v.price || '').replace(/\\D/g, '')),
                     description: v.description?.trim() || undefined,
                 })),
         }
@@ -256,7 +255,7 @@ export default function NewProductModal(props: NewProductModalProps) {
 
     return (
         <>
-            {/* Trigger button include */}
+        {/* Trigger button include */}
             <Button
                 variant="contained"
                 startIcon={<AddRounded />}
@@ -360,19 +359,36 @@ export default function NewProductModal(props: NewProductModalProps) {
                                         </Stack>
 
                                         <Stack spacing={1.5} sx={{ flex: 1, minWidth: 0 }}>
+                                            {/* ==== Kategori Autocomplete Multi ==== */}
                                             {categoriesList.length > 0 && (
-                                                <TextField
-                                                    select
-                                                    label="Kategori"
-                                                    value={categoryId}
-                                                    onChange={e => setCategoryId(e.target.value)}
-                                                    fullWidth
-                                                >
-                                                    {categoriesList.map(c => (
-                                                        <MenuItem key={c.id} value={c.id}>{c?.name?.toUpperCase() ?? ""}</MenuItem>
-                                                    ))}
-                                                </TextField>
+                                                <Autocomplete
+                                                    multiple
+                                                    options={categoriesList}
+                                                    disableCloseOnSelect
+                                                    getOptionLabel={(o) => (o?.name?.toUpperCase?.() ?? '')}
+                                                    value={categoriesList.filter(c => categoryIds.includes(c.id))}
+                                                    onChange={(_, val) => setCategoryIds(val.map(v => v.id))}
+                                                    renderTags={(value, getTagProps) =>
+                                                        value.map((option, index) => (
+                                                            <Chip
+                                                                {...getTagProps({ index })}
+                                                                key={option.id}
+                                                                size="small"
+                                                                label={option?.name?.toUpperCase?.() ?? ''}
+                                                            />
+                                                        ))
+                                                    }
+                                                    renderInput={(params) => (
+                                                        <TextField
+                                                            {...params}
+                                                            label={`Kategori ${categoryIds.length ? `(${categoryIds.length} dipilih)` : ''}`}
+                                                            placeholder={categoryIds.length ? '' : 'Pilih satu atau lebih kategori'}
+                                                            fullWidth
+                                                        />
+                                                    )}
+                                                />
                                             )}
+
                                             <TextField
                                                 label="Nama Produk"
                                                 value={name}
@@ -429,7 +445,6 @@ export default function NewProductModal(props: NewProductModalProps) {
                                                                     size="small"
                                                                     onClick={() => patchVariant(v.id, {
                                                                         code: makeVariantCode(name, v.name),
-                                                                        // tetap anggap user 'touch', supaya gak auto-overwrite lagi tanpa sengaja
                                                                         codeTouched: true
                                                                     })}
                                                                 >
@@ -458,10 +473,10 @@ export default function NewProductModal(props: NewProductModalProps) {
                                                         {/* PRICE — format ribuan */}
                                                         <TextField
                                                             label="Harga"
-                                                            value={formatGrouped(v.price)}
+                                                            value={formatGrouped(v.price as any)}
                                                             onChange={e => {
                                                                 const raw = e.target.value.replace(/[^\d]/g, '')
-                                                                patchVariant(v.id, { price: raw })
+                                                                patchVariant(v.id, { price: raw as any })
                                                             }}
                                                             size="small"
                                                             sx={{ width: 220 }}

@@ -212,9 +212,6 @@ export default function CatalogProductsTree() {
                 </Box>
                 <Stack direction="row" spacing={1}>
                     <Button variant="outlined" onClick={fetchVariants}>Refresh</Button>
-                    <Button variant="contained" startIcon={<AddRounded />} onClick={() => console.log('open modal')}>
-                        Tambah Produk/Varian
-                    </Button>
                 </Stack>
             </Stack>
         ),

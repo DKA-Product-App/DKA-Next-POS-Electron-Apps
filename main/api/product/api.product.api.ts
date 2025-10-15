@@ -19,32 +19,27 @@ export function Product(mainWindow ?: BrowserWindow) {
                     return resolve({ ...response.data });
                 })
                 .catch((err) => {
-                    if (err && err.response)
-                        return reject({
-                            status: false,
-                            code: err.response.status ? err.response.status : 0,
-                            msg: (err.response.data && (err.response.data.message || err.response.data.msg)) || err.response.statusText || "Terjadi kesalahan",
-                            data: err.response.data ? err.response.data : null,
-                            error: { ...err, detail: { errno: err.errno, syscall: err.syscall, address: err.address, port: err.port } },
-                            meta: { ...err.response.config },
-                        });
+                    const pack = (payload: any) => {
+                        const e = new Error(JSON.stringify(payload)); // <-- kirim JSON di message
+                        (e as any).data = payload;                    // <-- bonus: taruh raw data kalau Electron gak nyopot
+                        (e as any).code = payload?.code ?? 530;
+                        return reject(e);
+                    };
 
-                    switch (err && err.code) {
-                        case "ENOTFOUND":
-                            return reject({ status: false, code: 530, msg: "Host tidak ditemukan", error: err });
-                        case "ECONNREFUSED":
-                            return reject({ status: false, code: 530, msg: "Koneksi ditolak oleh server", error: err });
-                        case "ETIMEDOUT":
-                        case "ECONNABORTED":
-                            return reject({ status: false, code: 530, msg: "Waktu koneksi habis", error: err });
-                        default:
-                            return reject({
-                                status: false,
-                                code: 530,
-                                msg: typeof err.message === "string" && err.message.indexOf("Network Error") !== -1 ? "Jaringan/offline atau server tidak dapat dijangkau" : "Gagal menghubungi server",
-                                error: err,
-                            });
-                    }
+                    if (err?.response?.data) return pack(err.response.data);
+
+                    const code = err?.code;
+                    if (code === "ENOTFOUND")    return pack({ status: false, code: 530, msg: "Host tidak ditemukan" });
+                    if (code === "ECONNREFUSED") return pack({ status: false, code: 530, msg: "Koneksi ditolak oleh server" });
+                    if (code === "ETIMEDOUT" || code === "ECONNABORTED")
+                        return pack({ status: false, code: 530, msg: "Waktu koneksi habis" });
+
+                    const isNetwork = typeof err?.message === "string" && err.message.includes("Network Error");
+                    return pack({
+                        status: false,
+                        code: 530,
+                        msg: isNetwork ? "Jaringan/offline atau server tidak dapat dijangkau" : "Gagal menghubungi server"
+                    });
                 });
         });
     });
@@ -62,33 +57,27 @@ export function Product(mainWindow ?: BrowserWindow) {
                     return resolve(Buffer.from(data).toString('base64'));
                 })
                 .catch((err) => {
-                    if (err && err.response)
-                        return reject({
-                            status: false,
-                            code: err.response.status ? err.response.status : 0,
-                            msg: (err.response.data && (err.response.data.message || err.response.data.msg)) || err.response.statusText || "Terjadi kesalahan",
-                            data: err.response.data ? err.response.data : null,
-                            error: { ...err, detail: { errno: err.errno, syscall: err.syscall, address: err.address, port: err.port } },
-                            meta: { ...err.response.config },
-                        });
+                    const pack = (payload: any) => {
+                        const e = new Error(JSON.stringify(payload)); // <-- kirim JSON di message
+                        (e as any).data = payload;                    // <-- bonus: taruh raw data kalau Electron gak nyopot
+                        (e as any).code = payload?.code ?? 530;
+                        return reject(e);
+                    };
 
-                    //
-                    switch (err && err.code) {
-                        case "ENOTFOUND":
-                            return reject({ status: false, code: 530, msg: "Host tidak ditemukan", error: err });
-                        case "ECONNREFUSED":
-                            return reject({ status: false, code: 530, msg: "Koneksi ditolak oleh server", error: err });
-                        case "ETIMEDOUT":
-                        case "ECONNABORTED":
-                            return reject({ status: false, code: 530, msg: "Waktu koneksi habis", error: err });
-                        default:
-                            return reject({
-                                status: false,
-                                code: 530,
-                                msg: typeof err.message === "string" && err.message.indexOf("Network Error") !== -1 ? "Jaringan/offline atau server tidak dapat dijangkau" : "Gagal menghubungi server",
-                                error: err,
-                            });
-                    }
+                    if (err?.response?.data) return pack(err.response.data);
+
+                    const code = err?.code;
+                    if (code === "ENOTFOUND")    return pack({ status: false, code: 530, msg: "Host tidak ditemukan" });
+                    if (code === "ECONNREFUSED") return pack({ status: false, code: 530, msg: "Koneksi ditolak oleh server" });
+                    if (code === "ETIMEDOUT" || code === "ECONNABORTED")
+                        return pack({ status: false, code: 530, msg: "Waktu koneksi habis" });
+
+                    const isNetwork = typeof err?.message === "string" && err.message.includes("Network Error");
+                    return pack({
+                        status: false,
+                        code: 530,
+                        msg: isNetwork ? "Jaringan/offline atau server tidak dapat dijangkau" : "Gagal menghubungi server"
+                    });
                 });
         });
     });
@@ -106,33 +95,27 @@ export function Product(mainWindow ?: BrowserWindow) {
                     return resolve({ ...response.data });
                 })
                 .catch((err) => {
-                    if (err && err.response)
-                        return reject({
-                            status: false,
-                            code: err.response.status ? err.response.status : 0,
-                            msg: (err.response.data && (err.response.data.message || err.response.data.msg)) || err.response.statusText || "Terjadi kesalahan",
-                            data: err.response.data ? err.response.data : null,
-                            error: { ...err, detail: { errno: err.errno, syscall: err.syscall, address: err.address, port: err.port } },
-                            meta: { ...err.response.config },
-                        });
+                    const pack = (payload: any) => {
+                        const e = new Error(JSON.stringify(payload)); // <-- kirim JSON di message
+                        (e as any).data = payload;                    // <-- bonus: taruh raw data kalau Electron gak nyopot
+                        (e as any).code = payload?.code ?? 530;
+                        return reject(e);
+                    };
 
-                    //
-                    switch (err && err.code) {
-                        case "ENOTFOUND":
-                            return reject({ status: false, code: 530, msg: "Host tidak ditemukan", error: err });
-                        case "ECONNREFUSED":
-                            return reject({ status: false, code: 530, msg: "Koneksi ditolak oleh server", error: err });
-                        case "ETIMEDOUT":
-                        case "ECONNABORTED":
-                            return reject({ status: false, code: 530, msg: "Waktu koneksi habis", error: err });
-                        default:
-                            return reject({
-                                status: false,
-                                code: 530,
-                                msg: typeof err.message === "string" && err.message.indexOf("Network Error") !== -1 ? "Jaringan/offline atau server tidak dapat dijangkau" : "Gagal menghubungi server",
-                                error: err,
-                            });
-                    }
+                    if (err?.response?.data) return pack(err.response.data);
+
+                    const code = err?.code;
+                    if (code === "ENOTFOUND")    return pack({ status: false, code: 530, msg: "Host tidak ditemukan" });
+                    if (code === "ECONNREFUSED") return pack({ status: false, code: 530, msg: "Koneksi ditolak oleh server" });
+                    if (code === "ETIMEDOUT" || code === "ECONNABORTED")
+                        return pack({ status: false, code: 530, msg: "Waktu koneksi habis" });
+
+                    const isNetwork = typeof err?.message === "string" && err.message.includes("Network Error");
+                    return pack({
+                        status: false,
+                        code: 530,
+                        msg: isNetwork ? "Jaringan/offline atau server tidak dapat dijangkau" : "Gagal menghubungi server"
+                    });
                 });
         });
     });
@@ -149,32 +132,27 @@ export function Product(mainWindow ?: BrowserWindow) {
                     return resolve({ ...response.data });
                 })
                 .catch((err) => {
-                    if (err && err.response)
-                        return reject({
-                            status: false,
-                            code: err.response.status ? err.response.status : 0,
-                            msg: (err.response.data && (err.response.data.message || err.response.data.msg)) || err.response.statusText || "Terjadi kesalahan",
-                            data: err.response.data ? err.response.data : null,
-                            error: { ...err, detail: { errno: err.errno, syscall: err.syscall, address: err.address, port: err.port } },
-                            meta: { ...err.response.config },
-                        });
+                    const pack = (payload: any) => {
+                        const e = new Error(JSON.stringify(payload)); // <-- kirim JSON di message
+                        (e as any).data = payload;                    // <-- bonus: taruh raw data kalau Electron gak nyopot
+                        (e as any).code = payload?.code ?? 530;
+                        return reject(e);
+                    };
 
-                    switch (err && err.code) {
-                        case "ENOTFOUND":
-                            return reject({ status: false, code: 530, msg: "Host tidak ditemukan", error: err });
-                        case "ECONNREFUSED":
-                            return reject({ status: false, code: 530, msg: "Koneksi ditolak oleh server", error: err });
-                        case "ETIMEDOUT":
-                        case "ECONNABORTED":
-                            return reject({ status: false, code: 530, msg: "Waktu koneksi habis", error: err });
-                        default:
-                            return reject({
-                                status: false,
-                                code: 530,
-                                msg: typeof err.message === "string" && err.message.indexOf("Network Error") !== -1 ? "Jaringan/offline atau server tidak dapat dijangkau" : "Gagal menghubungi server",
-                                error: err,
-                            });
-                    }
+                    if (err?.response?.data) return pack(err.response.data);
+
+                    const code = err?.code;
+                    if (code === "ENOTFOUND")    return pack({ status: false, code: 530, msg: "Host tidak ditemukan" });
+                    if (code === "ECONNREFUSED") return pack({ status: false, code: 530, msg: "Koneksi ditolak oleh server" });
+                    if (code === "ETIMEDOUT" || code === "ECONNABORTED")
+                        return pack({ status: false, code: 530, msg: "Waktu koneksi habis" });
+
+                    const isNetwork = typeof err?.message === "string" && err.message.includes("Network Error");
+                    return pack({
+                        status: false,
+                        code: 530,
+                        msg: isNetwork ? "Jaringan/offline atau server tidak dapat dijangkau" : "Gagal menghubungi server"
+                    });
                 });
         });
     });
@@ -191,33 +169,28 @@ export function Product(mainWindow ?: BrowserWindow) {
                 .then((response) => {
                     return resolve({ ...response.data });
                 })
-                .catch(async (err) => {
-                    if (err && err.response)
-                        return reject({
-                            status: false,
-                            code: err.response.status ? err.response.status : 0,
-                            msg: (err.response.data && (err.response.data.message || err.response.data.msg)) || err.response.statusText || "Terjadi kesalahan",
-                            data: err.response.data ? err.response.data : null,
-                            error: { ...err, detail: { errno: err.errno, syscall: err.syscall, address: err.address, port: err.port } },
-                            meta: { ...err.response.config },
-                        });
+                .catch((err) => {
+                    const pack = (payload: any) => {
+                        const e = new Error(JSON.stringify(payload)); // <-- kirim JSON di message
+                        (e as any).data = payload;                    // <-- bonus: taruh raw data kalau Electron gak nyopot
+                        (e as any).code = payload?.code ?? 530;
+                        return reject(e);
+                    };
 
-                    switch (err && err.code) {
-                        case "ENOTFOUND":
-                            return reject({ status: false, code: 530, msg: "Host tidak ditemukan", error: err });
-                        case "ECONNREFUSED":
-                            return reject({ status: false, code: 530, msg: "Koneksi ditolak oleh server", error: err });
-                        case "ETIMEDOUT":
-                        case "ECONNABORTED":
-                            return reject({ status: false, code: 530, msg: "Waktu koneksi habis", error: err });
-                        default:
-                            return reject({
-                                status: false,
-                                code: 530,
-                                msg: typeof err.message === "string" && err.message.indexOf("Network Error") !== -1 ? "Jaringan/offline atau server tidak dapat dijangkau" : "Gagal menghubungi server",
-                                error: err,
-                            });
-                    }
+                    if (err?.response?.data) return pack(err.response.data);
+
+                    const code = err?.code;
+                    if (code === "ENOTFOUND")    return pack({ status: false, code: 530, msg: "Host tidak ditemukan" });
+                    if (code === "ECONNREFUSED") return pack({ status: false, code: 530, msg: "Koneksi ditolak oleh server" });
+                    if (code === "ETIMEDOUT" || code === "ECONNABORTED")
+                        return pack({ status: false, code: 530, msg: "Waktu koneksi habis" });
+
+                    const isNetwork = typeof err?.message === "string" && err.message.includes("Network Error");
+                    return pack({
+                        status: false,
+                        code: 530,
+                        msg: isNetwork ? "Jaringan/offline atau server tidak dapat dijangkau" : "Gagal menghubungi server"
+                    });
                 });
         });
     });
@@ -233,33 +206,28 @@ export function Product(mainWindow ?: BrowserWindow) {
                 .then((response) => {
                     return resolve({ ...response.data });
                 })
-                .catch(async (err) => {
-                    if (err && err.response)
-                        return reject({
-                            status: false,
-                            code: err.response.status ? err.response.status : 0,
-                            msg: (err.response.data && (err.response.data.message || err.response.data.msg)) || err.response.statusText || "Terjadi kesalahan",
-                            data: err.response.data ? err.response.data : null,
-                            error: { ...err, detail: { errno: err.errno, syscall: err.syscall, address: err.address, port: err.port } },
-                            meta: { ...err.response.config },
-                        });
+                .catch((err) => {
+                    const pack = (payload: any) => {
+                        const e = new Error(JSON.stringify(payload)); // <-- kirim JSON di message
+                        (e as any).data = payload;                    // <-- bonus: taruh raw data kalau Electron gak nyopot
+                        (e as any).code = payload?.code ?? 530;
+                        return reject(e);
+                    };
 
-                    switch (err && err.code) {
-                        case "ENOTFOUND":
-                            return reject({ status: false, code: 530, msg: "Host tidak ditemukan", error: err });
-                        case "ECONNREFUSED":
-                            return reject({ status: false, code: 530, msg: "Koneksi ditolak oleh server", error: err });
-                        case "ETIMEDOUT":
-                        case "ECONNABORTED":
-                            return reject({ status: false, code: 530, msg: "Waktu koneksi habis", error: err });
-                        default:
-                            return reject({
-                                status: false,
-                                code: 530,
-                                msg: typeof err.message === "string" && err.message.indexOf("Network Error") !== -1 ? "Jaringan/offline atau server tidak dapat dijangkau" : "Gagal menghubungi server",
-                                error: err,
-                            });
-                    }
+                    if (err?.response?.data) return pack(err.response.data);
+
+                    const code = err?.code;
+                    if (code === "ENOTFOUND")    return pack({ status: false, code: 530, msg: "Host tidak ditemukan" });
+                    if (code === "ECONNREFUSED") return pack({ status: false, code: 530, msg: "Koneksi ditolak oleh server" });
+                    if (code === "ETIMEDOUT" || code === "ECONNABORTED")
+                        return pack({ status: false, code: 530, msg: "Waktu koneksi habis" });
+
+                    const isNetwork = typeof err?.message === "string" && err.message.includes("Network Error");
+                    return pack({
+                        status: false,
+                        code: 530,
+                        msg: isNetwork ? "Jaringan/offline atau server tidak dapat dijangkau" : "Gagal menghubungi server"
+                    });
                 });
         });
     });

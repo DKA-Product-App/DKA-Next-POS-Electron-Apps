@@ -34,31 +34,34 @@ import 'react-perfect-scrollbar/dist/css/styles.css';
 /* ==== External Modals (tetap) ==== */
 import NewProductModal from './(components)/NewProductModal';
 import EditProductModal from './(components)/EditProductModal';
-import DeleteProduct from './(components)/DeleteProduct';
-import {ImgWithSkeleton} from "../../../../../../utils/ImageProcessingIPC";
-import {useGodModeProvider} from "../../../../context/GodModeProviderContext";
+import DeleteModal from './(components)/DeleteModal';
+import { ImgWithSkeleton } from '../../../../../../utils/ImageProcessingIPC';
+import { useGodModeProvider } from '../../../../context/GodModeProviderContext';
 
 /* ==== Types ==== */
 type Variant = { id: string; code: string; name: string; price: string | number };
+type CategoryMini = { id: string; name: string };
 type ProductWithVariants = {
     id: string;
     name: string;
     description?: string;
     image?: string | null;
-    category?: Array<{ id: string; name: string }>;
+    category?: CategoryMini[];
     variants?: Variant[];
     status?: boolean;
 };
 
-const toIDR = (v: string | number | null | undefined) =>
-    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
-        .format(Number.isFinite(typeof v === 'string' ? Number(v) : (v ?? 0)) ? Number(typeof v === 'string' ? Number(v) : (v ?? 0)) : 0);
+const toIDR = (v: string | number | null | undefined) => {
+    const n = typeof v === 'string' ? Number(v) : (v ?? 0);
+    const val = Number.isFinite(n) ? Number(n) : 0;
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+};
 
 export default function CatalogProductsMRT() {
     /* ==== Data ==== */
     const [products, setProducts] = React.useState<ProductWithVariants[]>([]);
     const [loading, setLoading] = React.useState(false);
-    const { godMode, setGodMode } = useGodModeProvider();
+    const { godMode } = useGodModeProvider();
     const [error, setError] = React.useState<string | null>(null);
 
     const fetchProducts = React.useCallback(() => {
@@ -70,9 +73,7 @@ export default function CatalogProductsMRT() {
         }
         setLoading(true);
         window.api
-            .invoke('api.product:read.all', {
-                god_mode: godMode,
-            })
+            .invoke('api.product:read.all', { god_mode: godMode })
             .then((result: any) => {
                 const data = (result?.data ?? []) as ProductWithVariants[];
                 setProducts(Array.isArray(data) ? data : []);
@@ -105,6 +106,23 @@ export default function CatalogProductsMRT() {
         setVariantList([]);
     }, []);
 
+    /* ==== Popover Kategori (anchored) ==== */
+    const [catAnchorEl, setCatAnchorEl] = React.useState<HTMLElement | null>(null);
+    const [catTitle, setCatTitle] = React.useState<string>('');
+    const [catList, setCatList] = React.useState<CategoryMini[]>([]);
+
+    const openCategories = React.useCallback((anchor: HTMLElement, productName: string, categories: CategoryMini[]) => {
+        setCatAnchorEl(anchor);
+        setCatTitle(productName);
+        setCatList(categories ?? []);
+    }, []);
+
+    const closeCategories = React.useCallback(() => {
+        setCatAnchorEl(null);
+        setCatTitle('');
+        setCatList([]);
+    }, []);
+
     /* ==== Columns (MRT) ==== */
     const columnHelper = createMRTColumnHelper<ProductWithVariants>();
 
@@ -133,12 +151,43 @@ export default function CatalogProductsMRT() {
                     );
                 },
             }),
-            columnHelper.accessor((p) => p.category?.[0]?.name ?? '-', {
+
+            /* ==== CATEGORY: tampilkan semua kategori ==== */
+            columnHelper.display({
                 id: 'category',
                 header: 'CATEGORY',
-                size: 160,
-                enableColumnFilter: true,
+                size: 220,
+                enableColumnFilter: false,
+                Cell: ({ row }) => {
+                    const p = row.original;
+                    const cats = p.category ?? [];
+                    if (cats.length === 0) return <Typography variant="body2" color="text.secondary">—</Typography>;
+
+                    // tampilkan 2 chip pertama, sisanya via "+N"
+                    const visible = cats.slice(0, 2);
+                    const hidden = cats.slice(2);
+
+                    const onOpenAll = (e: React.MouseEvent<HTMLDivElement>) => {
+                        e.stopPropagation();
+                        openCategories(e.currentTarget as HTMLElement, p.name, cats);
+                    };
+
+                    return (
+                        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
+                            {visible.map(c => (
+                                <Chip key={c.id} size="small" variant="outlined" label={c.name} sx={{ borderRadius: 2, maxWidth: 140 }} />
+                            ))}
+                            {hidden.length > 0 && (
+                                <Tooltip title="Lihat semua kategori">
+                                    <Chip size="small" variant="outlined" label={`+${hidden.length}`} onClick={onOpenAll}
+                                          sx={{ borderRadius: 2, cursor: 'pointer' }} />
+                                </Tooltip>
+                            )}
+                        </Stack>
+                    );
+                },
             }),
+
             columnHelper.accessor(
                 (p) => Math.min(...(p.variants ?? []).map(v => Number(v.price)).filter(n => Number.isFinite(n as number)), Infinity),
                 {
@@ -156,6 +205,7 @@ export default function CatalogProductsMRT() {
                     muiTableFooterCellProps: { align: 'right' },
                 },
             ),
+
             columnHelper.accessor((p) => p.variants?.length ?? 0, {
                 id: 'variantsCount',
                 header: 'VARIANTS',
@@ -185,6 +235,7 @@ export default function CatalogProductsMRT() {
                 muiTableHeadCellProps: { align: 'center' },
                 muiTableFooterCellProps: { align: 'center' },
             }),
+
             columnHelper.display({
                 id: 'actions',
                 header: 'ACTIONS',
@@ -202,11 +253,7 @@ export default function CatalogProductsMRT() {
                                 }
                                 onUpdated={fetchProducts}
                             />
-                            <DeleteProduct
-                                productId={p.id}
-                                productName={p.name}
-                                onDeleted={fetchProducts}
-                            />
+                            <DeleteModal id={p.id} name={p.name} onDeleted={fetchProducts} />
                         </Stack>
                     );
                 },
@@ -217,7 +264,7 @@ export default function CatalogProductsMRT() {
                 enableSorting: false,
             }),
         ],
-        [columnHelper, fetchProducts, openVariants],
+        [columnHelper, fetchProducts, openVariants, openCategories],
     );
 
     /* ==== MRT Table Instance ==== */
@@ -258,6 +305,9 @@ export default function CatalogProductsMRT() {
     /* ==== Render ==== */
     const popoverOpen = Boolean(anchorEl);
     const popId = popoverOpen ? 'popover-variants' : undefined;
+
+    const catPopoverOpen = Boolean(catAnchorEl);
+    const catPopId = catPopoverOpen ? 'popover-categories' : undefined;
 
     return (
         <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -336,6 +386,69 @@ export default function CatalogProductsMRT() {
 
                 <Box sx={{ px: 1.5, py: 1, textAlign: 'right' }}>
                     <Button size="small" onClick={closeVariants}>Tutup</Button>
+                </Box>
+            </Popover>
+
+            {/* Popover Kategori */}
+            <Popover
+                id={catPopId}
+                open={catPopoverOpen}
+                anchorEl={catAnchorEl}
+                onClose={closeCategories}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'center' }}
+                slotProps={{ paper: { sx: { width: 420, maxWidth: 'calc(100vw - 32px)', borderRadius: 2, overflow: 'hidden' } } }}
+            >
+                <Box sx={{
+                    px: 2, py: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    backgroundColor: (t) => t.palette.background.paper, borderBottom: (t) => `1px solid ${t.palette.divider}`,
+                }}>
+                    <Typography variant="subtitle2">Kategori — {catTitle || '—'}</Typography>
+                    <Chip size="small" variant="outlined" label={`${catList.length} item`} sx={{ borderRadius: 2 }} />
+                </Box>
+
+                <Box sx={{ height: 280, width: '100%' }}>
+                    <PerfectScrollbar option={{ suppressScrollX: false }}>
+                        {catList.length === 0 ? (
+                            <Box sx={{ px: 2, py: 3 }}>
+                                <Typography variant="body2" color="text.secondary">Tidak ada kategori.</Typography>
+                            </Box>
+                        ) : (
+                            <List dense disablePadding>
+                                <ListItem
+                                    disableGutters
+                                    sx={{
+                                        px: 1.5, py: 0.75, position: 'sticky', top: 0, zIndex: 1,
+                                        backgroundColor: (t) => t.palette.background.paper, borderBottom: (t) => `1px solid ${t.palette.divider}`,
+                                    }}
+                                >
+                                    <Typography variant="caption" sx={{ flex: 1, fontWeight: 700, color: 'text.secondary' }}>
+                                        Category Name
+                                    </Typography>
+                                </ListItem>
+
+                                {catList.map((c) => (
+                                    <React.Fragment key={c.id}>
+                                        <ListItem
+                                            disableGutters
+                                            sx={{ px: 1.5, py: 0.75, '&:hover': { backgroundColor: (t) => t.palette.action.hover } }}
+                                        >
+                                            <ListItemText
+                                                primary={<Typography variant="body2" fontWeight={600} noWrap title={c.name}>{c.name}</Typography>}
+                                                secondary={null}
+                                                sx={{ m: 0 }}
+                                            />
+                                        </ListItem>
+                                        <Divider sx={{ mx: 1.5 }} />
+                                    </React.Fragment>
+                                ))}
+                            </List>
+                        )}
+                    </PerfectScrollbar>
+                </Box>
+
+                <Box sx={{ px: 1.5, py: 1, textAlign: 'right' }}>
+                    <Button size="small" onClick={closeCategories}>Tutup</Button>
                 </Box>
             </Popover>
         </Paper>
