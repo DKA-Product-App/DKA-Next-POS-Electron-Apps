@@ -7,8 +7,12 @@ import {
     Paper,
     Stack,
     Typography,
+    Tooltip,
+    IconButton,
 } from '@mui/material';
 import AddRounded from '@mui/icons-material/AddRounded';
+import EditRounded from '@mui/icons-material/EditRounded';
+import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 
 import {
     MaterialReactTable,
@@ -18,12 +22,25 @@ import {
 import { ImgWithSkeleton } from '../../../../../../utils/ImageProcessingIPC';
 import { ProductsVariants } from '../../../../../../types/product/products.variants.type';
 import { Products } from '../../../../../../types/product/products.type';
+import DeleteModal from "./(components)/DeleteModal";
+import EditProductModal from "../(products)/(components)/EditProductModal";
+import EditModal from "./(components)/EditModal";
 
 type ProductRow = {
     id: string;
     product: Products;
     description?: string | null;
     subRows?: ProductsVariants[];
+};
+
+/* ====== Props opsional buat integrasi modal/API kamu ======
+   - onAddVariant(product) dipanggil pas klik "Tambah Varian" di parent row
+   - onEditVariant(variant) & onDeleteVariant(variant) dipanggil di child row
+*/
+type Props = {
+    onAddVariant?: (product: Products) => void;
+    onEditVariant?: (variant: ProductsVariants) => void;
+    onDeleteVariant?: (variant: ProductsVariants) => void;
 };
 
 /* ===== Utils ===== */
@@ -42,7 +59,11 @@ const isVariant = (row: unknown): row is ProductsVariants =>
     !!row && typeof row === 'object' && (row as any).price !== undefined;
 
 /* ===== Komponen ===== */
-export default function CatalogProductsTree() {
+export default function CatalogProductsTree({
+                                                onAddVariant,
+                                                onEditVariant,
+                                                onDeleteVariant,
+                                            }: Props) {
     const [variants, setVariants] = React.useState<ProductsVariants[]>([]);
     const [rows, setRows] = React.useState<ProductRow[]>([]);
     const [loading, setLoading] = React.useState(false);
@@ -181,15 +202,56 @@ export default function CatalogProductsTree() {
     /* MRT Table Instance — tree mode (subRows) */
     const table = useMaterialReactTable({
         columns,
-        data: rows as unknown as (ProductRow | ProductsVariants)[], // parent: ProductRow[], child: ProductsVariants[]
+        data: rows as unknown as (ProductRow | ProductsVariants)[],
         enableExpanding: true,
         enableExpandAll: false,
         filterFromLeafRows: true,
-        getSubRows: (row) => hasSubRows(row) ? row.subRows : undefined, // <- FIX: type-safe
-        initialState: { density: 'comfortable' },
+        getSubRows: (row) => hasSubRows(row) ? row.subRows : undefined,
         paginateExpandedRows: false,
 
-        // baseline template v2
+        /* ⬇️⬇️⬇️ INI KUNCI BIAR KOLUM AKSI MUNCUL ⬇️⬇️⬇️ */
+        enableRowActions: true,                 // ✅ WAJIB biar actions column nongol
+        renderRowActions: ({ row }) => {
+            if (row.depth === 0) {
+                const p = (row.original as ProductRow).product;
+                return (
+                    <Tooltip title="Tambah Varian">
+                        <Button variant="outlined" size="small" startIcon={<AddRounded />} onClick={() => onAddVariant?.(p)}>
+                            Variant
+                        </Button>
+                    </Tooltip>
+                );
+            }
+            const v = row.original as ProductsVariants;
+            return (
+                <Stack direction="row" spacing={0.5}>
+                    <EditModal
+                        variantId={v.id}
+                        trigger={
+                            <Tooltip title="Edit">
+                                <IconButton size="small" color="primary"><EditRounded fontSize="small" /></IconButton>
+                            </Tooltip>
+                        }
+                        onUpdated={fetchVariants}
+                    />
+                    <DeleteModal
+                        id={v?.id}
+                        name={`${v?.name} - ${v?.product?.name}`}
+                        onDeleted={fetchVariants}
+                    />
+                </Stack>
+            );
+        },
+        positionActionsColumn: 'last',          // ✅ taruh di paling kanan
+        displayColumnDefOptions: {
+            'mrt-row-actions': { size: 120, grow: false }, // ✅ tanpa columnOrder (TS2353)
+        },
+        // (opsional) pastikan urutan kolom eksplisit
+        initialState: {
+            density: 'comfortable',
+            columnOrder: ['productVariant', 'price', 'description', 'mrt-row-actions'],
+        },
+        /* baseline v2 mu */
         state: { showProgressBars: loading },
         columnFilterDisplayMode: 'popover',
         paginationDisplayMode: 'pages',
@@ -216,6 +278,7 @@ export default function CatalogProductsTree() {
             </Stack>
         ),
     });
+
 
     return (
         <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
