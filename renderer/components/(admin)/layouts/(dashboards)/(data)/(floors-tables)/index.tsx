@@ -20,6 +20,7 @@ import {
     type MRT_ColumnDef,
 } from 'material-react-table';
 import DeleteModal from './(components)/DeleteModal';
+import NewModal from "./(components)/NewModal";
 
 /* ========= Types dari response ========= */
 type ApiAccountRef = {
@@ -347,9 +348,11 @@ export default function TablesTree() {
                 </Box>
                 <Stack direction="row" spacing={1}>
                     <Button variant="outlined" onClick={fetchTables}>Refresh</Button>
-                    <Button variant="contained" startIcon={<AddRounded />} onClick={() => console.log('open create table')}>
-                        Tambah Table
-                    </Button>
+                    <NewModal
+                        triggerLabel="Tambah Meja"
+                        triggerProps={{ color: 'primary', startIcon: <AddRounded /> }}
+                        onCreated={fetchTables}
+                    />
                 </Stack>
             </Stack>
         ),

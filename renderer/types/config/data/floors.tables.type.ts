@@ -19,14 +19,14 @@ export interface ApiTableDimension {
 }
 
 export interface FloorsTables {
-    id: string;
-    code: string;                 // contoh: "T01"
-    name: string;                 // contoh: "Meja 01"
-    shape: TableShape;            // contoh: "RECTANGLE"
-    capacity: number;             // contoh: 2
-    coordinate: ApiTableCoordinate;
-    dimension: ApiTableDimension;
-    state: TableState;            // contoh: "AVAILABLE"
+    id?: string;
+    code?: string;                 // contoh: "T01"
+    name?: string;                 // contoh: "Meja 01"
+    shape?: TableShape;            // contoh: "RECTANGLE"
+    capacity?: number;             // contoh: 2
+    coordinate?: ApiTableCoordinate;
+    dimension?: ApiTableDimension;
+    state?: TableState;            // contoh: "AVAILABLE"
     status?: boolean;             // true
     time_created?: string;        // ISO
     time_updated?: string;        // ISO
