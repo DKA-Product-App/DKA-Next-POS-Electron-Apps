@@ -57,7 +57,7 @@ export default function TimeWidget({
         window.ipc?.on?.('time_sync', onTime)
 
         return () => {
-           /* window.ipc?.off?.('time_sync', onTime)*/
+            window.ipc?.revoke?.('time_sync');
         }
     }, [fmtTime, fmtDate])
 

@@ -19,8 +19,7 @@ import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
 
 import { useTablesCtx, type TableDraft as CtxTableDraft } from './../../context/TablesContext';
-import { useThemeCharger } from '../../../../../../../../../../contexts/ThemeCharger';
-// sesuaikan path ini dengan project kamu bila perlu
+import {useThemeCharger} from "../../../../../../../../../../contexts/ThemeCharger";
 
 type Shape = 'rect' | 'round';
 export type TableDraft = CtxTableDraft;
@@ -76,18 +75,31 @@ const mapServerFloors = (data: ServerFloor[]): FloorDraft[] =>
         }),
     }));
 
-export default function TableLayoutCreator({
-                                               gridSize = 10,
-                                           }: {
-    gridSize?: number;
-}) {
-    // ===== THEME (dark / light) =====
+// shallow equal utk array drafts (hindari sync berulang)
+const draftsShallowEqual = (a: TableDraft[], b: TableDraft[]) => {
+    if (a === b) return true;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+        const x = a[i], y = b[i];
+        if (
+            x.id !== y.id ||
+            x.shape !== y.shape ||
+            x.label !== y.label ||
+            x.capacity !== y.capacity ||
+            x.x !== y.x || x.y !== y.y ||
+            x.w !== y.w || x.h !== y.h || x.r !== y.r ||
+            x.rot !== y.rot || x.locked !== y.locked
+        ) return false;
+    }
+    return true;
+};
+
+export default function TableLayoutCreator({ gridSize = 10 }: { gridSize?: number }) {
     const { mode } = useThemeCharger();
     const isDark = mode === 'dark';
-
     const COLORS = React.useMemo(() => ({
         bg: isDark ? '#0e1117' : '#f4f6f8',
-        border: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.10)',
+        border: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)',
         grid: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.03)',
         wood1: isDark ? '#b7896a' : '#d8b6a1',
         wood2: isDark ? '#93674d' : '#bf8e70',
@@ -97,31 +109,31 @@ export default function TableLayoutCreator({
         badgeText: '#fff',
     }), [isDark]);
 
-    const { setCurrentFloorId, syncDrafts, selected: selGlobal, setSelected: setSelGlobal } = useTablesCtx();
+    const {
+        setCurrentFloorId,        // <-- hati2 panggilnya
+        syncDrafts,               // <-- sinkron ke kanan
+        selected: selGlobal,
+        setSelected: setSelGlobal
+    } = useTablesCtx();
 
     const [floors, setFloors] = React.useState<FloorDraft[]>([]);
     const [floorId, setFloorId] = React.useState<string>('');
-    const current = React.useMemo(() => floors.find(f => f.id === floorId) || floors[0], [floors, floorId]);
+    const current = React.useMemo(
+        () => floors.find(f => f.id === floorId) || floors[0],
+        [floors, floorId]
+    );
 
-    // selection pakai context (sinkron panel kanan)
     const selected = selGlobal;
     const setSelected = setSelGlobal;
 
-    // supaya readFloors stabil tanpa depend ke setSelected
-    const setSelectedRef = React.useRef(setSelected);
-    React.useEffect(() => { setSelectedRef.current = setSelected; }, [setSelected]);
-
-    const containerRef = React.useRef<HTMLDivElement | null>(null);
-    const svgRef = React.useRef<SVGSVGElement | null>(null);
-    const [size, setSize] = React.useState({ w: 900, h: 540 });
-    const [viewBox, setViewBox] = React.useState({ x: 0, y: 0, w: 900, h: 540 });
-    const [spaceDown, setSpaceDown] = React.useState(false);
-    const [cursor, setCursor] = React.useState<'default' | 'grab' | 'grabbing' | 'not-allowed' | 'move'>('default');
+    // ref utk guard panggilan yang harusnya hanya sekali
+    const lastDraftsRef = React.useRef<Record<string, TableDraft[]>>({});
+    const lastFloorIdSentRef = React.useRef<string>('');     // ← guard setCurrentFloorId
 
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
 
-    /** ===== Load floors via IPC (STABIL) ===== */
+    /** ===== Load floors via IPC (STABIL, no deps) ===== */
     const readFloors = React.useCallback(() => {
         setLoading(true);
         setError(null);
@@ -131,19 +143,55 @@ export default function TableLayoutCreator({
                 const ok = !!res?.status && Array.isArray(res?.data);
                 const mapped = ok ? mapServerFloors(res.data as ServerFloor[]) : [];
                 setFloors(mapped);
+                // pilih lantai pertama jika belum ada
                 setFloorId(prev => prev || mapped[0]?.id || '');
-                setSelectedRef.current([]); // clear selection
-                !ok && setError(typeof res?.msg === 'string' ? res.msg : 'Format respons tidak valid');
+                setSelected([]); // clear selection
+
+                if (!ok) setError(typeof res?.msg === 'string' ? res.msg : 'Format respons tidak valid');
+
+                // sinkron awal utk lantai awal SAJA (tanpa memanggil setter lain)
+                const fid = mapped[0]?.id;
+                if (fid) {
+                    const cur = mapped.find(f => f.id === fid) || mapped[0];
+                    const drafts = (cur?.tables || []).filter(t => !t.locked);
+                    lastDraftsRef.current[fid] = drafts;
+                    // jangan panggil syncDrafts di sini — biar effect di bawah yg urus setelah setFloorId benar2 settled
+                }
             })
             .catch((e: any) => setError(typeof e?.message === 'string' ? e.message : 'Gagal memuat data lantai'))
             .finally(() => setLoading(false));
-    }, []);
+    }, []); // ← penting: no deps
 
-    // mount
     React.useEffect(() => { readFloors(); }, [readFloors]);
 
-    // sync floor id ke context (buat panel kanan)
-    React.useEffect(() => { floorId && setCurrentFloorId(floorId); }, [floorId, setCurrentFloorId]);
+    /** ===== Effect: kirim floorId ke context HANYA jika berubah ===== */
+    React.useEffect(() => {
+        if (!floorId) return;
+        if (lastFloorIdSentRef.current !== floorId) {
+            lastFloorIdSentRef.current = floorId;
+            setCurrentFloorId(floorId);           // ← tidak akan loop
+        }
+    }, [floorId, setCurrentFloorId]);
+
+    /** ===== Effect: sinkron drafts ke context, dengan guard deep-shallow ===== */
+    React.useEffect(() => {
+        if (!floorId) return;
+        const cur = floors.find(f => f.id === floorId);
+        const drafts = (cur?.tables || []).filter(t => !t.locked);
+        const last = lastDraftsRef.current[floorId] || [];
+        if (!draftsShallowEqual(drafts, last)) {
+            lastDraftsRef.current[floorId] = drafts;
+            syncDrafts(floorId, drafts);
+        }
+    }, [floors, floorId, syncDrafts]);
+
+    /** ===== Canvas sizing / zoom / pan ===== */
+    const containerRef = React.useRef<HTMLDivElement | null>(null);
+    const svgRef = React.useRef<SVGSVGElement | null>(null);
+    const [size, setSize] = React.useState({ w: 900, h: 540 });
+    const [viewBox, setViewBox] = React.useState({ x: 0, y: 0, w: 900, h: 540 });
+    const [spaceDown, setSpaceDown] = React.useState(false);
+    const [cursor, setCursor] = React.useState<'default' | 'grab' | 'grabbing' | 'not-allowed' | 'move'>('default');
 
     React.useLayoutEffect(() => {
         if (!containerRef.current) return;
@@ -176,41 +224,44 @@ export default function TableLayoutCreator({
             return { x: cx - nw / 2, y: cy - nh / 2, w: nw, h: nh };
         });
 
-    /** ===== DRAG state (global di SVG) ===== */
+    /** ===== DRAG state + RAF throttle ===== */
     const dragRef = React.useRef<{ ids: string[]; ox: number; oy: number; tx: number; ty: number } | null>(null);
     const rafRef = React.useRef<number | null>(null);
     const pendingMove = React.useRef<{ ids: string[], nx: number, ny: number } | null>(null);
 
     const tables = current?.tables ?? [];
 
-    /** ===== setTables dengan EAGER SYNC ke context ===== */
+    /** ===== Satu-satunya jalur update + eager sync ===== */
     const setTablesSync = React.useCallback((updater: (prev: TableDraft[]) => TableDraft[]) => {
         const fid = floorId || current?.id || '';
         if (!fid) return;
-
-        setFloors(prev =>
-            prev.map(f => {
-                if (f.id !== (current?.id || floorId)) return f;
-                const prevTables = f.tables;
-                const nextTables = updater(prevTables);
-                // langsung sinkronkan draft (!locked) ke context → panel kanan realtime
-                syncDrafts(fid, nextTables.filter(t => !t.locked));
-                return { ...f, tables: nextTables };
-            }),
-        );
+        setFloors(prev => prev.map(f => {
+            if (f.id !== (current?.id || floorId)) return f;
+            const next = updater(f.tables);
+            // update cache + sync drafts bila berubah
+            const drafts = next.filter(t => !t.locked);
+            const last = lastDraftsRef.current[fid] || [];
+            if (!draftsShallowEqual(drafts, last)) {
+                lastDraftsRef.current[fid] = drafts;
+                syncDrafts(fid, drafts);
+            }
+            return { ...f, tables: next };
+        }));
     }, [current?.id, floorId, syncDrafts]);
 
     /** ===== Actions ===== */
     const addTable = (shape: Shape) => {
         const base: TableDraft = shape === 'rect'
-            ? { id: uid(), shape, label: '', capacity: 4, x: 200, y: 160, w: 120, h: 70, rot: 0 }
-            : { id: uid(), shape, label: '', capacity: 4, x: 200, y: 160, r: 45, rot: 0 };
+            ? { id: uid(), shape, label: 'T-NEW', capacity: 4, x: 200, y: 160, w: 120, h: 70, rot: 0 }
+            : { id: uid(), shape, label: 'T-NEW', capacity: 4, x: 200, y: 160, r: 45, rot: 0 };
         setTablesSync(prev => prev.concat(base));
         setSelected([base.id]);
     };
 
     const duplicate = () => {
-        const clones = tables.filter(t => selected.includes(t.id) && !t.locked).map(t => ({ ...t, id: uid(), x: t.x + 24, y: t.y + 24 }));
+        const clones = tables
+            .filter(t => selected.includes(t.id) && !t.locked)
+            .map(t => ({ ...t, id: uid(), x: t.x + 24, y: t.y + 24 }));
         if (!clones.length) return;
         setTablesSync(prev => prev.concat(clones));
         setSelected(clones.map(c => c.id));
@@ -224,7 +275,7 @@ export default function TableLayoutCreator({
         setSelected([]);
     };
 
-    /** ===== Keyboard (abaikan locked) ===== */
+    /** ===== Keyboard ===== */
     React.useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (!current || !selected.length) return;
@@ -249,8 +300,7 @@ export default function TableLayoutCreator({
         return () => window.removeEventListener('keydown', onKey);
     }, [current, selected, tables, gridSize, setTablesSync]);
 
-    /** ===== SVG Pointer Handlers: pan & drag di satu tempat ===== */
-
+    /** ===== SVG: pan & drag di satu tempat ===== */
     const nodeFromEvent = (e: React.PointerEvent<SVGSVGElement>) => {
         const el = (e.target as Element).closest('g.creator-node') as SVGGElement | null;
         if (!el) return null;
@@ -263,23 +313,16 @@ export default function TableLayoutCreator({
         const midBtn = e.button === 1 || (e.buttons & 4) === 4;
         const node = nodeFromEvent(e);
 
-        // Drag priority jika klik di node yang tidak locked & bukan middle/space
         if (node && !node.locked && !midBtn && !spaceDown) {
             const t = tables.find(x => x.id === node.id); if (!t) return;
             if (!selected.includes(node.id)) setSelected(e.shiftKey ? [...selected, node.id] : [node.id]);
             svgRef.current?.setPointerCapture(e.pointerId);
-            dragRef.current = {
-                ids: selected.includes(node.id) ? selected : [node.id],
-                ox: e.clientX,
-                oy: e.clientY,
-                tx: t.x,
-                ty: t.y,
-            };
+            dragRef.current = { ids: selected.includes(node.id) ? selected : [node.id], ox: e.clientX, oy: e.clientY, tx: t.x, ty: t.y };
             setCursor('grabbing');
             return;
         }
 
-        // ELSE: pan mode
+        // pan
         svgRef.current?.setPointerCapture(e.pointerId);
         isPanning.current = true;
         panStart.current = { x: e.clientX, y: e.clientY, vx: viewBox.x, vy: viewBox.y, pid: e.pointerId };
@@ -287,7 +330,6 @@ export default function TableLayoutCreator({
     };
 
     const onSvgPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
-        // Drag branch
         if (dragRef.current) {
             const d = dragRef.current;
             const svg = svgRef.current; if (!svg) return;
@@ -301,13 +343,14 @@ export default function TableLayoutCreator({
                 rafRef.current = requestAnimationFrame(() => {
                     const p = pendingMove.current; rafRef.current = null;
                     if (!p) return;
-                    setTablesSync(prev => prev.map(t => (p.ids.includes(t.id) && !t.locked) ? { ...t, x: p.nx, y: p.ny } : t));
+                    setTablesSync(prev => prev.map(t =>
+                        (p.ids.includes(t.id) && !t.locked) ? { ...t, x: p.nx, y: p.ny } : t
+                    ));
                 });
             }
             return;
         }
 
-        // Pan branch
         if (isPanning.current) {
             const ps = panStart.current, svg = svgRef.current;
             if (!ps || !svg) return;
@@ -318,29 +361,25 @@ export default function TableLayoutCreator({
             return;
         }
 
-        // Hover branch (ubah cursor)
         const node = nodeFromEvent(e);
         setCursor(node ? (node.locked ? 'not-allowed' : 'move') : 'grab');
     };
 
     const onSvgPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
-        // Finish drag
         if (dragRef.current) {
-            const d = dragRef.current;
-            dragRef.current = null;
+            const d = dragRef.current; dragRef.current = null;
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
             rafRef.current = null; pendingMove.current = null;
 
-            setTablesSync(prev => prev.map(t => (d.ids.includes(t.id) && !t.locked)
-                ? { ...t, x: snap(t.x, gridSize), y: snap(t.y, gridSize) }
-                : t));
+            setTablesSync(prev => prev.map(t =>
+                (d.ids.includes(t.id) && !t.locked) ? { ...t, x: snap(t.x, gridSize), y: snap(t.y, gridSize) } : t
+            ));
 
             svgRef.current?.releasePointerCapture?.(e.pointerId as any);
             setCursor('grab');
             return;
         }
 
-        // Finish pan
         if (isPanning.current) {
             isPanning.current = false; panStart.current = null; setCursor('grab');
             svgRef.current?.releasePointerCapture?.(e.pointerId as any);
@@ -348,7 +387,6 @@ export default function TableLayoutCreator({
     };
 
     const onSvgPointerLeave = () => {
-        // Safety: kalau pointer keluar area, akhiri drag/pan
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
         rafRef.current = null; pendingMove.current = null;
         dragRef.current = null;
@@ -356,20 +394,19 @@ export default function TableLayoutCreator({
         setCursor('grab');
     };
 
-    // ===== Inspector: selectedTable stabil + updater by id (eager sync) =====
+    /** ===== Inspector mini (sinkron real-time) ===== */
     const selectedTable = React.useMemo(
         () => (selected.length === 1 ? tables.find(t => t.id === selected[0]) : undefined),
         [tables, selected]
     );
     const canEditSelected = !!selectedTable && !selectedTable.locked;
-
     const updateSelectedById = React.useCallback((id: string, patch: Partial<TableDraft>) => {
         setTablesSync(prev => prev.map(t => (t.id === id && !t.locked) ? { ...t, ...patch } : t));
     }, [setTablesSync]);
 
     return (
         <Paper variant="outlined" sx={{ width: '100%', height: '100%', p: 1, borderRadius: 2, display: 'flex', flexDirection: 'column' }}>
-            {/* Toolbar (NO SAVE) */}
+            {/* Toolbar (NO SAVE di sini) */}
             <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1, flexWrap: 'wrap' }}>
                 <Chip icon={<LayersRounded />} label={current?.name || current?.id || (loading ? 'Memuat…' : '—')} variant="outlined" />
                 <TextField
@@ -408,147 +445,153 @@ export default function TableLayoutCreator({
 
             {/* Body */}
             <Box sx={{ position: 'relative', flex: 1, minHeight: 0 }}>
-                <Box ref={containerRef} sx={{ position: 'relative', height: "100%" }}>
-                    <svg
-                        ref={svgRef}
-                        width="100%" height="100%"
-                        viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
-                        style={{ touchAction: 'none', userSelect: 'none', display: 'block', cursor }}
-                        onPointerDown={onSvgPointerDown}
-                        onPointerMove={onSvgPointerMove}
-                        onPointerUp={onSvgPointerUp}
-                        onPointerLeave={onSvgPointerLeave}
-                        onWheel={(e) => { e.preventDefault(); applyZoom(e.deltaY > 0 ? 1.1 : 0.9); }}
-                    >
-                        <defs>
-                            <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
-                                <stop offset="0%" stopColor={COLORS.wood1}/><stop offset="100%" stopColor={COLORS.wood2}/>
-                            </linearGradient>
-                            <pattern id="woodVar" width="24" height="24" patternUnits="userSpaceOnUse">
-                                <rect width="24" height="24" fill="none"/>
-                                <path d="M0 12 H24" stroke="#000" strokeOpacity={isDark ? 0.06 : 0.035} strokeWidth="1"/>
-                                <path d="M12 0 V24" stroke="#000" strokeOpacity={isDark ? 0.06 : 0.035} strokeWidth="1"/>
-                            </pattern>
-                            <radialGradient id="gloss" cx="0.35" cy="0.35" r="0.8">
-                                <stop offset="0%" stopColor="#fff" stopOpacity={COLORS.glossOpacity}/><stop offset="100%" stopColor="#fff" stopOpacity="0"/>
-                            </radialGradient>
-                            <filter id="hardShadow" x="-30%" y="-30%" width="160%" height="160%">
-                                <feGaussianBlur in="SourceAlpha" stdDeviation="1.25" result="blur"/>
-                                <feOffset dx="0" dy="1" result="offset"/>
-                                <feMerge><feMergeNode in="offset"/><feMergeNode in="SourceGraphic"/></feMerge>
-                            </filter>
-                        </defs>
+                <PerfectScrollbar style={{ height: '100%' }} options={{ suppressScrollX: true }}>
+                    <Box ref={containerRef} sx={{ position: 'relative', height: 560 }}>
+                        <svg
+                            ref={svgRef}
+                            width="100%" height="100%"
+                            viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
+                            style={{ touchAction: 'none', userSelect: 'none', display: 'block', cursor }}
+                            onPointerDown={onSvgPointerDown}
+                            onPointerMove={onSvgPointerMove}
+                            onPointerUp={onSvgPointerUp}
+                            onPointerLeave={onSvgPointerLeave}
+                            onWheel={(e) => { e.preventDefault(); applyZoom(e.deltaY > 0 ? 1.1 : 0.9); }}
+                        >
+                            <defs>
+                                <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
+                                    <stop offset="0%" stopColor={COLORS.wood1}/><stop offset="100%" stopColor={COLORS.wood2}/>
+                                </linearGradient>
+                                <pattern id="woodVar" width="24" height="24" patternUnits="userSpaceOnUse">
+                                    <rect width="24" height="24" fill="none"/>
+                                    <path d="M0 12 H24" stroke="#000" strokeOpacity={isDark ? 0.06 : 0.035} strokeWidth="1"/>
+                                    <path d="M12 0 V24" stroke="#000" strokeOpacity={isDark ? 0.06 : 0.035} strokeWidth="1"/>
+                                </pattern>
+                                <radialGradient id="gloss" cx="0.35" cy="0.35" r="0.8">
+                                    <stop offset="0%" stopColor="#fff" stopOpacity={COLORS.glossOpacity}/><stop offset="100%" stopColor="#fff" stopOpacity="0"/>
+                                </radialGradient>
+                                <filter id="hardShadow" x="-30%" y="-30%" width="160%" height="160%">
+                                    <feGaussianBlur in="SourceAlpha" stdDeviation="1.25" result="blur"/>
+                                    <feOffset dx="0" dy="1" result="offset"/>
+                                    <feMerge><feMergeNode in="offset"/><feMergeNode in="SourceGraphic"/></feMerge>
+                                </filter>
+                            </defs>
 
-                        {/* floor bg */}
-                        <rect x={viewBox.x - 40} y={viewBox.y - 40} width={viewBox.w + 80} height={viewBox.h + 80} fill={COLORS.bg}/>
-                        <rect x={viewBox.x} y={viewBox.y} width={viewBox.w} height={viewBox.h} fill="none" stroke={COLORS.border}/>
-                        {/* grid */}
-                        {Array.from({ length: Math.ceil(viewBox.w / gridSize) + 2 }).map((_, i) => (
-                            <line key={`gx-${i}`} x1={viewBox.x + i * gridSize} y1={viewBox.y}
-                                  x2={viewBox.x + i * gridSize} y2={viewBox.y + viewBox.h} stroke={COLORS.grid}/>
-                        ))}
-                        {Array.from({ length: Math.ceil(viewBox.h / gridSize) + 2 }).map((_, i) => (
-                            <line key={`gy-${i}`} y1={viewBox.y + i * gridSize} x1={viewBox.x}
-                                  y2={viewBox.y + i * gridSize} x2={viewBox.x + viewBox.w} stroke={COLORS.grid}/>
-                        ))}
+                            {/* floor bg + border */}
+                            <rect x={viewBox.x - 40} y={viewBox.y - 40} width={viewBox.w + 80} height={viewBox.h + 80} fill={COLORS.bg}/>
+                            <rect x={viewBox.x} y={viewBox.y} width={viewBox.w} height={viewBox.h} fill="none" stroke={COLORS.border}/>
 
-                        {/* tables */}
-                        {(current?.tables ?? []).map(t => (
-                            <g
-                                key={t.id}
-                                className={`creator-node${t.locked ? ' locked' : ''}`}
-                                data-id={t.id}
-                                data-locked={t.locked ? 'true' : 'false'}
-                                transform={`translate(${t.x},${t.y}) rotate(${t.rot ?? 0})`}
-                                style={{ cursor: t.locked ? 'not-allowed' : 'move' }}
-                            >
-                                {t.shape === 'round' ? (
-                                    <>
-                                        <circle cx={0} cy={0} r={(t.r ?? 40)} fill="url(#wood)" filter="url(#hardShadow)"/>
-                                        <circle cx={0} cy={0} r={(t.r ?? 40) - 1} fill="url(#woodVar)" opacity={0.35}/>
-                                        <ellipse cx={-(t.r ?? 40) * 0.25} cy={-(t.r ?? 40) * 0.25} rx={(t.r ?? 40) * 0.7} ry={(t.r ?? 40) * 0.45} fill="url(#gloss)"/>
-                                        {t.locked
-                                            ? <circle cx={0} cy={0} r={(t.r ?? 40) - 2} fill="none" stroke={COLORS.lockedStroke} strokeDasharray="4 3" strokeWidth={2}/>
-                                            : (selected.includes(t.id) && <circle cx={0} cy={0} r={(t.r ?? 40) - 2} fill="none" stroke="#1976d2" strokeWidth={2}/>)
-                                        }
-                                    </>
-                                ) : (
-                                    <>
-                                        <rect x={-(t.w ?? 100) / 2} y={-(t.h ?? 60) / 2} width={t.w ?? 100} height={t.h ?? 60} rx={10} fill="url(#wood)" filter="url(#hardShadow)"/>
-                                        <rect x={-(t.w ?? 100) / 2} y={-(t.h ?? 60) / 2} width={t.w ?? 100} height={t.h ?? 60} rx={10} fill="url(#woodVar)" opacity={0.35}/>
-                                        <ellipse cx={-(t.w ?? 100) * 0.2} cy={-(t.h ?? 60) * 0.25} rx={(t.w ?? 100) * 0.35} ry={(t.h ?? 60) * 0.35} fill="url(#gloss)"/>
-                                        {t.locked
-                                            ? <rect x={-(t.w ?? 100) / 2} y={-(t.h ?? 60) / 2} width={t.w ?? 100} height={t.h ?? 60} rx={10} fill="none" stroke={COLORS.lockedStroke} strokeDasharray="4 3" strokeWidth={2}/>
-                                            : (selected.includes(t.id) && <rect x={-(t.w ?? 100) / 2} y={-(t.h ?? 60) / 2} width={t.w ?? 100} height={t.h ?? 60} rx={10} fill="none" stroke="#1976d2" strokeWidth={2}/>)
-                                        }
-                                    </>
-                                )}
+                            {/* grid */}
+                            {Array.from({ length: Math.ceil(viewBox.w / gridSize) + 2 }).map((_, i) => (
+                                <line key={`gx-${i}`} x1={viewBox.x + i * gridSize} y1={viewBox.y}
+                                      x2={viewBox.x + i * gridSize} y2={viewBox.y + viewBox.h} stroke={COLORS.grid}/>
+                            ))}
+                            {Array.from({ length: Math.ceil(viewBox.h / gridSize) + 2 }).map((_, i) => (
+                                <line key={`gy-${i}`} y1={viewBox.y + i * gridSize} x1={viewBox.x}
+                                      y2={viewBox.y + i * gridSize} x2={viewBox.x + viewBox.w} stroke={COLORS.grid}/>
+                            ))}
 
-                                {/* Badge label */}
-                                <g transform={`translate(0, ${-(t.shape === 'round' ? (t.r ?? 40) : (t.h ?? 60) / 2) - 18})`}>
-                                    <rect x={-70} y={-18} width={140} height={22} rx={8} fill={COLORS.badgeBg}/>
-                                    <text x={0} y={-3} fill={COLORS.badgeText} fontSize="12" fontWeight={800} textAnchor="middle">
-                                        {t.label} • {t.capacity} org{t.locked ? ' • locked' : ''}
-                                    </text>
+                            {/* tables */}
+                            {(current?.tables ?? []).map(t => (
+                                <g
+                                    key={t.id}
+                                    className={`creator-node${t.locked ? ' locked' : ''}`}
+                                    data-id={t.id}
+                                    data-locked={t.locked ? 'true' : 'false'}
+                                    transform={`translate(${t.x},${t.y}) rotate(${t.rot ?? 0})`}
+                                    style={{ cursor: t.locked ? 'not-allowed' : 'move' }}
+                                >
+                                    {t.shape === 'round' ? (
+                                        <>
+                                            <circle cx={0} cy={0} r={(t.r ?? 40)} fill="url(#wood)" filter="url(#hardShadow)"/>
+                                            <circle cx={0} cy={0} r={(t.r ?? 40) - 1} fill="url(#woodVar)" opacity={0.35}/>
+                                            <ellipse cx={-(t.r ?? 40) * 0.25} cy={-(t.r ?? 40) * 0.25} rx={(t.r ?? 40) * 0.7} ry={(t.r ?? 40) * 0.45} fill="url(#gloss)"/>
+                                            {t.locked
+                                                ? <circle cx={0} cy={0} r={(t.r ?? 40) - 2} fill="none" stroke={COLORS.lockedStroke} strokeDasharray="4 3" strokeWidth={2}/>
+                                                : (selected.includes(t.id) && <circle cx={0} cy={0} r={(t.r ?? 40) - 2} fill="none" stroke="#1976d2" strokeWidth={2}/>)
+                                            }
+                                        </>
+                                    ) : (
+                                        <>
+                                            <rect x={-(t.w ?? 100) / 2} y={-(t.h ?? 60) / 2} width={t.w ?? 100} height={t.h ?? 60} rx={10} fill="url(#wood)" filter="url(#hardShadow)"/>
+                                            <rect x={-(t.w ?? 100) / 2} y={-(t.h ?? 60) / 2} width={t.w ?? 100} height={t.h ?? 60} rx={10} fill="url(#woodVar)" opacity={0.35}/>
+                                            <ellipse cx={-(t.w ?? 100) * 0.2} cy={-(t.h ?? 60) * 0.25} rx={(t.w ?? 100) * 0.35} ry={(t.h ?? 60) * 0.35} fill="url(#gloss)"/>
+                                            {t.locked
+                                                ? <rect x={-(t.w ?? 100) / 2} y={-(t.h ?? 60) / 2} width={t.w ?? 100} height={t.h ?? 60} rx={10} fill="none" stroke={COLORS.lockedStroke} strokeDasharray="4 3" strokeWidth={2}/>
+                                                : (selected.includes(t.id) && <rect x={-(t.w ?? 100) / 2} y={-(t.h ?? 60) / 2} width={t.w ?? 100} height={t.h ?? 60} rx={10} fill="none" stroke="#1976d2" strokeWidth={2}/>)
+                                            }
+                                        </>
+                                    )}
+
+                                    {/* Badge label */}
+                                    <g transform={`translate(0, ${-(t.shape === 'round' ? (t.r ?? 40) : (t.h ?? 60) / 2) - 18})`}>
+                                        <rect x={-70} y={-18} width={140} height={22} rx={8} fill={COLORS.badgeBg}/>
+                                        <text x={0} y={-3} fill={COLORS.badgeText} fontSize="12" fontWeight={800} textAnchor="middle">
+                                            {t.label} • {t.capacity} org{t.locked ? ' • locked' : ''}
+                                        </text>
+                                    </g>
                                 </g>
-                            </g>
-                        ))}
-                    </svg>
-                </Box>
+                            ))}
+                        </svg>
+                    </Box>
+                </PerfectScrollbar>
             </Box>
 
-            {/* Inspector (mini editor untuk 1 terpilih) */}
+            {/* Inspector mini */}
             <Paper variant="outlined" sx={{ mt: 1, p: 1.25, borderRadius: 2 }}>
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap' }}>
                     <Chip label={selected.length ? `${selected.length} meja dipilih` : (loading ? 'Memuat…' : 'Pilih meja untuk edit')} />
                     {error ? <Typography color="error" sx={{ ml: 1 }}>{error}</Typography> : null}
 
-                    {canEditSelected ? (
-                        <>
-                            <TextField
-                                key={selectedTable!.id + '-label'}
-                                size="small"
-                                label="Label"
-                                value={selectedTable!.label ?? ''}
-                                onChange={(e) => updateSelectedById(selectedTable!.id, { label: e.target.value })}
-                            />
-                            <TextField
-                                key={selectedTable!.id + '-cap'}
-                                size="small" type="number" label="Capacity" sx={{ width: 120 }}
-                                value={selectedTable!.capacity ?? 0}
-                                onChange={(e) => updateSelectedById(selectedTable!.id, { capacity: Number(e.target.value || 0) })}
-                            />
-                            <TextField
-                                key={selectedTable!.id + '-rot'}
-                                size="small" type="number" label="Rotate (°)" sx={{ width: 120 }}
-                                value={selectedTable!.rot ?? 0}
-                                onChange={(e) => updateSelectedById(selectedTable!.id, { rot: Number(e.target.value || 0) })}
-                            />
-                            {selectedTable!.shape === 'rect' ? (
-                                <>
-                                    <TextField
-                                        key={selectedTable!.id + '-w'}
-                                        size="small" type="number" label="Width" sx={{ width: 120 }}
-                                        value={selectedTable!.w ?? 0}
-                                        onChange={(e) => updateSelectedById(selectedTable!.id, { w: Number(e.target.value || 0) })}
-                                    />
-                                    <TextField
-                                        key={selectedTable!.id + '-h'}
-                                        size="small" type="number" label="Height" sx={{ width: 120 }}
-                                        value={selectedTable!.h ?? 0}
-                                        onChange={(e) => updateSelectedById(selectedTable!.id, { h: Number(e.target.value || 0) })}
-                                    />
-                                </>
-                            ) : (
+                    {(() => {
+                        const st = selected.length === 1 ? tables.find(t => t.id === selected[0]) : undefined;
+                        if (!st || st.locked) return null;
+                        return (
+                            <>
                                 <TextField
-                                    key={selectedTable!.id + '-r'}
-                                    size="small" type="number" label="Radius" sx={{ width: 120 }}
-                                    value={selectedTable!.r ?? 0}
-                                    onChange={(e) => updateSelectedById(selectedTable!.id, { r: Number(e.target.value || 0) })}
+                                    key={st.id + '-label'}
+                                    size="small" label="Label"
+                                    value={st.label ?? ''}
+                                    onChange={(e) => updateSelectedById(st.id, { label: e.target.value })}
                                 />
-                            )}
-                        </>
-                    ) : null}
+                                <TextField
+                                    key={st.id + '-cap'}
+                                    size="small" type="number" label="Capacity" sx={{ width: 120 }}
+                                    value={st.capacity ?? 0}
+                                    onChange={(e) => updateSelectedById(st.id, { capacity: Number(e.target.value || 0) })}
+                                />
+                                <TextField
+                                    key={st.id + '-rot'}
+                                    size="small" type="number" label="Rotate (°)" sx={{ width: 120 }}
+                                    value={st.rot ?? 0}
+                                    onChange={(e) => updateSelectedById(st.id, { rot: Number(e.target.value || 0) })}
+                                />
+                                {st.shape === 'rect' ? (
+                                    <>
+                                        <TextField
+                                            key={st.id + '-w'}
+                                            size="small" type="number" label="Width" sx={{ width: 120 }}
+                                            value={st.w ?? 0}
+                                            onChange={(e) => updateSelectedById(st.id, { w: Number(e.target.value || 0) })}
+                                        />
+                                        <TextField
+                                            key={st.id + '-h'}
+                                            size="small" type="number" label="Height" sx={{ width: 120 }}
+                                            value={st.h ?? 0}
+                                            onChange={(e) => updateSelectedById(st.id, { h: Number(e.target.value || 0) })}
+                                        />
+                                    </>
+                                ) : (
+                                    <TextField
+                                        key={st.id + '-r'}
+                                        size="small" type="number" label="Radius" sx={{ width: 120 }}
+                                        value={st.r ?? 0}
+                                        onChange={(e) => updateSelectedById(st.id, { r: Number(e.target.value || 0) })}
+                                    />
+                                )}
+                            </>
+                        );
+                    })()}
                 </Stack>
             </Paper>
         </Paper>

@@ -18,6 +18,7 @@ import dynamic from "next/dynamic";
 import ShimmerLoading from "../../../../../../(shared)/(loading)/ShimmerLoading";
 import ErrorBoundary from '../../../../../../(cashier)/layouts/ErrorBoundary'
 import {FloorsTables} from "../../../../../../../types/config/data/floors.tables.type";
+import normalizeIpcError from "../../../../../../../helpers/electronMessageErrorEsctration";
 
 export type NewModalProps = {
     onCreated?: (created?: any) => void
@@ -53,6 +54,13 @@ export default function NewModal(props: NewModalProps) {
 
     const onSubmit = (data : FloorsTables[]) => {
         console.log(data)
+        window.api.invoke('api.config.data.floors.tables:create', data)
+            .then((res: any) => props.onCreated?.(res))
+            .then(() => closeModal())
+            .catch((err: any) => {
+                const e = normalizeIpcError(err)
+                console.error(e)
+            })
     }
 
     return (
@@ -97,9 +105,7 @@ export default function NewModal(props: NewModalProps) {
 
                 <DialogContent dividers sx={{ p: 0, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, bgcolor: 'background.paper', overflow: 'hidden' }}>
                     <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, height: '100%' }}>
-                        <ErrorBoundary>
-                            <TablesCreator key="tables-creator" onSubmit={onSubmit} />
-                        </ErrorBoundary>
+                        <TablesCreator onSubmit={onSubmit} />
                     </Box>
                 </DialogContent>
             </Dialog>
