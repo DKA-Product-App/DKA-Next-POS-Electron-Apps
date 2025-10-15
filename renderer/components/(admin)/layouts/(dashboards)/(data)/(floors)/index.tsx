@@ -14,15 +14,9 @@ import {
     IconButton,
     Paper,
     Stack,
-    Switch,
-    TextField,
-    Tooltip,
     Typography,
 } from '@mui/material';
-import Grid2 from '@mui/material/Grid';
 import AddRounded from '@mui/icons-material/AddRounded';
-import EditRounded from '@mui/icons-material/EditRounded';
-import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import TableRestaurantRounded from '@mui/icons-material/TableRestaurantRounded';
 
 import {
@@ -31,9 +25,9 @@ import {
     createMRTColumnHelper,
     type MRT_ColumnDef,
 } from 'material-react-table';
-import SweetAlert2, { SweetAlert2Props } from 'react-sweetalert2';
 import DeleteModal from './(components)/DeleteModal';
 import {useGodModeProvider} from "../../../../context/GodModeProviderContext";
+import NewModal from './(components)/NewModal';
 
 /* ====== API Types ====== */
 type ApiAccountRef = {
@@ -313,6 +307,11 @@ export default function FloorsTree() {
                 <Stack direction="row" spacing={1}>
                     <Button variant="outlined" onClick={fetchFloors}>Refresh</Button>
                     { /** Create here **/}
+                    <NewModal
+                        triggerLabel="Tambah Lantai"
+                        triggerProps={{ color: 'primary', startIcon: <AddRounded /> }}
+                        onCreated={fetchFloors}
+                    />
                 </Stack>
             </Stack>
         ),
