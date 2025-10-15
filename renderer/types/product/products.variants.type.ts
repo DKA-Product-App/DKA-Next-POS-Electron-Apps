@@ -10,7 +10,7 @@ import {Products} from "./products.type";
 
 /** ==== ROOT TYPE: ProductsVariants ==== */
 export interface ProductsVariants {
-    id: string;
+    id?: string;
     code?: string | null;     // "ICE"
     name: string;             // "Iced"
     description?: string | null;

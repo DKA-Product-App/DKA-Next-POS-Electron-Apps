@@ -12,7 +12,6 @@ import {
 } from '@mui/material';
 import AddRounded from '@mui/icons-material/AddRounded';
 import EditRounded from '@mui/icons-material/EditRounded';
-import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 
 import {
     MaterialReactTable,
@@ -23,8 +22,9 @@ import { ImgWithSkeleton } from '../../../../../../utils/ImageProcessingIPC';
 import { ProductsVariants } from '../../../../../../types/product/products.variants.type';
 import { Products } from '../../../../../../types/product/products.type';
 import DeleteModal from "./(components)/DeleteModal";
-import EditProductModal from "../(products)/(components)/EditProductModal";
 import EditModal from "./(components)/EditModal";
+import {useGodModeProvider} from "../../../../context/GodModeProviderContext";
+import NewModal from "./(components)/NewModal";
 
 type ProductRow = {
     id: string;
@@ -59,12 +59,9 @@ const isVariant = (row: unknown): row is ProductsVariants =>
     !!row && typeof row === 'object' && (row as any).price !== undefined;
 
 /* ===== Komponen ===== */
-export default function CatalogProductsTree({
-                                                onAddVariant,
-                                                onEditVariant,
-                                                onDeleteVariant,
-                                            }: Props) {
+export default ({  onAddVariant, onEditVariant, onDeleteVariant }: Props) => {
     const [variants, setVariants] = React.useState<ProductsVariants[]>([]);
+    const { godMode } = useGodModeProvider();
     const [rows, setRows] = React.useState<ProductRow[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
@@ -79,7 +76,9 @@ export default function CatalogProductsTree({
         }
         setLoading(true);
         window.api
-            .invoke<any, { data: ProductsVariants[] }>('api.product.variant:read.all', {})
+            .invoke<any, { data: ProductsVariants[] }>('api.product.variant:read.all', {
+                god_mode: godMode
+            })
             .then(({ data }) => {
                 setVariants(Array.isArray(data) ? data : []);
                 setError(null);
@@ -91,7 +90,7 @@ export default function CatalogProductsTree({
                 setError(err?.msg ?? 'Gagal memuat varian. Periksa Koneksi Jaringan / Server');
             })
             .finally(() => setLoading(false));
-    }, []);
+    }, [godMode]);
 
     React.useEffect(() => { fetchVariants(); }, [fetchVariants]);
 
@@ -215,11 +214,12 @@ export default function CatalogProductsTree({
             if (row.depth === 0) {
                 const p = (row.original as ProductRow).product;
                 return (
-                    <Tooltip title="Tambah Varian">
-                        <Button variant="outlined" size="small" startIcon={<AddRounded />} onClick={() => onAddVariant?.(p)}>
-                            Variant
-                        </Button>
-                    </Tooltip>
+                    <NewModal
+                        triggerLabel="Tambah Variant"
+                        product={p}
+                        triggerProps={{ color: 'primary', startIcon: <AddRounded /> }}
+                        onCreated={fetchVariants}
+                    />
                 );
             }
             const v = row.original as ProductsVariants;
@@ -264,7 +264,7 @@ export default function CatalogProductsTree({
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ width: '100%', gap: 1 }}>
                 <Box>
                     <Typography variant="overline" color="text.secondary">
-                        Catalog / Daftar Varian Produk (Grouped by Product)
+                        Catalog / Daftar Varian Produk
                     </Typography>
                     {loading ? (
                         <Typography variant="body2" color="text.secondary">Loading…</Typography>
