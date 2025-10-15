@@ -19,6 +19,7 @@ import {
     createMRTColumnHelper,
     type MRT_ColumnDef,
 } from 'material-react-table';
+import DeleteModal from './(components)/DeleteModal';
 
 /* ========= Types dari response ========= */
 type ApiAccountRef = {
@@ -290,6 +291,24 @@ export default function TablesTree() {
                     return <Typography variant="body2" color="text.disabled" textAlign="center">—</Typography>;
                 },
                 muiTableBodyCellProps: { align: 'center' },
+            }),
+            // ACTIONS (only floor rows)
+            column.display({
+                id: 'actions',
+                header: 'ACTIONS',
+                size: 40,
+                enableColumnFilter: false,
+                enableSorting: false,
+                Cell: ({ row }) => {
+                    if (row.depth !== 0) return null;
+                    const r = row.original as TableParentRow;
+                    return (
+                        <Stack direction="row" spacing={0.5} justifyContent="flex-start">
+                            <DeleteModal id={r.id} name={r.name} onDeleted={fetchTables} />
+                        </Stack>
+                    );
+                },
+                muiTableBodyCellProps: { align: 'right' },
             }),
         ],
         [column],

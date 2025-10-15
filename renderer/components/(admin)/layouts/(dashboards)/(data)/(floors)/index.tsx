@@ -261,14 +261,14 @@ export default function FloorsTree() {
             column.display({
                 id: 'actions',
                 header: 'ACTIONS',
-                size: 120,
+                size: 40,
                 enableColumnFilter: false,
                 enableSorting: false,
                 Cell: ({ row }) => {
                     if (row.depth !== 0) return null;
                     const r = row.original as FloorRow;
                     return (
-                        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                        <Stack direction="row" spacing={0.5} justifyContent="flex-start">
                             <DeleteModal id={r.id} name={r.name} onDeleted={fetchFloors} />
                         </Stack>
                     );
