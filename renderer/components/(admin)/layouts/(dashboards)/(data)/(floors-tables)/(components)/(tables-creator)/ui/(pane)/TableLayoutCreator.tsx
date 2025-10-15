@@ -1,9 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import {
-    Box, Paper, Stack, IconButton, Tooltip, Chip, Divider, TextField, MenuItem, Typography,
-} from '@mui/material';
+import {Box, Chip, Divider, IconButton, MenuItem, Paper, Stack, TextField, Tooltip, Typography,} from '@mui/material';
 
 import CropSquareRounded from '@mui/icons-material/CropSquareRounded';
 import RadioButtonUncheckedRounded from '@mui/icons-material/RadioButtonUncheckedRounded';
@@ -18,7 +16,7 @@ import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
 
-import { useTablesCtx, type TableDraft as CtxTableDraft } from './../../context/TablesContext';
+import {type TableDraft as CtxTableDraft, useTablesCtx} from './../../context/TablesContext';
 import {useThemeCharger} from "../../../../../../../../../../contexts/ThemeCharger";
 
 type Shape = 'rect' | 'round';
@@ -41,7 +39,7 @@ type ServerTable = {
     id: string;
     code: string;
     name: string;
-    shape: 'RECTANGLE' | 'CIRCLE' | 'ROUND' | string;
+    shape: 'RECTANGLE' | 'ROUNDED' | string;
     capacity: number;
     coordinate: { x: number; y: number };
     dimension: { width: number; height: number; rotate: number };
@@ -153,8 +151,7 @@ export default function TableLayoutCreator({ gridSize = 10 }: { gridSize?: numbe
                 const fid = mapped[0]?.id;
                 if (fid) {
                     const cur = mapped.find(f => f.id === fid) || mapped[0];
-                    const drafts = (cur?.tables || []).filter(t => !t.locked);
-                    lastDraftsRef.current[fid] = drafts;
+                    lastDraftsRef.current[fid] = (cur?.tables || []).filter(t => !t.locked);
                     // jangan panggil syncDrafts di sini — biar effect di bawah yg urus setelah setFloorId benar2 settled
                 }
             })

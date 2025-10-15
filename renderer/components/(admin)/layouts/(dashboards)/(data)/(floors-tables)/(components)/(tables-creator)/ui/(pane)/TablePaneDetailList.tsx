@@ -10,7 +10,7 @@ import { useTablesCtx } from '../../context/TablesContext';
 import {FloorsTables} from "../../../../../../../../../../types/config/data/floors.tables.type";
 import {useSession} from "../../../../../../../../../../contexts/SessionProviderContext";
 
-const toServerShape = (s: 'rect' | 'round') => (s === 'rect' ? 'RECTANGLE' : 'CIRCLE');
+const toServerShape = (s: 'rect' | 'round') => (s === 'rect' ? 'RECTANGLE' : 'ROUNDED');
 
 export function TablePaneDetailList({ onSubmit } : { onSubmit?: (data : FloorsTables[]) => void }) {
     const {
