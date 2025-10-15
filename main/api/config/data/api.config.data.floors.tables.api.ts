@@ -128,7 +128,7 @@ export function ApiConfigDataFloorsTables(mainWindow?: BrowserWindow) {
             const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
                 url: toPath(args),
-                method: "PUT",
+                method: "PATCH",
                 data: args,
             })
                 .then((response) => {

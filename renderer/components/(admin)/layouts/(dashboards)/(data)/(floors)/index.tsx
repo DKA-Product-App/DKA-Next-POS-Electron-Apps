@@ -32,6 +32,8 @@ import {
     type MRT_ColumnDef,
 } from 'material-react-table';
 import SweetAlert2, { SweetAlert2Props } from 'react-sweetalert2';
+import DeleteModal from './(components)/DeleteModal';
+import {useGodModeProvider} from "../../../../context/GodModeProviderContext";
 
 /* ====== API Types ====== */
 type ApiAccountRef = {
@@ -109,18 +111,10 @@ const emptyForm: FloorForm = { code: '', name: '', status: true };
 
 export default function FloorsTree() {
     const column = createMRTColumnHelper<FloorRow | TableRow>();
-
+    const { godMode } = useGodModeProvider();
     const [rows, setRows] = React.useState<FloorRow[]>([]);
     const [loading, setLoading] = React.useState(false);
 
-    // Form modal (Add/Edit)
-    const [formOpen, setFormOpen] = React.useState(false);
-    const [formMode, setFormMode] = React.useState<'create' | 'edit'>('create');
-    const [form, setForm] = React.useState<FloorForm>(emptyForm);
-    const [saving, setSaving] = React.useState(false);
-
-    // SweetAlert2 controlled props
-    const [swalProps, setSwalProps] = React.useState<SweetAlert2Props>({});
 
     const fetchFloors = React.useCallback(() => {
         if (!window.api) {
@@ -130,7 +124,9 @@ export default function FloorsTree() {
         }
         setLoading(true);
         window.api
-            .invoke('api.config.data.floors:read.all', {})
+            .invoke('api.config.data.floors:read.all', {
+                god_mode: godMode
+            })
             .then((result: any) => {
                 const data = (result?.data ?? []) as ApiFloor[];
                 const mapped: FloorRow[] = data.map((f) => ({
@@ -160,68 +156,12 @@ export default function FloorsTree() {
                 setRows([]);
             })
             .finally(() => setLoading(false));
-    }, []);
+    }, [godMode]);
 
     React.useEffect(() => {
         fetchFloors();
     }, [fetchFloors]);
 
-    /* ====== Add/Edit handlers ====== */
-    const openCreate = React.useCallback(() => {
-        setFormMode('create'); setForm(emptyForm); setFormOpen(true);
-    }, []);
-    const openEdit = React.useCallback((row: FloorRow) => {
-        setFormMode('edit'); setForm({ id: row.id, code: row.code, name: row.name, status: row.status }); setFormOpen(true);
-    }, []);
-    const closeForm = React.useCallback(() => setFormOpen(false), []);
-
-    const submitForm = React.useCallback(() => {
-        if (!window.api) return;
-        if (!form.code.trim() || !form.name.trim()) {
-            setSwalProps({
-                show: true,
-                icon: 'warning',
-                title: 'Lengkapi Data',
-                text: 'Code dan Name wajib diisi.',
-            });
-            return;
-        }
-        setSaving(true);
-        (formMode === 'create'
-                ? window.api.invoke('api.config.data.floors:create', { code: form.code.trim(), name: form.name.trim(), status: !!form.status })
-                : window.api.invoke('api.config.data.floors:update.one', { id: form.id, code: form.code.trim(), name: form.name.trim(), status: !!form.status })
-        )
-            .then(() => setSwalProps({ show: true, icon: 'success', title: formMode === 'create' ? 'Floor dibuat' : 'Floor diperbarui', timer: 1200, showConfirmButton: false }))
-            .then(() => { setFormOpen(false); return fetchFloors(); })
-            .catch((e: any) => setSwalProps({ show: true, icon: 'error', title: 'Gagal simpan', text: e?.msg ?? String(e) }))
-            .finally(() => setSaving(false));
-    }, [form, formMode, fetchFloors]);
-
-    /* ====== Delete with SweetAlert2 (component) ====== */
-    const onDelete = React.useCallback((row: FloorRow) => {
-        setSwalProps({
-            show: true,
-            icon: 'warning',
-            title: 'Hapus floor?',
-            html: `<b>${row.code} — ${row.name}</b> akan dihapus permanen.`,
-            showCancelButton: true,
-            confirmButtonText: 'Ya, hapus',
-            cancelButtonText: 'Batal',
-            reverseButtons: true,
-        });
-        (onDelete as any)._target = row as FloorRow;
-    }, []);
-    const handleSwalResolve = React.useCallback((result: any) => {
-        if (!result?.isConfirmed) { setSwalProps({}); return; }
-        const row: FloorRow | undefined = (onDelete as any)._target;
-        if (!row || !window.api) { setSwalProps({}); return; }
-        window.api
-            .invoke('api.config.data.floors:delete.one', { id: row.id })
-            .then(() => setSwalProps({ show: true, icon: 'success', title: 'Terhapus', timer: 1200, showConfirmButton: false }))
-            .then(() => fetchFloors())
-            .catch((e: any) => setSwalProps({ show: true, icon: 'error', title: 'Gagal menghapus', text: e?.msg ?? String(e) }))
-            .finally(() => { (onDelete as any)._target = undefined; });
-    }, [fetchFloors]);
 
     /* ====== Columns (Tree: Floor parent, Table child) ====== */
     const columns = React.useMemo<MRT_ColumnDef<FloorRow | TableRow>[]>(
@@ -335,23 +275,14 @@ export default function FloorsTree() {
                     const r = row.original as FloorRow;
                     return (
                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                            <Tooltip title="Edit">
-                                <IconButton size="small" onClick={() => openEdit(r)}>
-                                    <EditRounded fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete">
-                                <IconButton size="small" color="error" onClick={() => onDelete(r)}>
-                                    <DeleteOutlineRounded fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
+                            <DeleteModal id={r.id} name={r.name} onDeleted={fetchFloors} />
                         </Stack>
                     );
                 },
                 muiTableBodyCellProps: { align: 'right' },
             }),
         ],
-        [column, openEdit, onDelete],
+        [column],
     );
 
     /* ====== MRT (Tree with subRows) ====== */
@@ -381,7 +312,7 @@ export default function FloorsTree() {
                 </Box>
                 <Stack direction="row" spacing={1}>
                     <Button variant="outlined" onClick={fetchFloors}>Refresh</Button>
-                    <Button variant="contained" startIcon={<AddRounded />} onClick={openCreate}>Tambah Floor</Button>
+                    { /** Create here **/}
                 </Stack>
             </Stack>
         ),
@@ -392,37 +323,6 @@ export default function FloorsTree() {
             <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
                 <MaterialReactTable table={table} />
             </Box>
-
-            {/* SweetAlert2 (controlled) */}
-            <SweetAlert2
-                {...swalProps}
-                didClose={() => setSwalProps({})}
-                onResolve={handleSwalResolve}
-            />
-
-            {/* Dialog Add/Edit */}
-            <Dialog open={formOpen} onClose={closeForm} fullWidth maxWidth="xl">
-                <DialogTitle>{formMode === 'create' ? 'Tambah Floor' : 'Edit Floor'}</DialogTitle>
-                <DialogContent dividers>
-                    <Grid2 container spacing={2}>
-                        <Grid2 size={{ xs: 12, sm: 6 }}>
-                            <TextField label="Code" value={form.code} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))} fullWidth />
-                        </Grid2>
-                        <Grid2 size={{ xs: 12, sm: 6 }}>
-                            <TextField label="Name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} fullWidth />
-                        </Grid2>
-                        <Grid2 size={{ xs: 12, sm: 6 }}>
-                            <FormControlLabel control={<Switch checked={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.checked }))} />} label="Active" />
-                        </Grid2>
-                    </Grid2>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={closeForm}>Batal</Button>
-                    <Button variant="contained" onClick={submitForm} disabled={saving}>
-                        {formMode === 'create' ? 'Simpan' : 'Update'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
         </Paper>
     );
 }
