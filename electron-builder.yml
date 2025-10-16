@@ -62,7 +62,7 @@ nsis:
   shortcutName: "DKA Cashier POS"
   createDesktopShortcut: always
   createStartMenuShortcut: true
-  include: resources/scripts/installer-main.nsh
+#  include: resources/scripts/installer-main.nsh
 
 portable:
   artifactName: "DKA-POS-Portable-${version}.${ext}"
