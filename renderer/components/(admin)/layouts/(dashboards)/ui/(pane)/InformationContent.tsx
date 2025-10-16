@@ -88,26 +88,26 @@ export default function InformationContent() {
     // sample50: lastMonth=55jt (turun 9.09%), margin 32%
     const SAMPLE = React.useMemo(() => {
         if (mode === 'sample50') {
-            const month = 50_000_000;
-            const lastMonth = 55_000_000;
-            const week = 12_500_000; // ~25% dari bulan
-            const today = 2_000_000;
-            const orders = 220;
-            const done = 160;
-            const active = 45;
+            const month = 0;
+            const lastMonth = 0;
+            const week = 0; // ~25% dari bulan
+            const today = 0;
+            const orders = 0;
+            const done = 0;
+            const active = 0;
             const margin = 0.32;
-            return { month, week, today, orders, done, active, lastMonth, margin, seed: 5050 };
+            return { month, week, today, orders, done, active, lastMonth, margin, seed: 0 };
         }
         // sample80
-        const month = 80_000_000;
-        const lastMonth = 72_000_000;
-        const week = 18_000_000; // ~22.5% dari bulan
-        const today = 2_400_000;
-        const orders = 320;
-        const done = 260;
-        const active = 50;
+        const month = 0;
+        const lastMonth = 0;
+        const week = 0; // ~22.5% dari bulan
+        const today = 0;
+        const orders = 0;
+        const done = 0;
+        const active = 0;
         const margin = 0.38;
-        return { month, week, today, orders, done, active, lastMonth, margin, seed: 8080 };
+        return { month, week, today, orders, done, active, lastMonth, margin, seed: 0 };
     }, [mode]);
 
     // ====== STAT CARDS ATAS ======
