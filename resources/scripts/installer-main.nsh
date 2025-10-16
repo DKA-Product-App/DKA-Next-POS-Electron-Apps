@@ -4,7 +4,7 @@
 ; ============================================================
 
 !include "FileFunc.nsh"
-- !include "nsExec.nsh"
+; !include "nsExec.nsh"
 
 ; ${BUILD_RESOURCES_DIR} -> folder "resources" (atau sesuai directories.buildResources)
 !addincludedir "${BUILD_RESOURCES_DIR}\scripts"
