@@ -4,7 +4,7 @@
 ; ============================================================
 
 !include "FileFunc.nsh"
-!include "nsExec.nsh"    ; aman untuk ExecToStack jika dibutuhkan oleh modul lain
+- !include "nsExec.nsh"
 
 ; ${BUILD_RESOURCES_DIR} -> folder "resources" (atau sesuai directories.buildResources)
 !addincludedir "${BUILD_RESOURCES_DIR}\scripts"

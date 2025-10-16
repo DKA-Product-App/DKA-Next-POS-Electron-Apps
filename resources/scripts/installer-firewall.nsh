@@ -5,7 +5,7 @@
 ;        call !insertmacro FIREWALL_CLEANUP on uninstall.
 ; ============================================================
 
-!include "nsExec.nsh"   ; untuk nsExec::ExecToStack
+- !include "nsExec.nsh"
 
 Var DKA_NETSH_PATH
 Var DKA_FW_OUT
