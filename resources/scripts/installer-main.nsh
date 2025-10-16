@@ -4,7 +4,7 @@
 ; ============================================================
 
 !include "FileFunc.nsh"
-!include "LogicLib.nsh"
+!include "nsExec.nsh"    ; aman untuk ExecToStack jika dibutuhkan oleh modul lain
 
 ; ${BUILD_RESOURCES_DIR} -> folder "resources" (atau sesuai directories.buildResources)
 !addincludedir "${BUILD_RESOURCES_DIR}\scripts"
@@ -37,17 +37,18 @@
 !macroend
 
 ; ============================================================
-; preInit
+; preInit (tanpa LogicLib; deteksi 64-bit pakai Sysnative probe)
 ; ============================================================
 !macro preInit
   !insertmacro DKA_LogLine "==== preInit ===="
   !insertmacro DKA_LogKV "INSTDIR" "$InstDir"
 
-  ${If} ${RunningX64}
-    !insertmacro DKA_LogLine "Detected: 64-bit OS"
-  ${Else}
-    !insertmacro DKA_LogLine "Detected: 32-bit OS"
-  ${EndIf}
+  ; Deteksi arsitektur OS tanpa LogicLib:
+  ; Jika folder %WINDIR%\Sysnative ada (visible dari proses 32-bit), berarti OS 64-bit.
+  StrCpy $0 "32-bit OS (assumed)"
+  IfFileExists "$WINDIR\Sysnative\*.*" 0 +2
+    StrCpy $0 "64-bit OS (detected by Sysnative)"
+  !insertmacro DKA_LogKV "OS" "$0"
 
   !ifdef ACL_PREINIT
     !insertmacro DKA_LogLine "ACL_PREINIT"
