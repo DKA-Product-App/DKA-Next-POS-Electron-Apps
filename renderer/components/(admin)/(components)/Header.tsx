@@ -7,7 +7,6 @@ import {
     Chip, Badge,
     LinearProgress
 } from '@mui/material'
-import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import SyncRoundedIcon from '@mui/icons-material/SyncRounded'
 import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded'
 import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded'
@@ -83,7 +82,7 @@ export default function Header({
 
     useEffect(() => {
         switch (key) {
-            case "F12" :
+            case "F10" :
                 setGodMode((state) => (!state));
                 break;
         }

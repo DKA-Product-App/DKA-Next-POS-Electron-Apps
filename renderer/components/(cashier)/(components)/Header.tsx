@@ -71,7 +71,7 @@ export default function Header({branchName = 'Main Branch', registerName = 'REG-
 
     useEffect(() => {
         switch (key) {
-            case "F11" :
+            case "F10" :
                 setGodMode((state) => (!state));
                 break;
             case "F7" :

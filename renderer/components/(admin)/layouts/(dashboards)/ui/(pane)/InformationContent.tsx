@@ -78,7 +78,7 @@ export default function InformationContent() {
     const { key, seq } = useFunctionKeyCtx();
 
     useEffect(() => {
-        if (key === 'F12') {
+        if (key === 'F10') {
             setMode((m) => (m === 'sample80' ? 'sample50' : 'sample80'));
         }
     }, [seq, key]);
