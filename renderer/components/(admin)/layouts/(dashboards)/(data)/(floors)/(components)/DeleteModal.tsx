@@ -50,7 +50,7 @@ export const DeleteModal = ({ id, name, onDeleted }: { id: string; name?: string
                     });
             },
         });
-    },[ mode, id, name ]);
+    },[ mode, id, name, onDeleted ]);
 
     return (
         <>
