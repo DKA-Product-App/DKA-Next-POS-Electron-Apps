@@ -6,8 +6,14 @@
 !verbose push
 !verbose 3
 
-!include "nsExec.nsh"
 !include "WinVer.nsh"
+
+; Opsional/aman: include nsExec kalau tersedia
+!ifdef NSISDIR
+  !ifexists "${NSISDIR}\Include\nsExec.nsh"
+    !include "${NSISDIR}\Include\nsExec.nsh"
+  !endif
+!endif
 
 Var DKA_NETSH_PATH
 Var DKA_FW_OUT
