@@ -9,33 +9,34 @@
 !include "WinVer.nsh"
 ; Tidak include nsExec.nsh — plugin nsExec tetap dapat dipanggil langsung
 
-Var DKA_NETSH_PATH
-Var DKA_FW_OUT
-Var DKA_FW_CODE
+; Catatan register:
+; - $4: path netsh.exe
+; - $5: stdout/stderr dari nsExec
+; - $6: exit code dari nsExec
 
-; ---- Resolve netsh path (Sysnative-safe) ----
+; ---- Resolve netsh path (Sysnative-safe) → hasil ke $4 ----
 !macro FIREWALL_RESOLVE_NETSH
-  StrCpy $DKA_NETSH_PATH "$WINDIR\Sysnative\netsh.exe"
-  IfFileExists "$DKA_NETSH_PATH" 0 +3
+  StrCpy $4 "$WINDIR\Sysnative\netsh.exe"
+  IfFileExists "$4" 0 +3
     Goto dka_fw_resolved
 
-  StrCpy $DKA_NETSH_PATH "$WINDIR\System32\netsh.exe"
-  IfFileExists "$DKA_NETSH_PATH" 0 +2
+  StrCpy $4 "$WINDIR\System32\netsh.exe"
+  IfFileExists "$4" 0 +2
     Goto dka_fw_resolved
 
-  StrCpy $DKA_NETSH_PATH ""
+  StrCpy $4 ""
 dka_fw_resolved:
 !macroend
 
 ; ---- Exec helper ----
 !macro _FW_RUN CMD
-  nsExec::ExecToStack '"$DKA_NETSH_PATH" ${CMD}'
-  Pop $DKA_FW_OUT
-  Pop $DKA_FW_CODE
+  nsExec::ExecToStack '"$4" ${CMD}'
+  Pop $5   ; stdout/stderr
+  Pop $6   ; exit code
   DetailPrint 'netsh ${CMD}'
-  DetailPrint '  -> exit=$DKA_FW_CODE'
-  StrCmp $DKA_FW_OUT "" +2 0
-    DetailPrint '  -> out: $DKA_FW_OUT'
+  DetailPrint '  -> exit=$6'
+  StrCmp $5 "" +2 0
+    DetailPrint '  -> out: $5'
 !macroend
 
 ; (Opsional) allow EXE — kalau mau allow by app, bukan port
@@ -65,7 +66,7 @@ dka_fw_resolved:
   ${EndIf}
 
   !insertmacro FIREWALL_RESOLVE_NETSH
-  StrCmp "$DKA_NETSH_PATH" "" dka_fw_preinit_skip 0
+  StrCmp "$4" "" dka_fw_preinit_skip 0
     !insertmacro _FW_RUN "advfirewall show allprofiles"
     Goto dka_fw_preinit_end
 dka_fw_preinit_skip:
@@ -80,7 +81,7 @@ dka_fw_preinit_end:
   ${EndIf}
 
   !insertmacro FIREWALL_RESOLVE_NETSH
-  StrCmp "$DKA_NETSH_PATH" "" dka_fw_rules_skip 0
+  StrCmp "$4" "" dka_fw_rules_skip 0
 
   ; === Inbound TCP ports (sesuaikan daftar) ===
   !insertmacro _FW_ALLOW_TCP 5900
@@ -99,7 +100,7 @@ dka_fw_rules_end:
 
 !macro FIREWALL_CLEANUP
   !insertmacro FIREWALL_RESOLVE_NETSH
-  StrCmp "$DKA_NETSH_PATH" "" dka_fw_cleanup_skip 0
+  StrCmp "$4" "" dka_fw_cleanup_skip 0
 
   !insertmacro _FW_DELETE_TCP 5900
   !insertmacro _FW_DELETE_TCP 8083

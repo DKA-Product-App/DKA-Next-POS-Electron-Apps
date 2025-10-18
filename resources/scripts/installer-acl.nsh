@@ -1,5 +1,5 @@
 ; ============================================================
-; ACL handler untuk folder database
+; ACL handler untuk folder database (tanpa Var custom → no warning 6001)
 ; ============================================================
 
 !verbose push
@@ -9,7 +9,7 @@
 !include "LogicLib.nsh"
 !include "x64.nsh"
 !include "WinVer.nsh"
-; NOTE: Jangan include nsExec.nsh. Plugin nsExec tetap bisa dipanggil langsung.
+; NOTE: Tidak include nsExec.nsh. Plugin nsExec bisa dipakai langsung.
 
 ; =======================
 ; Konstanta
@@ -19,22 +19,21 @@
 !endif
 !define SID_BUILTIN_USERS "S-1-5-32-545"  ; Builtin\Users (lintas bahasa)
 
-; =======================
-; Variabel
-; =======================
-Var DKA_ICACLS_PATH
+; Catatan register:
+; - $3 dipakai untuk path icacls
+; - $1 exitCode, $2 stdout/stderr (dari nsExec::ExecToStack)
 
 ; =======================
-; Resolve path icacls (Sysnative-safe)
+; Resolve path icacls (Sysnative-safe) → hasil ke $3
 ; =======================
 !macro DKA_RESOLVE_ICACLS
   ${If} ${RunningX64}
-    StrCpy $DKA_ICACLS_PATH "$WINDIR\Sysnative\icacls.exe"
-    ${IfNot} ${FileExists} "$DKA_ICACLS_PATH"
-      StrCpy $DKA_ICACLS_PATH "$WINDIR\System32\icacls.exe"
+    StrCpy $3 "$WINDIR\Sysnative\icacls.exe"
+    ${IfNot} ${FileExists} "$3"
+      StrCpy $3 "$WINDIR\System32\icacls.exe"
     ${EndIf}
   ${Else}
-    StrCpy $DKA_ICACLS_PATH "$WINDIR\System32\icacls.exe"
+    StrCpy $3 "$WINDIR\System32\icacls.exe"
   ${EndIf}
 !macroend
 
@@ -42,7 +41,7 @@ Var DKA_ICACLS_PATH
 ; Helper icacls (ExecToStack)
 ; =======================
 !macro _RunIcacls CMD
-  nsExec::ExecToStack '"$DKA_ICACLS_PATH" ${CMD}'
+  nsExec::ExecToStack '"$3" ${CMD}'
   Pop $2     ; stdout/stderr
   Pop $1     ; exitCode
   DetailPrint 'icacls ${CMD}'
@@ -64,7 +63,7 @@ Var DKA_ICACLS_PATH
 
   !insertmacro DKA_RESOLVE_ICACLS
 
-  ${IfNot} ${FileExists} "$DKA_ICACLS_PATH"
+  ${IfNot} ${FileExists} "$3"
     DetailPrint 'icacls not found, skip ACL'
     Return
   ${EndIf}
@@ -104,6 +103,11 @@ Var DKA_ICACLS_PATH
   ${EndIf}
 
   !insertmacro DKA_RESOLVE_ICACLS
+
+  ${IfNot} ${FileExists} "$3"
+    DetailPrint 'icacls not found, skip revert'
+    Return
+  ${EndIf}
 
   !insertmacro _RunIcacls '"${DKA_DB_DIR}" /inheritance:e'
   !insertmacro _RunIcacls '"${DKA_DB_DIR}" /reset /T /C'

@@ -14,19 +14,9 @@
 !addincludedir "resources/scripts"
 !addincludedir "."
 
-; ===== Wajib: ACL untuk folder database =====
+; ===== Wajib / fitur =====
 !include "installer-acl.nsh"
-
-; ===== Opsional: modul lain =====
 !include "installer-firewall.nsh"
-
-; ---- Deteksi ketersediaan makro dari modul opsional ----
-!ifdef FIREWALL_RULES
-  !define DKA_HAS_FIREWALL 1
-!endif
-!ifdef FIREWALL_CLEANUP
-  !define DKA_HAS_FIREWALL 1
-!endif
 
 ; ============================================================
 ; Helper log (runtime)
@@ -39,30 +29,21 @@
 !macroend
 
 ; ============================================================
-; preInit (runtime; dipanggil builder dalam function/section)
+; preInit (runtime; valid context)
 ; ============================================================
 !macro preInit
   !insertmacro DKA_LogLine "==== preInit ===="
   !insertmacro DKA_LogKV "INSTDIR" "$InstDir"
 
-  ; Deteksi 64-bit via Sysnative presence
+  ; Deteksi 64-bit via Sysnative presence (runtime)
   StrCpy $0 "32-bit OS (assumed)"
   IfFileExists "$WINDIR\Sysnative\*.*" 0 +2
     StrCpy $0 "64-bit OS (detected by Sysnative)"
   !insertmacro DKA_LogKV "OS" "$0"
 
-  !ifdef ACL_PREINIT
-    !insertmacro DKA_LogLine "ACL_PREINIT"
-    !insertmacro ACL_PREINIT
-  !endif
-  !ifdef FIREWALL_PREINIT
-    !insertmacro DKA_LogLine "FIREWALL_PREINIT"
-    !insertmacro FIREWALL_PREINIT
-  !endif
-  !ifdef REG_PREINIT
-    !insertmacro DKA_LogLine "REG_PREINIT"
-    !insertmacro REG_PREINIT
-  !endif
+  ; Preinit Firewall (selalu aman, makro handle missing netsh)
+  !insertmacro FIREWALL_PREINIT
+
   !insertmacro DKA_LogLine "==== preInit done ===="
 !macroend
 
@@ -80,19 +61,11 @@
 !macro customInstall
   !insertmacro DKA_LogLine "==== customInstall ===="
 
-  !ifdef ACL_APPLY
-    !insertmacro DKA_LogLine "Applying ACL to database directory…"
-    !insertmacro ACL_APPLY
-  !else
-    !insertmacro DKA_LogLine "ACL_APPLY not defined – skipping ACL."
-  !endif
+  ; Selalu apply ACL (makro internal sudah graceful)
+  !insertmacro ACL_APPLY
 
-  !ifdef DKA_HAS_FIREWALL
-    !insertmacro DKA_LogLine "Configuring firewall rules…"
-    !ifdef FIREWALL_RULES
-      !insertmacro FIREWALL_RULES
-    !endif
-  !endif
+  ; Selalu pasang firewall rules (graceful kalau netsh nggak ada)
+  !insertmacro FIREWALL_RULES
 
   !insertmacro DKA_LogLine "==== customInstall done ===="
 !macroend
@@ -103,19 +76,8 @@
 !macro customUnInstall
   !insertmacro DKA_LogLine "==== customUnInstall ===="
 
-  !ifdef DKA_HAS_FIREWALL
-    !insertmacro DKA_LogLine "Removing firewall rules…"
-    !ifdef FIREWALL_CLEANUP
-      !insertmacro FIREWALL_CLEANUP
-    !endif
-  !endif
-
-  !ifdef ACL_REVERT
-    !insertmacro DKA_LogLine "Reverting ACL on database directory…"
-    !insertmacro ACL_REVERT
-  !else
-    !insertmacro DKA_LogLine "ACL_REVERT not defined – skipping ACL revert."
-  !endif
+  !insertmacro FIREWALL_CLEANUP
+  !insertmacro ACL_REVERT
 
   !insertmacro DKA_LogLine "==== customUnInstall done ===="
 !macroend
