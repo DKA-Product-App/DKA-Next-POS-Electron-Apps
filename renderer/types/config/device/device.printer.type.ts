@@ -1,3 +1,6 @@
+import {ConfigBranch} from "../base/branch.type";
+import {Accounts} from "../../account/accounts.type";
+
 export interface DevicePrinterOptions {
     /** Mode koneksi printer (contoh data: "NETWORK") */
     mode: 'NETWORK' | 'USB' | 'SERIAL' | 'BLUETOOTH' | (string & {});
@@ -8,6 +11,8 @@ export interface DevicePrinterOptions {
 
 export interface DevicePrinter {
     id?: string;
+    reference?: Accounts;
+    branches?: ConfigBranch[];
     name?: string;
     description?: string | null;
     options?: DevicePrinterOptions;
