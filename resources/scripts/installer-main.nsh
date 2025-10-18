@@ -3,10 +3,12 @@
 ; File : resources/scripts/installer-main.nsh
 ; ============================================================
 
-!include "FileFunc.nsh"
-; !include "nsExec.nsh"
+!verbose push
+!verbose 3
 
-; ${BUILD_RESOURCES_DIR} -> folder "resources" (atau sesuai directories.buildResources)
+!include "FileFunc.nsh"
+
+; Pastikan semua lokasi include aman (CI kadang beda cwd)
 !addincludedir "${BUILD_RESOURCES_DIR}\scripts"
 !addincludedir "${BUILD_RESOURCES_DIR}/scripts"
 !addincludedir "resources/scripts"
@@ -15,10 +17,10 @@
 ; ===== Wajib: ACL untuk folder database =====
 !include "installer-acl.nsh"
 
-; ===== Opsional: modul lain (boleh kosong, tapi file harus ada) =====
+; ===== Opsional: modul lain =====
 !include "installer-firewall.nsh"
 
-; ---- Setelah include, baru cek macro yang tersedia ----
+; ---- Deteksi ketersediaan makro dari modul opsional ----
 !ifdef FIREWALL_RULES
   !define DKA_HAS_FIREWALL 1
 !endif
@@ -37,14 +39,12 @@
 !macroend
 
 ; ============================================================
-; preInit (tanpa LogicLib; deteksi 64-bit pakai Sysnative probe)
+; preInit (tanpa LogicLib; deteksi 64-bit via Sysnative probe)
 ; ============================================================
 !macro preInit
   !insertmacro DKA_LogLine "==== preInit ===="
   !insertmacro DKA_LogKV "INSTDIR" "$InstDir"
 
-  ; Deteksi arsitektur OS tanpa LogicLib:
-  ; Jika folder %WINDIR%\Sysnative ada (visible dari proses 32-bit), berarti OS 64-bit.
   StrCpy $0 "32-bit OS (assumed)"
   IfFileExists "$WINDIR\Sysnative\*.*" 0 +2
     StrCpy $0 "64-bit OS (detected by Sysnative)"
@@ -119,4 +119,4 @@
   !insertmacro DKA_LogLine "==== customUnInstall done ===="
 !macroend
 
-; (Fallback Section kalau mau, tetap sama punyamu)
+!verbose pop

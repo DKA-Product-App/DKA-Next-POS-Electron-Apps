@@ -1,17 +1,22 @@
-; =======================
-; Includes (urutannya penting)
-; =======================
+; ============================================================
+; ACL handler untuk folder database
+; ============================================================
+!verbose push
+!verbose 3
+
 !include "FileFunc.nsh"
 !include "LogicLib.nsh"
-!include "x64.nsh"       ; <-- WAJIB untuk ${RunningX64}
-!include "WinVer.nsh"    ; untuk ${AtLeastWin7}
-!include "nsExec.nsh"    ; untuk nsExec::ExecToStack
+!include "x64.nsh"
+!include "WinVer.nsh"
+!include "nsExec.nsh"
 
 ; =======================
 ; Konstanta
 ; =======================
-!define DKA_DB_DIR "$InstDir\database"
-!define SID_BUILTIN_USERS "S-1-5-32-545"    ; Builtin\Users (universal, lintas bahasa)
+!ifndef DKA_DB_DIR
+  !define DKA_DB_DIR "$InstDir\database"
+!endif
+!define SID_BUILTIN_USERS "S-1-5-32-545"  ; Builtin\Users (lintas bahasa)
 
 ; =======================
 ; Variabel
@@ -22,7 +27,6 @@ Var DKA_ICACLS_PATH
 ; Resolve path icacls (Sysnative-safe)
 ; =======================
 !macro DKA_RESOLVE_ICACLS
-  ; Kalau installer 32-bit di OS 64-bit, pakai Sysnative biar lolos WOW64 redirection
   ${If} ${RunningX64}
     StrCpy $DKA_ICACLS_PATH "$WINDIR\Sysnative\icacls.exe"
     ${IfNot} ${FileExists} "$DKA_ICACLS_PATH"
@@ -34,8 +38,7 @@ Var DKA_ICACLS_PATH
 !macroend
 
 ; =======================
-; Helper eksekusi icacls
-; (ExecToStack -> output dulu, lalu exitcode)
+; Helper icacls (ExecToStack)
 ; =======================
 !macro _RunIcacls CMD
   nsExec::ExecToStack '"$DKA_ICACLS_PATH" ${CMD}'
@@ -53,7 +56,7 @@ Var DKA_ICACLS_PATH
 !macroend
 
 ; =======================
-; Macro: apply ACL (dipanggil saat install)
+; Macro: apply ACL (install)
 ; =======================
 !macro ACL_APPLY
   DetailPrint 'ACL_APPLY: start'
@@ -65,16 +68,14 @@ Var DKA_ICACLS_PATH
     Return
   ${EndIf}
 
-  ; (Opsional) pastikan minimal Windows 7 (Vista+ sebenarnya sudah oke)
   ${IfNot} ${AtLeastWin7}
-    DetailPrint 'OS < Windows 7, skip ACL (fitur icacls mungkin terbatas)'
+    DetailPrint 'OS < Windows 7, skip ACL'
     Return
   ${EndIf}
 
-  ; Pastikan folder ada
   CreateDirectory "${DKA_DB_DIR}"
 
-  ; Putus inheritance dari Program Files -> biar ACE custom berlaku
+  ; Putus inheritance agar ACE custom efektif
   !insertmacro _RunIcacls '"${DKA_DB_DIR}" /inheritance:d'
 
   ; Hapus ACE lama utk Builtin\Users (idempotent)
@@ -83,14 +84,14 @@ Var DKA_ICACLS_PATH
   ; Grant Modify (M) + turunan (OI/CI) ke Builtin\Users
   !insertmacro _RunIcacls '"${DKA_DB_DIR}" /grant *${SID_BUILTIN_USERS}:(OI)(CI)M'
 
-  ; Terapkan ke isi saat ini (kalau sudah ada struktur)
+  ; Terapkan ke isi yang sudah ada (best-effort)
   !insertmacro _RunIcacls '"${DKA_DB_DIR}" /T /C'
 
   DetailPrint 'ACL_APPLY: done'
 !macroend
 
 ; =======================
-; Macro: revert ACL (dipanggil saat uninstall)
+; Macro: revert ACL (uninstall)
 ; =======================
 !macro ACL_REVERT
   DetailPrint 'ACL_REVERT: start'
@@ -102,7 +103,6 @@ Var DKA_ICACLS_PATH
 
   !insertmacro DKA_RESOLVE_ICACLS
 
-  ; Kembalikan inheritance dan reset ACE ke default parent
   !insertmacro _RunIcacls '"${DKA_DB_DIR}" /inheritance:e'
   !insertmacro _RunIcacls '"${DKA_DB_DIR}" /reset /T /C'
 
@@ -110,18 +110,18 @@ Var DKA_ICACLS_PATH
 !macroend
 
 ; =======================
-; Hook Sections
-; Catatan:
-; - electron-builder biasanya menjalankan Section standar.
-; - Bagian ini aman bila file di-include dari script utama.
+; (Opsional) Hook Sections
+;   Nonaktif default untuk hindari double-run
+;   Aktifkan dengan: !define DKA_ACL_SECTIONS 1 sebelum include
 ; =======================
-
-; Jalankan APPLY setelah file2 terpasang
+!ifdef DKA_ACL_SECTIONS
 Section -PostInstallACL
   !insertmacro ACL_APPLY
 SectionEnd
 
-; (Opsional) Jalankan REVERT saat uninstall (kalau uninstaller dipanggil)
 Section -PreUninstallACL
   !insertmacro ACL_REVERT
 SectionEnd
+!endif
+
+!verbose pop
