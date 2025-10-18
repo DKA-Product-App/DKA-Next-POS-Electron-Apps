@@ -7,13 +7,7 @@
 !verbose 3
 
 !include "WinVer.nsh"
-
-; Opsional/aman: include nsExec kalau tersedia
-!ifdef NSISDIR
-  !ifexists "${NSISDIR}\Include\nsExec.nsh"
-    !include "${NSISDIR}\Include\nsExec.nsh"
-  !endif
-!endif
+; Tidak include nsExec.nsh — plugin nsExec tetap dapat dipanggil langsung
 
 Var DKA_NETSH_PATH
 Var DKA_FW_OUT
@@ -95,7 +89,7 @@ dka_fw_preinit_end:
   !insertmacro _FW_ALLOW_TCP 80
 
   ; (Opsional) allow EXE utama:
-  ; !insertmacro _FW_ALLOW_APP "DKA POS App" "$InstDir\your-app.exe"
+  ; !insertmacro _FW_ALLOW_APP "DKA POS App" "$InstDir\DKA-Cashier-POS-Application.exe"
 
   Goto dka_fw_rules_end
 dka_fw_rules_skip:

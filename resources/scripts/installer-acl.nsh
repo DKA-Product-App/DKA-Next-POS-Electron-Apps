@@ -1,6 +1,7 @@
 ; ============================================================
 ; ACL handler untuk folder database
 ; ============================================================
+
 !verbose push
 !verbose 3
 
@@ -8,13 +9,8 @@
 !include "LogicLib.nsh"
 !include "x64.nsh"
 !include "WinVer.nsh"
-
-; Opsional/aman: include nsExec kalau tersedia (CI kadang nggak ada headernya)
-!ifdef NSISDIR
-  !ifexists "${NSISDIR}\Include\nsExec.nsh"
-    !include "${NSISDIR}\Include\nsExec.nsh"
-  !endif
-!endif
+; Jangan include nsExec.nsh — header sering tak tersedia di cache NSIS electron-builder.
+; nsExec::ExecToStack tetap bisa dipakai tanpa header (plugin-level).
 
 ; =======================
 ; Konstanta
@@ -79,6 +75,7 @@ Var DKA_ICACLS_PATH
     Return
   ${EndIf}
 
+  ; Pastikan folder ada
   CreateDirectory "${DKA_DB_DIR}"
 
   ; Putus inheritance agar ACE custom efektif
@@ -116,9 +113,9 @@ Var DKA_ICACLS_PATH
 !macroend
 
 ; =======================
-; (Opsional) Hook Sections
-;   Nonaktif default untuk hindari double-run
-;   Aktifkan dengan: !define DKA_ACL_SECTIONS 1 sebelum include
+; (Opsional) Hook Sections (OFF by default)
+; Aktifkan hanya jika ingin fallback Section:
+;   !define DKA_ACL_SECTIONS 1  sebelum !include file ini
 ; =======================
 !ifdef DKA_ACL_SECTIONS
 Section -PostInstallACL

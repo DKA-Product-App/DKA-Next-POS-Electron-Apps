@@ -39,7 +39,7 @@
 !macroend
 
 ; ============================================================
-; preInit (tanpa LogicLib; deteksi 64-bit via Sysnative probe)
+; preInit (deteksi 64-bit via Sysnative existence)
 ; ============================================================
 !macro preInit
   !insertmacro DKA_LogLine "==== preInit ===="
