@@ -9,8 +9,7 @@
 !include "LogicLib.nsh"
 !include "x64.nsh"
 !include "WinVer.nsh"
-; Jangan include nsExec.nsh — header sering tak tersedia di cache NSIS electron-builder.
-; nsExec::ExecToStack tetap bisa dipakai tanpa header (plugin-level).
+; NOTE: Jangan include nsExec.nsh. Plugin nsExec tetap bisa dipanggil langsung.
 
 ; =======================
 ; Konstanta

@@ -29,7 +29,7 @@
 !endif
 
 ; ============================================================
-; Helper log
+; Helper log (runtime)
 ; ============================================================
 !macro DKA_LogLine MSG
   DetailPrint "${MSG}"
@@ -39,12 +39,13 @@
 !macroend
 
 ; ============================================================
-; preInit (deteksi 64-bit via Sysnative existence)
+; preInit (runtime; dipanggil builder dalam function/section)
 ; ============================================================
 !macro preInit
   !insertmacro DKA_LogLine "==== preInit ===="
   !insertmacro DKA_LogKV "INSTDIR" "$InstDir"
 
+  ; Deteksi 64-bit via Sysnative presence
   StrCpy $0 "32-bit OS (assumed)"
   IfFileExists "$WINDIR\Sysnative\*.*" 0 +2
     StrCpy $0 "64-bit OS (detected by Sysnative)"
@@ -66,15 +67,15 @@
 !macroend
 
 ; ============================================================
-; customHeader (opsional)
+; customHeader (compile-time only; JANGAN pakai DetailPrint)
 ; ============================================================
 !macro customHeader
-  !insertmacro DKA_LogLine "==== customHeader ===="
-  !insertmacro DKA_LogLine "DKA Cashier POS – preparing installation…"
+  !echo "==== customHeader ===="
+  !echo "DKA Cashier POS – preparing installation…"
 !macroend
 
 ; ============================================================
-; customInstall
+; customInstall (runtime)
 ; ============================================================
 !macro customInstall
   !insertmacro DKA_LogLine "==== customInstall ===="
@@ -97,7 +98,7 @@
 !macroend
 
 ; ============================================================
-; customUnInstall
+; customUnInstall (runtime)
 ; ============================================================
 !macro customUnInstall
   !insertmacro DKA_LogLine "==== customUnInstall ===="
