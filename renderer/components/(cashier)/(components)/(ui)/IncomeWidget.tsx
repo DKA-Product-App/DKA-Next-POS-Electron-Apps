@@ -2,11 +2,13 @@
 
 import * as React from 'react'
 import { Box, Typography } from '@mui/material'
-import {useEffect} from "react";
+import { useEffect } from 'react'
 import {
-    useTransactionEventTrigger
-} from "../../layouts/(main)/(component)/(transaction)/ui/(pane)/context/TransactionEventTriggerContext";
-import {useGodModeProvider} from "../../context/GodModeProviderContext";
+    useTransactionEventTrigger,
+} from '../../layouts/(main)/(component)/(transaction)/ui/(pane)/context/TransactionEventTriggerContext'
+import { useGodModeProvider } from '../../context/GodModeProviderContext'
+import * as moment from 'moment-timezone'
+import {useSession} from "../../../../contexts/SessionProviderContext"; // ⬅️ tambah ini
 
 type TimeWidgetProps = {
     /** Font size jam utama */
@@ -15,86 +17,79 @@ type TimeWidgetProps = {
     justifySelf?: 'start' | 'center' | 'end'
 }
 
-export default function IncomeWidget({
-                                       timeVariant = 'h5',
-                                       justifySelf = 'center',
-                                   }: TimeWidgetProps) {
-    // Jangan render waktu saat SSR → biar gak mismatch
+export default function IncomeWidget({ timeVariant = 'h5', justifySelf = 'center' }: TimeWidgetProps) {
     const [mounted, setMounted] = React.useState(false)
     const { token, reason } = useTransactionEventTrigger()
-    const { godMode } = useGodModeProvider();
-    const [ payloadCount, setPayloadCount ] = React.useState<{ status?: boolean, code?: number, msg?: string; data?: {
+    const { Session } = useSession();
+    const { godMode } = useGodModeProvider()
+    const [payloadCount, setPayloadCount] = React.useState<{
+        status?: boolean
+        code?: number
+        msg?: string
+        data?: {
             summary: {
-                bruto: {
-                    total: number;
-                    tax: number;
-                };
-                netto: {
-                    total: number;
-                };
-            };
-        }}>(undefined);
-
+                bruto: { total: number; tax: number }
+                netto: { total: number }
+            }
+        }
+    } | undefined>(undefined)
 
     const fetchTotal = React.useCallback(() => {
-        window?.api?.invoke?.("api.transaction.bills:count.all", {
-            god_mode : godMode
+        // default range: hari ini 00:00 s/d 23:59 (Asia/Jakarta)
+        const tz = 'Asia/Jakarta'
+        const startAt = moment.tz(tz).startOf('day').format('YYYY-MM-DD HH:mm:ss')
+        const endAt   = moment.tz(tz).endOf('day').format('YYYY-MM-DD HH:mm:ss')
+
+        window?.api
+            ?.invoke?.('api.transaction.bills:count.all', {
+            startAt,
+            endAt,
+            reference: Session?.id,
+            god_mode: godMode,
         })
             .then(async (result) => {
-                console.log(`Header Income Diperbarui`, result);
-                setPayloadCount(result);
+                console.log('Header Income Diperbarui', result)
+                setPayloadCount(result)
             })
             .catch((error) => {
-                console.log(`Header Income Gagal Diperbarui`, error);
+                console.log('Header Income Gagal Diperbarui', error)
                 setPayloadCount(undefined)
             })
-    },[ godMode ])
+    }, [godMode, Session])
 
     useEffect(() => {
-        setMounted(true);
-        return () => {
-            setMounted(false);
-        }
-    }, []);
+        setMounted(true)
+        return () => setMounted(false)
+    }, [])
 
     useEffect(() => {
-        if (mounted){
-            // keep list up-to-date when token/reason change
-            void fetchTotal();
-        }
-    }, [token, reason, mounted, godMode])
+        if (mounted) void fetchTotal()
+    }, [token, reason, mounted, godMode, fetchTotal])
 
     return (
-        <>
-            <Box
-                sx={{
-                    justifySelf,
-                    textAlign: 'center',
-                    lineHeight: 1.1,
-                    userSelect: 'none',
-                }}
+        <Box
+            sx={{
+                justifySelf,
+                textAlign: 'center',
+                lineHeight: 1.1,
+                userSelect: 'none',
+            }}
+        >
+            <Typography
+                variant={timeVariant}
+                suppressHydrationWarning
+                sx={{ fontWeight: 600, letterSpacing: 1, fontVariantNumeric: 'tabular-nums' }}
             >
-                <Typography
-                    variant={timeVariant}
-                    // suppressHydrationWarning penting kalau somehow masih ada text saat SSR
-                    suppressHydrationWarning
-                    sx={{
-                        fontWeight: 600,
-                        letterSpacing: 1,
-                        fontVariantNumeric: 'tabular-nums',
-                    }}
-                >
-                    Rp. {payloadCount?.data?.summary?.bruto?.total}
-                </Typography>
+                Rp. {payloadCount?.data?.summary?.bruto?.total}
+            </Typography>
 
-                <Typography
-                    variant="caption"
-                    suppressHydrationWarning
-                    sx={{ display: 'block', color: 'text.secondary', mt: 0.25 }}
-                >
-                    Penghasilan Shift Anda
-                </Typography>
-            </Box>
-        </>
+            <Typography
+                variant="caption"
+                suppressHydrationWarning
+                sx={{ display: 'block', color: 'text.secondary', mt: 0.25 }}
+            >
+                Penghasilan Shift Anda
+            </Typography>
+        </Box>
     )
 }

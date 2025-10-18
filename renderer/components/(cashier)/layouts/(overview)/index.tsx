@@ -39,6 +39,8 @@ import { useEffect } from 'react';
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
 import {useGodModeProvider} from "../../context/GodModeProviderContext";
+import {useSession} from "../../../../contexts/SessionProviderContext";
+import * as moment from 'moment';
 
 const MotionCard = motion(Card);
 
@@ -55,6 +57,7 @@ type Item = {
 export default function Overview() {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
+    const { Session } = useSession();
     const { godMode, setGodMode } = useGodModeProvider();
 
     const [mounted, setMounted] = React.useState(false)
@@ -76,8 +79,17 @@ export default function Overview() {
 
 
     const fetchTotal = React.useCallback(() => {
-        window?.api?.invoke?.<{ god_mode?: string | boolean }, typeof payloadCount>("api.transaction.bills:count.all", {
-            god_mode: godMode
+
+        // default range: hari ini 00:00 s/d 23:59 (Asia/Jakarta)
+        const tz = 'Asia/Jakarta'
+        const startAt = moment.tz(tz).startOf('day').format('YYYY-MM-DD HH:mm:ss')
+        const endAt   = moment.tz(tz).endOf('day').format('YYYY-MM-DD HH:mm:ss')
+
+        window?.api?.invoke?.<{ god_mode?: string | boolean; startAt?: string; endAt?: string; reference?: string }, typeof payloadCount>("api.transaction.bills:count.all", {
+            startAt,
+            endAt,
+            reference: Session?.id,
+            god_mode: godMode,
         })
             .then(async (result) => {
                 setPayloadCount(result);
@@ -85,7 +97,7 @@ export default function Overview() {
             .catch((error) => {
                 setPayloadCount(undefined)
             })
-    }, [godMode])
+    }, [godMode, Session])
 
     useEffect(() => {
         setMounted(true);
