@@ -258,7 +258,7 @@ export const ProductDetailModal = forwardRef<DetailProductModalHandle, DetailPro
                                 {hasVariants ? (
                                     p.variants!.map((v) => (
                                         <MenuItem key={String(v.id)} value={String(v.id)}>
-                                            {v.code} — {rupiah(Number(v.price))}
+                                            {v.name} — {rupiah(Number(v.price))}
                                         </MenuItem>
                                     ))
                                 ) : (
