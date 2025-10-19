@@ -67,7 +67,7 @@ export const SelectMenuAndVariant: FC = () => {
                 // diasumsikan result.data sudah berupa array ProductWithVariants atau perlu map di sini
                 setProducts(result.data as ProductWithVariants[]);
                 setProdError(null);
-                console.log(result);
+                console.log(`productList`, result);
             })
             .catch(async (err: any) => {
                 console.error(err);

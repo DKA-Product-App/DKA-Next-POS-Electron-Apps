@@ -44,6 +44,21 @@ const TableNode: React.FC<{
     const notSelectable = whitelistActive ? !isWhitelisted : t.status !== 'available';
     const tintId = whitelistActive ? (isWhitelisted ? statusTintId(t.status) : 'tintUnavail') : statusTintId(t.status);
 
+    // === util label (lebar dinamis + ellipsis) ===
+    const labelText = t.label ?? '';
+    const estWidth = (s: string) => Math.max(0, s.length * 7 + 16); // ~7px/char + padding
+    const maxW = t.shape === 'round'
+        ? Math.max(52, Math.floor((t.r ?? 40) * 1.6))
+        : Math.max(52, Math.floor((t.w ?? 100) * 0.9));
+    const fitText = (s: string) => {
+        const w = estWidth(s);
+        if (w <= maxW) return s;
+        const maxChars = Math.max(1, Math.floor((maxW - 20) / 7) - 1);
+        return s.slice(0, maxChars) + '…';
+    };
+    const text = fitText(labelText);
+    const labelW = Math.min(maxW, estWidth(text));
+
     return (
         <g
             className="table-node"
@@ -53,6 +68,7 @@ const TableNode: React.FC<{
             onMouseLeave={() => setHover(false)}
             onClick={(e) => { e.stopPropagation(); if (!notSelectable) onSelect(t.id, t.serverId); }}
         >
+            {/* === Bentuk meja === */}
             {t.shape === 'round' ? (
                 <>
                     <circle cx={0} cy={0} r={t.r ?? 40} fill="url(#wood)" filter="url(#hardShadow)" opacity={notSelectable ? 0.85 : 1}/>
@@ -71,8 +87,27 @@ const TableNode: React.FC<{
                 </>
             )}
 
+            {/* === TOP LAYER: label overlay di atas permukaan meja === */}
+            <g transform="translate(0,0)" style={{ pointerEvents: 'none' }}>
+                <rect x={-labelW / 2} y={-14} width={labelW} height={20} rx={8} fill="rgba(0,0,0,0.55)"/>
+                <text
+                    x={0}
+                    y={-2}
+                    fill="#fff"
+                    fontSize="12"
+                    fontWeight={800}
+                    textAnchor="middle"
+                    paintOrder="stroke"
+                    stroke="rgba(0,0,0,0.35)"
+                    strokeWidth={1.25}
+                >
+                    {text}
+                </text>
+            </g>
+
+            {/* Tooltip info saat hover/selected (opsional, masih di atas meja tapi di posisi atas) */}
             {(hover || selected) && (
-                <g transform={`translate(0, ${-(t.shape === 'round' ? (t.r ?? 40) : (t.h ?? 60) / 2) - 18})`}>
+                <g transform={`translate(0, ${-(t.shape === 'round' ? (t.r ?? 40) : (t.h ?? 60) / 2) - 38})`} style={{ pointerEvents: 'none' }}>
                     <rect x={-60} y={-18} width={120} height={22} rx={8} fill="rgba(24,24,28,0.85)"/>
                     <text x={0} y={-3} fill="#fff" fontSize="12" fontWeight={800} textAnchor="middle">
                         {t.label} • {t.capacity} org
@@ -82,6 +117,7 @@ const TableNode: React.FC<{
         </g>
     );
 });
+
 
 /* ===== Props ===== */
 type TPProps = {
