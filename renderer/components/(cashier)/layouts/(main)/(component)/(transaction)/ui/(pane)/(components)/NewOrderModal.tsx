@@ -198,6 +198,8 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
             return
         }
 
+        console.log(items);
+
         // Sanitize keras: pastikan qty >= 1, price valid number
         const sanitized = items
             .map((i: any) => {
@@ -206,8 +208,7 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
                 const safeQty = Math.max(1, Math.trunc(qty || 0))         // min 1
                 const safePrice = Number.isFinite(price) ? price : 0
 
-                return {
-                    // JANGAN spread variant ke top-level untuk menghindari bentrok field
+                const payload = {
                     reference: Session.id,
                     product: i?.variant?.product ?? null,
                     variant: i?.variant ?? null,
@@ -215,7 +216,10 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
                     qty: safeQty,
                     price: safePrice,
                     sub_total: safePrice * safeQty,
-                }
+                };
+
+                console.log(payload);
+                return payload
             })
             .filter((it: any) => it.variant && it.product && it.price > 0 && it.qty > 0)
 

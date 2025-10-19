@@ -214,6 +214,7 @@ const PreviewSelectCheckout: React.FC<{ onSubmit?: (item : CartItem[]) => void }
             console.warn('PreviewSelectCheckout: onSubmit tidak dikirim atau bukan fungsi');
             return;
         }
+        console.log(`preview select`,items);
         onSubmit?.(items);
     }
 

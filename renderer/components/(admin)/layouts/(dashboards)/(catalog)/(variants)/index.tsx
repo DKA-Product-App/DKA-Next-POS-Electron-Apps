@@ -76,7 +76,7 @@ export default ({  onAddVariant, onEditVariant, onDeleteVariant }: Props) => {
         }
         setLoading(true);
         window.api
-            .invoke<any, { data: ProductsVariants[] }>('api.product.variant:read.all', {
+            .invoke<{ god_mode?: boolean }, { data: ProductsVariants[] }>('api.product.variant:read.all', {
                 god_mode: godMode
             })
             .then(({ data }) => {
@@ -112,7 +112,7 @@ export default ({  onAddVariant, onEditVariant, onDeleteVariant }: Props) => {
             } as ProductsVariants);
         });
         setRows(Object.values(map));
-    }, [variants]);
+    }, [variants, godMode]);
 
     /* Columns */
     const columns = React.useMemo<MRT_ColumnDef<ProductsVariants | ProductRow>[]>(

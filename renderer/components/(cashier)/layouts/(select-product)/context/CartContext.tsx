@@ -123,7 +123,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const valueActions = React.useMemo(
         () => ({
-            add: (p: Products, v?: ProductsVariants) => dispatch({ type: 'ADD', payload: { p, v } }),
+            add: (p: Products, v?: ProductsVariants) => {
+                console.log(`context add`, { p, v })
+                dispatch({ type: 'ADD', payload: { p, v } })
+            },
             inc: (key: string) => dispatch({ type: 'INC', payload: { key } }),
             dec: (key: string) => dispatch({ type: 'DEC', payload: { key } }),
             remove: (key: string) => dispatch({ type: 'REMOVE', payload: { key } }),
