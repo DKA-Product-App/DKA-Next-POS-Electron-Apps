@@ -352,7 +352,7 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
             .then(({ data }) => {
                 onPaySuccess?.();
                 setBill(data);
-                if (config?.printer?.isPrintAutomatically) onPrintHandle({});
+                if (config?.printer?.isPrintAutomatically) onPrintHandle({ cashdraw: true });
             })
             .catch(console.error)
     }
@@ -367,12 +367,13 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                setPrinterList([])
            })
     },[])
-    const onPrintHandle = ({ enableNotify = false } : { enableNotify?: boolean}) => {
+    const onPrintHandle = ({ enableNotify = false, cashdraw = false } : { enableNotify?: boolean, cashdraw?: boolean }) => {
         if (!config?.printer.defaultPrinter) return
         window.api.invoke('api.transaction.bills:print', {
             bill: bill.id,
             printer: config?.printer?.defaultPrinter?.id ?? null,
             god_mode: godMode,
+            cashdraw: cashdraw,
         })
             .then((res) => {
                 if (enableNotify) {
