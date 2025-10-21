@@ -12,7 +12,7 @@ import { ConfigRepository } from '../../repositories/config'; // <-- sesuaikan p
 
 // ====== Konfigurasi key di SQLite ======
 const CFG_KEY_BASE_URL = 'api.base_url';
-const DEFAULT_BASE_URL  = 'https://127.0.0.1:8083';
+const DEFAULT_BASE_URL  = 'https://192.168.1.253:8083';
 
 // ====== Singletons / memo ======
 let repo: ConfigRepository | null = null;
