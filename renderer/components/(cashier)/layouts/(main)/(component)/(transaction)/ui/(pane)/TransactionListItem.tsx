@@ -339,7 +339,7 @@ const TransactionListItem: React.FC = () => {
         })
     }
 
-    const deletedTransaction = (id) => {
+    const deletedTransaction = async (id : string) => {
         return window.api.invoke("api.transaction:delete.one", { id });
     }
 
@@ -361,7 +361,7 @@ const TransactionListItem: React.FC = () => {
         })
 
         window?.api?.invoke?.<Transaction[], { data : Transaction[] | Transaction }>("api.transaction.batch:create", removedInvoiceBatches)
-            .then(async ({ data }) => {
+            .then(async () => {
                 const trunkDeleteTransaction = payload.transaction.filter((data) => data.id !== payload?.selectedTransaction.id);
                 const promiseDelete = trunkDeleteTransaction.map((tx) => deletedTransaction(tx.id));
                 return Promise.all(promiseDelete)
