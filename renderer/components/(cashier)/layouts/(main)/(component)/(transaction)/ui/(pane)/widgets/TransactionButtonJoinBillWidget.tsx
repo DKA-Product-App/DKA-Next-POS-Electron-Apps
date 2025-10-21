@@ -11,6 +11,8 @@ import CallMergeRounded from '@mui/icons-material/CallMergeRounded'
 import CloseRounded from '@mui/icons-material/CloseRounded'
 import dynamic from 'next/dynamic'
 import {useEffect} from "react";
+import {Transaction} from "../../../../../../../../../types/transaction/transaction.type";
+import normalizeIpcError from "../../../../../../../../../helpers/electronMessageErrorEsctration";
 
 // NOTE: pastikan path-nya sesuai struktur kamu
 const SelectTables = dynamic(() => import('../../../../../../(select-tables)'), { ssr: false })
@@ -22,15 +24,10 @@ type Props = {
     selectedIds: string[]
     selectedTxs: TxRef[]           // ⬅️ dikirim dari parent (TransactionListItem)
     hasClosed: boolean
-    onPick?: (payload: { transaction: string[]; tableselectedId: string }) => void
+    onPick?: (payload: { transaction: Transaction[]; selectedTransaction: Transaction }) => void
 }
 
-const TransactionButtonJoinBillWidget: React.FC<Props> = ({
-                                                              selectedIds,
-                                                              selectedTxs,
-                                                              hasClosed,
-                                                              onPick
-                                                          }) => {
+const TransactionButtonJoinBillWidget: React.FC<Props> = ({ selectedIds, selectedTxs, hasClosed, onPick }) => {
     const [open, setOpen] = React.useState(false)
 
     // daftar meja yang boleh dipilih = unique table.id dari transaksi terpilih
@@ -51,12 +48,24 @@ const TransactionButtonJoinBillWidget: React.FC<Props> = ({
     const openDialog = () => setOpen(true)
     const closeDialog = () => setOpen(false)
 
+
+
     // dipanggil saat meja tujuan dipilih
-    const handleSelectTable = (id: string) => {
-        const payload = { transaction: selectedIds, tableselectedId: id }
-        onPick?.(payload)
-        closeDialog()
-    }
+    const handleSelectTable = React.useCallback((id: string) => {
+        window?.api?.invoke?.<{ ids : string[]}, { data : Transaction[] }>("api.transaction:read.all", {
+            ids : selectedIds
+        }).then(async ({ data }) => {
+            const payload = {
+                transaction: data,
+                selectedTransaction: data.find((data) => data.table.id === id )
+            }
+            onPick?.(payload)
+            closeDialog()
+        }).catch(async (error) => {
+            const e = normalizeIpcError(error)
+            console.error(e);
+        })
+    },[selectedIds])
 
     return (
         <>

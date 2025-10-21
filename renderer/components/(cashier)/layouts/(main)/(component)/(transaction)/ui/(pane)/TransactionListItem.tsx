@@ -23,6 +23,8 @@ import { useSession } from '../../../../../../../../contexts/SessionProviderCont
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useFunctionKeyCtx } from '../../../../../../../../contexts/FunctionKeyProviderContext'
 import {Transaction} from "../../../../../../../../types/transaction/transaction.type";
+import normalizeIpcError from "../../../../../../../../helpers/electronMessageErrorEsctration";
+import {TransactionBatch} from "../../../../../../../../types/transaction/batch/transaction.batch.type";
 
 // ===== Const =====
 const TZ_OFFSET = '+08:00' // Asia/Makassar
@@ -337,6 +339,43 @@ const TransactionListItem: React.FC = () => {
         })
     }
 
+    const deletedTransaction = (id) => {
+        return window.api.invoke("api.transaction:delete.one", { id });
+    }
+
+    const onPickJoinBill : (payload: { transaction: Transaction[]; selectedTransaction: Transaction }) => void = (payload) => {
+        /** Sortir items. **/
+        const batches = payload.transaction.flatMap((tx) => tx.batches)
+            .filter((batches) => batches.transaction.id !== payload?.selectedTransaction.id)
+
+        const removedInvoiceBatches : TransactionBatch[] = batches.map((data) => {
+            const refactor : TransactionBatch = {
+                ...data,
+                transaction : {
+                    id : payload?.selectedTransaction?.id
+                }
+            };
+            delete refactor.batch;
+            delete refactor.id;
+            return refactor;
+        })
+
+        window?.api?.invoke?.<Transaction[], { data : Transaction[] | Transaction }>("api.transaction.batch:create", removedInvoiceBatches)
+            .then(async ({ data }) => {
+                const trunkDeleteTransaction = payload.transaction.filter((data) => data.id !== payload?.selectedTransaction.id);
+                const promiseDelete = trunkDeleteTransaction.map((tx) => deletedTransaction(tx.id));
+                return Promise.all(promiseDelete)
+            })
+            .then(async (res) => {
+                void refetch();
+                void softRefetch();
+            })
+            .catch(async (error) => {
+                const e = normalizeIpcError(error);
+                console.error(e);
+            })
+    }
+
     useEffect(() => {
         setMenu(prev => ([...prev, { key: 'F2', label: 'Order baru' }]))
         return () => { remove('F2') }
@@ -470,7 +509,7 @@ const TransactionListItem: React.FC = () => {
                         selectedIds={Array.from(multiSelectedIds)}
                         selectedTxs={selectedTxs}
                         hasClosed={hasClosed}
-                        onPick={(payload) => console.log('[JOIN PICKED]', payload)}
+                        onPick={onPickJoinBill}
                     />
                 </Stack>
             </Box>
