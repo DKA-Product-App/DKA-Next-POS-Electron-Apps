@@ -21,8 +21,13 @@ export default async function MainWindow(){
         maximizable: true,
         minimizable: true,
         autoHideMenuBar: isProd,
+        backgroundColor: '#111319',           // hindari white flash
         show: false,
         webPreferences: {
+            sandbox: true,
+            spellcheck: false,           // kalau tak dibutuhkan
+            contextIsolation: true,     // wajib biar jembatan aman
+            nodeIntegration: false,     // no Node di renderer
             preload: path.join(__dirname, 'preload.js'),
         },
     });
@@ -31,7 +36,6 @@ export default async function MainWindow(){
     //#######################################################
     mainWindow
         .on('show', () => {
-
             // ambil display tempat window muncul
             const display = screen.getDisplayMatching(mainWindow.getBounds())
             const sf = display.scaleFactor || 1
@@ -48,7 +52,6 @@ export default async function MainWindow(){
         .on('did-finish-load', () => {
             mainWindow.show();
             Api(mainWindow);
-
         }).on('destroyed', () => {
 
         })

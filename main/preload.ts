@@ -1,5 +1,7 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent, app } from 'electron';
 import packageJSON from "./../package.json";
+import {Socket} from "socket.io-client";
+import {getSocket} from "./functions/api/socket.io.instance";
 
 const electronVersion = process.versions.electron
 const chromeVersion = process.versions.chrome
@@ -49,6 +51,10 @@ const API = {
   },
 }
 
+const IO = {
+
+}
+
 const ELECTRON = {
   versions: {
     app: packageJSON.version,
@@ -63,9 +69,11 @@ const ELECTRON = {
 contextBridge.exposeInMainWorld('ipc', IPC)
 contextBridge.exposeInMainWorld('shortcut', FUNCTION_KEY)
 contextBridge.exposeInMainWorld('api', API);
+contextBridge.exposeInMainWorld('io', IO);
 contextBridge.exposeInMainWorld('electron', ELECTRON)
 
 export type IPC = typeof IPC;
 export type FUNCTION_KEY = typeof FUNCTION_KEY;
 export type API = typeof API;
+export type IO = typeof IO;
 export type ELECTRON = typeof ELECTRON;
