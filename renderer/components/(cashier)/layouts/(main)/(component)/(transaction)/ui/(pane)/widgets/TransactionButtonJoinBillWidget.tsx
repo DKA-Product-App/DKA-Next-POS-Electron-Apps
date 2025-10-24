@@ -10,7 +10,6 @@ import {
 import CallMergeRounded from '@mui/icons-material/CallMergeRounded'
 import CloseRounded from '@mui/icons-material/CloseRounded'
 import dynamic from 'next/dynamic'
-import {useEffect} from "react";
 import {Transaction} from "../../../../../../../../../types/transaction/transaction.type";
 import normalizeIpcError from "../../../../../../../../../helpers/electronMessageErrorEsctration";
 

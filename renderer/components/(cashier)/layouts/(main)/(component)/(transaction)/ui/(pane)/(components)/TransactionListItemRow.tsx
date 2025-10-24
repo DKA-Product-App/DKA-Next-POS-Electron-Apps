@@ -18,6 +18,7 @@ import {useEffect} from "react";
 import {AxiosResponse} from "axios";
 import {SummarizeTxReturn} from "../../../types/transaction.read.one.type";
 import {Transaction} from "../../../../../../../../../types/transaction/transaction.type";
+import ShimmerLoadingTransactionListItemRow from "../../(loading)/ShimmerLoadingTransactionListItemRow";
 /* ========= Utils khusus Row ========= */
 const rupiah = (n: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
@@ -342,75 +343,78 @@ export const TransactionListItemRow: React.FC<{
     
     return (
         <>
-            <ListItemButton
-                onClick={onRowClick}
-                selected={singleSelected}
-                sx={{
-                    position: 'relative', alignItems: 'flex-start', py: 1.25, px: 1.5, mb: 0,
-                    border: '1px solid', borderColor: cardBorderColor,
-                    bgcolor: singleSelected ? 'action.selected' : (isClosed ? 'action.hover' : 'background.paper'),
-                    boxShadow: singleSelected ? '0 10px 24px rgba(0,0,0,0.12)' : '0 2px 8px rgba(0,0,0,0.04)',
-                    transition: 'transform .15s ease, box-shadow .2s ease, border-color .2s ease, background-color .2s ease',
-                    transform: 'translateY(0)',
-                    '&:hover': { transform: 'translateY(-1px)', boxShadow: '0 12px 28px rgba(0,0,0,0.12)', bgcolor: singleSelected ? 'action.selected' : (isClosed ? 'action.hover' : 'action.hover') },
-                    borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
-                    '&::before': {
-                        content: '""', position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
-                        borderTopLeftRadius: 8, borderBottomLeftRadius: 0,
-                        background: leftStripe, // ★ pakai aturan baru
-                    },
-                }}
-            >
-                <Stack spacing={0.75} width="100%">
-                    {/* Baris 1 */}
-                    <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
-                        <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
-                            <ReceiptLongRounded fontSize="small" />
-                            <Typography variant="h6" fontWeight={900} noWrap sx={{ letterSpacing: 0.2, lineHeight: 1.2, fontFeatureSettings: '"tnum" 1, "lnum" 1' }}>
-                                # {transaction?.invoice}
-                            </Typography>
-                            <Chip size="small" color="secondary" label={transaction?.order_type?.name ?? '-'} variant="outlined" />
-                            {
-                                transaction?.table && (
-                                    <Chip size="small" color="primary" label={transaction?.table?.code ? `${transaction?.table.code} - ${transaction?.table.floor.code}` : 'No table'} variant="outlined" />
-                                )
-                            }
-                        </Stack>
-                        <Typography
-                            variant="subtitle1"
-                            fontWeight={900}
-                            title={rupiah(transactionMeta?.raw.batchItems.active.price)}
+            {
+                (transaction) ? (
+                    <>
+                        <ListItemButton
+                            onClick={onRowClick}
+                            selected={singleSelected}
+                            sx={{
+                                position: 'relative', alignItems: 'flex-start', py: 1.25, px: 1.5, mb: 0,
+                                border: '1px solid', borderColor: cardBorderColor,
+                                bgcolor: singleSelected ? 'action.selected' : (isClosed ? 'action.hover' : 'background.paper'),
+                                boxShadow: singleSelected ? '0 10px 24px rgba(0,0,0,0.12)' : '0 2px 8px rgba(0,0,0,0.04)',
+                                transition: 'transform .15s ease, box-shadow .2s ease, border-color .2s ease, background-color .2s ease',
+                                transform: 'translateY(0)',
+                                '&:hover': { transform: 'translateY(-1px)', boxShadow: '0 12px 28px rgba(0,0,0,0.12)', bgcolor: singleSelected ? 'action.selected' : (isClosed ? 'action.hover' : 'action.hover') },
+                                borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
+                                '&::before': {
+                                    content: '""', position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
+                                    borderTopLeftRadius: 8, borderBottomLeftRadius: 0,
+                                    background: leftStripe, // ★ pakai aturan baru
+                                },
+                            }}
                         >
-                            {rupiah(transactionMeta?.raw.batchItems.active.price ?? 0)}
-                        </Typography>
-                    </Stack>
+                            <Stack spacing={0.75} width="100%">
+                                {/* Baris 1 */}
+                                <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
+                                    <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
+                                        <ReceiptLongRounded fontSize="small" />
+                                        <Typography variant="h6" fontWeight={900} noWrap sx={{ letterSpacing: 0.2, lineHeight: 1.2, fontFeatureSettings: '"tnum" 1, "lnum" 1' }}>
+                                            # {transaction?.invoice}
+                                        </Typography>
+                                        <Chip size="small" color="secondary" label={transaction?.order_type?.name ?? '-'} variant="outlined" />
+                                        {
+                                            transaction?.table && (
+                                                <Chip size="small" color="primary" label={transaction?.table?.code ? `${transaction?.table.code} - ${transaction?.table.floor.code}` : 'No table'} variant="outlined" />
+                                            )
+                                        }
+                                    </Stack>
+                                    <Typography
+                                        variant="subtitle1"
+                                        fontWeight={900}
+                                        title={rupiah(transactionMeta?.raw.batchItems.active.price)}
+                                    >
+                                        {rupiah(transactionMeta?.raw.batchItems.active.price ?? 0)}
+                                    </Typography>
+                                </Stack>
 
-                    {/* Baris 2 */}
-                    <Stack direction="row" alignItems="center" gap={0.75}>
-                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
-                            <Chip size="small" label={isClosed ? 'Selesai' : (hasPending) ? 'Pending' : 'Aktif'} color={isClosed ? 'error' : (hasPending) ? 'warning' : 'success'} variant="filled" />
-                            <Chip size="small" icon={<LocalMallRounded />} label={`${transactionMeta?.pretty?.batchItems?.all.count} item`} />
-                            <Chip size="small" icon={<LayersRounded />} label={`${transactionMeta?.pretty?.batches.count} batch`} />
-                        </Stack>
-                        {/* @ts-ignore */}
-                        <TransactionListItemPrintTransaction tx={transaction} />
-                    </Stack>
+                                {/* Baris 2 */}
+                                <Stack direction="row" alignItems="center" gap={0.75}>
+                                    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
+                                        <Chip size="small" label={isClosed ? 'Selesai' : (hasPending) ? 'Pending' : 'Aktif'} color={isClosed ? 'error' : (hasPending) ? 'warning' : 'success'} variant="filled" />
+                                        <Chip size="small" icon={<LocalMallRounded />} label={`${transactionMeta?.pretty?.batchItems?.all.count} item`} />
+                                        <Chip size="small" icon={<LayersRounded />} label={`${transactionMeta?.pretty?.batches.count} batch`} />
+                                    </Stack>
+                                    {/* @ts-ignore */}
+                                    <TransactionListItemPrintTransaction tx={transaction} />
+                                </Stack>
 
-                    {/* Baris 3 — kasir, shift, dan kode meja */}
-                    <Stack direction="row" alignItems="center" gap={0.75}>
-                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
-                            <Chip
-                                size="small"
-                                icon={<PersonOutlineRounded />}
-                                label={transaction?.reference?.name?.first_name ?? transaction?.reference?.username ?? (transaction?.reference?.id ? `${transaction?.reference.id.slice(0,8)}…` : '-')}
-                                title={transaction?.reference?.id ?? ''}
-                            />
-                            <Chip size="small" icon={<AccessTimeRounded />} label={transaction?.shift?.name ?? '-'} />
-                            <Chip size="small" icon={<StorageIcon />} label={`${transactionMeta?.pretty.bills.count} item`} />
-                        </Stack>
-                    </Stack>
+                                {/* Baris 3 — kasir, shift, dan kode meja */}
+                                <Stack direction="row" alignItems="center" gap={0.75}>
+                                    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
+                                        <Chip
+                                            size="small"
+                                            icon={<PersonOutlineRounded />}
+                                            label={transaction?.reference?.name?.first_name ?? transaction?.reference?.username ?? (transaction?.reference?.id ? `${transaction?.reference.id.slice(0,8)}…` : '-')}
+                                            title={transaction?.reference?.id ?? ''}
+                                        />
+                                        <Chip size="small" icon={<AccessTimeRounded />} label={transaction?.shift?.name ?? '-'} />
+                                        <Chip size="small" icon={<StorageIcon />} label={`${transactionMeta?.pretty.bills.count} item`} />
+                                    </Stack>
+                                </Stack>
 
-                    {/*<Stack direction="row" alignItems="center" gap={0.75}>
+                                {/*<Stack direction="row" alignItems="center" gap={0.75}>
                         <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
                             <Chip
                                 size="small"
@@ -424,39 +428,42 @@ export const TransactionListItemRow: React.FC<{
                         </Stack>
                     </Stack>*/}
 
-                    {/* Timestamp asli + RoundCheckbox (kanan) */}
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                        <Typography variant="caption" color="text.secondary">{moment(transaction?.time_created).format(`HH:mm:ss DD-MM-YYYY`)}</Typography>
-                        {!isClosed && (
-                            <RoundCheckbox
-                                checked={!!multiChecked}
-                                onChange={(c) => onMultiToggle ? onMultiToggle(c) : undefined}
-                                onClick={(e) => e.stopPropagation()}
-                                aria-label={`Pilih transaksi ${transaction?.invoice} untuk multi-select`}
-                                sizePx={22}
-                                colorKey="success"
-                                outScale={0.33}
-                                overshootScale={1.2}
-                                durationMs={400}
-                            />
-                        )}
-                    </Stack>
-                </Stack>
-            </ListItemButton>
+                                {/* Timestamp asli + RoundCheckbox (kanan) */}
+                                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                                    <Typography variant="caption" color="text.secondary">{moment(transaction?.time_created).format(`HH:mm:ss DD-MM-YYYY`)}</Typography>
+                                    {!isClosed && (
+                                        <RoundCheckbox
+                                            checked={!!multiChecked}
+                                            onChange={(c) => onMultiToggle ? onMultiToggle(c) : undefined}
+                                            onClick={(e) => e.stopPropagation()}
+                                            aria-label={`Pilih transaksi ${transaction?.invoice} untuk multi-select`}
+                                            sizePx={22}
+                                            colorKey="success"
+                                            outScale={0.33}
+                                            overshootScale={1.2}
+                                            durationMs={400}
+                                        />
+                                    )}
+                                </Stack>
+                            </Stack>
+                        </ListItemButton>
 
-            {/* Footer nempel — TANPA checkbox lagi */}
-            <Box
-                sx={{
-                    border: '1px solid', borderTop: 'none', borderColor: cardBorderColor,
-                    borderBottomLeftRadius: 8, borderBottomRightRadius: 8,
-                    bgcolor: footerBg.includes('linear-gradient') ? undefined : footerBg,   // ★ solid via theme key
-                    background: footerBg.includes('linear-gradient') ? footerBg : undefined, // ★ gradient manual
-                    color: footerColor,                                                      // ★ teks adaptif
-                    px: 1.5, py: 0.8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1,
-                }}
-            >
-                <TimerText startIso={transaction?.time_created} endIso={transaction?.time_closed} active={!isClosed} />
-            </Box>
+                        {/* Footer nempel — TANPA checkbox lagi */}
+                        <Box
+                            sx={{
+                                border: '1px solid', borderTop: 'none', borderColor: cardBorderColor,
+                                borderBottomLeftRadius: 8, borderBottomRightRadius: 8,
+                                bgcolor: footerBg.includes('linear-gradient') ? undefined : footerBg,   // ★ solid via theme key
+                                background: footerBg.includes('linear-gradient') ? footerBg : undefined, // ★ gradient manual
+                                color: footerColor,                                                      // ★ teks adaptif
+                                px: 1.5, py: 0.8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1,
+                            }}
+                        >
+                            <TimerText startIso={transaction?.time_created} endIso={transaction?.time_closed} active={!isClosed} />
+                        </Box>
+                    </>
+                ) : <ShimmerLoadingTransactionListItemRow/>
+            }
         </>
     )
 }

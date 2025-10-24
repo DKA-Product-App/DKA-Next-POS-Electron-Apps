@@ -64,7 +64,6 @@ const TransactionContainer = dynamic(() => import('./TransactionContainer'), {
 
 const TransactionContainerItems = dynamic(() => import('./TransactionContainerItems'), {
     ssr: true,
-    loading: () => <ShimmerLoadingTransactionContainer />,
 })
 
 const TransactionButtonJoinBillWidget = dynamic(() => import('./widgets/TransactionButtonJoinBillWidget'), {
@@ -319,7 +318,6 @@ const TransactionListItem: React.FC = () => {
     // Handler single select via row click (TOGGLE on second click) — jadwalkan setLayout
     const onRowClick = (id: string) => {
         void softRefetch()
-
         setSingleSelectedId(prev => {
             const next = prev === id ? undefined : id
 

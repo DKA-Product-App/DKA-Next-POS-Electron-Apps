@@ -221,6 +221,8 @@ function Body({ tr }: { tr: Transaction }) {
     }, [isClosed, transaction])
 
     React.useEffect(() => {
+        setTransaction(undefined);
+        setTransactionMeta(undefined);
         window.api.invoke<{ id : string }, { data : Transaction, meta: SummarizeTxReturn }>('api.transaction:read.one', {
             id : tr.id
         })
