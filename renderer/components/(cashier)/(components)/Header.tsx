@@ -204,6 +204,7 @@ export default function Header({branchName = 'Main Branch', registerName = 'REG-
                     />
                 </Stack>
             </Box>
+
         </>
     )
 }

@@ -6,7 +6,6 @@ import {getApi} from "../../functions/api/api.request.instance";
 
 export function Auth(mainWindow ?: BrowserWindow) {
 
-
     mainWindow?.webContents?.ipc?.handle?.("api.auth:login", (_event, args) => {
         const toPath = compile(`/v${ApiConfig.version}/auth/login`);
         return new Promise(async (resolve, reject) => {
