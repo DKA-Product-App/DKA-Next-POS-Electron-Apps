@@ -8,6 +8,9 @@ const isProd = process.env.NODE_ENV === 'production'
 
 // Naikkan heap V8 utk SEMUA proses (main & renderer)
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=4096 --initial-old-space-size=1024');
+app.commandLine.appendSwitch('disable-renderer-backgrounding') // jaga responsiveness saat window tak fokus
+app.commandLine.appendSwitch('enable-zero-copy')               // bisa bantu video/kanvas
+app.commandLine.appendSwitch('ignore-gpu-blocklist')
 
 if (isProd) {
     serve({directory: 'app'})
@@ -31,6 +34,7 @@ if (!process.stdout || !process.stdout.isTTY) {
         app.quit()
         process.exit(0)
     }
+
     app.on('ready', async () => {
         console.log('app activated ');
     });
