@@ -253,16 +253,16 @@ function Body({ tr }: { tr: Transaction }) {
                 '& > *': { position: 'relative', zIndex: 1 },
             })}
         >
-            <ReceiptLongRounded fontSize="small" />
+            <ReceiptLongRounded fontSize="medium" />
             <Typography variant="subtitle1" fontWeight={900} sx={{ mr: 1 }}>
                 # {transaction?.invoice ?? '—'}
             </Typography>
-            <Chip size="small" label={transaction?.order_type?.name ?? '-'} variant="outlined" />
+            <Chip size="medium" label={transaction?.order_type?.name ?? '-'} variant="filled"  color={'secondary'} />
             {transaction?.table?.code ? (
-                <Chip size="small" icon={<TableRestaurantRounded />} label={`Table ${transaction.table.code}`} />
+                <Chip size="medium" variant={'filled'} color={'warning'} icon={<TableRestaurantRounded />} label={`Table ${transaction.table.code}`} />
             ) : null}
-            <Chip size="small" icon={<PersonOutlineRounded />} label={`${transaction?.reference?.name?.first_name ?? '-'}`} />
-            <Chip size="small" icon={<AccessTimeRounded />} label={transaction?.shift?.name ?? '-'} />
+            <Chip size="medium"  variant={'filled'} color={'primary'} icon={<PersonOutlineRounded />} label={`${transaction?.reference?.name?.first_name ?? '-'}`} />
+            <Chip size="medium"  variant={'filled'} color={'success'} icon={<AccessTimeRounded />} label={transaction?.shift?.name ?? '-'} />
 
             <Box sx={{ flex: 1 }} />
             {(selectedItemIds?.size ?? 0) > 0 && (

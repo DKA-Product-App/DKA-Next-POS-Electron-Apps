@@ -370,13 +370,13 @@ export const TransactionListItemRow: React.FC<{
                                 <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
                                     <Stack direction="row" spacing={1} alignItems="center" minWidth={0}>
                                         <ReceiptLongRounded fontSize="small" />
-                                        <Typography variant="h6" fontWeight={900} noWrap sx={{ letterSpacing: 0.2, lineHeight: 1.2, fontFeatureSettings: '"tnum" 1, "lnum" 1' }}>
+                                        <Typography variant="h5" fontWeight={900} noWrap sx={{ letterSpacing: 0.2, lineHeight: 1.2, fontFeatureSettings: '"tnum" 1, "lnum" 1' }}>
                                             # {transaction?.invoice}
                                         </Typography>
-                                        <Chip size="small" color="secondary" label={transaction?.order_type?.name ?? '-'} variant="outlined" />
+                                        <Chip size="medium" color="secondary" label={transaction?.order_type?.name ?? '-'} variant="filled" />
                                         {
                                             transaction?.table && (
-                                                <Chip size="small" color="primary" label={transaction?.table?.code ? `${transaction?.table.code} - ${transaction?.table.floor.code}` : 'No table'} variant="outlined" />
+                                                <Chip size="medium" color="primary" label={transaction?.table?.code ? `${transaction?.table.code} - ${transaction?.table.floor.code}` : 'No table'} variant="filled" />
                                             )
                                         }
                                     </Stack>
@@ -392,9 +392,9 @@ export const TransactionListItemRow: React.FC<{
                                 {/* Baris 2 */}
                                 <Stack direction="row" alignItems="center" gap={0.75}>
                                     <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
-                                        <Chip size="small" label={isClosed ? 'Selesai' : (hasPending) ? 'Pending' : 'Aktif'} color={isClosed ? 'error' : (hasPending) ? 'warning' : 'success'} variant="filled" />
-                                        <Chip size="small" icon={<LocalMallRounded />} label={`${transactionMeta?.pretty?.batchItems?.all.count} item`} />
-                                        <Chip size="small" icon={<LayersRounded />} label={`${transactionMeta?.pretty?.batches.count} batch`} />
+                                        <Chip size="medium" label={isClosed ? 'Selesai' : (hasPending) ? 'Pending' : 'Aktif'} color={isClosed ? 'error' : (hasPending) ? 'warning' : 'success'} variant="filled" />
+                                        <Chip size="medium" icon={<LocalMallRounded />} label={`${transactionMeta?.pretty?.batchItems?.all.count} item`} />
+                                        <Chip size="medium" icon={<LayersRounded />} label={`${transactionMeta?.pretty?.batches.count} batch`} />
                                     </Stack>
                                     {/* @ts-ignore */}
                                     <TransactionListItemPrintTransaction tx={transaction} />
@@ -404,13 +404,13 @@ export const TransactionListItemRow: React.FC<{
                                 <Stack direction="row" alignItems="center" gap={0.75}>
                                     <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
                                         <Chip
-                                            size="small"
+                                            size="medium"
                                             icon={<PersonOutlineRounded />}
                                             label={transaction?.reference?.name?.first_name ?? transaction?.reference?.username ?? (transaction?.reference?.id ? `${transaction?.reference.id.slice(0,8)}…` : '-')}
                                             title={transaction?.reference?.id ?? ''}
                                         />
-                                        <Chip size="small" icon={<AccessTimeRounded />} label={transaction?.shift?.name ?? '-'} />
-                                        <Chip size="small" icon={<StorageIcon />} label={`${transactionMeta?.pretty.bills.count} item`} />
+                                        <Chip size="medium" icon={<AccessTimeRounded />} label={transaction?.shift?.name ?? '-'} />
+                                        <Chip size="medium" icon={<StorageIcon />} label={`${transactionMeta?.pretty.bills.count} item`} />
                                     </Stack>
                                 </Stack>
 
