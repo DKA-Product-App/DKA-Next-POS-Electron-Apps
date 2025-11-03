@@ -22,6 +22,9 @@ export interface TransactionBill {
     transaction?: Transaction;
     items?: TransactionBillItem[];
     paid?: TransactionBillPaid;
+    meta?: {
+        request_key?: string;
+    }
 }
 
 export interface ApiTransactionBillResponse {

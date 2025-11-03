@@ -231,7 +231,7 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
                         status: !godMode ? snap.itemsGod.some((id) => id === it.id) : true
                     })),
                     paid: { status: false },
-                    /*meta: { request_key }*/
+                    meta: { request_key }
                 }
 
                 return window.api.invoke<typeof BillTemporary, { data: TransactionBill }>(
