@@ -159,33 +159,25 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
         const bucketsToPrint = buckets(tx).filter(b => (b.items?.length ?? 0) > 0)
         if (!bucketsToPrint.length) return
 
-        const tasks = bucketsToPrint.map(b => {
+        const tasks = bucketsToPrint.map(async b => {
             const itemIds = b.items.map(it => String((it as any).id))
-            const payload = { printer: b.id, transaction: tx.id, invoice: tx.invoice, itemIds, merge_variant: true }
+            const payload = {printer: b.id, transaction: tx.id, invoice: tx.invoice, itemIds, merge_variant: true}
             // @ts-ignore
-            return window.api.invoke('api.transaction:print', payload)
-                .then((res: any) => {
-                    /*setSwalProps({
-                        show: true,
-                        icon: "success",
-                        theme: mode,
-                        title: 'Successfully Sending Printer',
-                        text: `${res.msg}`,
-                    });*/
-                    console.log({ ok: true, id: b.id })
-                    return { ok: true, id: b.id }
-                })
-                .catch((err: any) => {
-                    /*setSwalProps({
-                        show: true,
-                        icon: "error",
-                        theme: mode,
-                        title: 'Gagal Mencetak Otomatis',
-                        text: `${err?.msg ?? 'Gagal Mencetak. Printer Offline / Error.'}`,
-                    });*/
-                    console.error({ ok: false, id: b.id })
-                    return { ok: false, id: b.id }
-                })
+            try {
+                const res = await window.api.invoke('api.transaction:print', payload)
+                console.log({ok: true, id: b.id})
+                return {ok: true, id: b.id}
+            } catch (err) {
+                /*setSwalProps({
+                    show: true,
+                    icon: "error",
+                    theme: mode,
+                    title: 'Gagal Mencetak Otomatis',
+                    text: `${err?.msg ?? 'Gagal Mencetak. Printer Offline / Error.'}`,
+                });*/
+                console.error({ok: false, id: b.id})
+                return {ok: false, id: b.id}
+            }
         })
 
         Promise.all(tasks).then(() => null);

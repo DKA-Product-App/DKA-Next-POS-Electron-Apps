@@ -88,9 +88,11 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
     const [open, setOpen] = React.useState(false)
     const [loading, setLoading] = React.useState(false)
 
-    // ==== Anti-race guard ====
+    // ==== Anti-race / single-flight guard ====
     const reqIdRef = React.useRef(0)
     const openRef  = React.useRef(false)
+    const inFlightKeyRef = React.useRef<string|undefined>(undefined)
+    const idemKeyRef = React.useRef<string|undefined>(undefined)
 
     // ==== Snapshot payload ====
     const payloadRef = React.useRef<{
@@ -133,9 +135,15 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
             .map(([id, q]) => `${id}:${q}`)
             .join('|')
 
+    // build idempotency request_key (deterministik per snapshot)
+    const buildIdemKey = (snap: NonNullable<typeof payloadRef.current>, itemsLoaded: TransactionBatchItem[]) => {
+        const keyFold = foldKey(itemsLoaded ?? [])
+        return [`tx:${snap.txId}`, `sess:${snap.sessionId}`, `items:${keyFold}`].join('|')
+    }
+
     /* ---------- OPEN ---------- */
     const handleOpen = () => {
-        if (disabled) return
+        if (disabled || loading) return
 
         payloadRef.current = {
             txId: transaction?.id,
@@ -168,43 +176,34 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
             showCancelButton: true,
             cancelButtonText: 'Batal',
             theme: themes.mode,
-            reverseButtons: true,          // UX: Bikin Cancel di kiri, Confirm di kanan (atau kebalikan sesuai selera)
-            allowOutsideClick: false,      // cegah klik luar nutup alert
-            allowEscapeKey: false,         // cegah ESC nutup alert
+            reverseButtons: true,
+            allowOutsideClick: false,
+            allowEscapeKey: false,
             didOpen: (popupEl) => {
                 const container = (popupEl as HTMLElement)?.closest('.swal2-container') as HTMLElement | null;
-                container?.style.setProperty('z-index', '20000', 'important'); // top-most
+                container?.style.setProperty('z-index', '20000', 'important');
             },
-            // satu pintu handler: bedakan confirm vs cancel di sini
             onResolve: (result: { isConfirmed: any; isDismissed: any }) => {
-                if (result?.isConfirmed) {
-                    // === onConfirm ===
-                    handleClose()
-                } else if (result?.isDismissed) {
-                    // === onCancel ===
-                    // default: tidak melakukan apa-apa (dialog utama tetap terbuka)
-                    // optional: kasih info kecil kalau perlu
-                    // toast.info('Dibatalkan. Bill tetap seperti semula.')
-                }
+                if (result?.isConfirmed) handleClose()
             },
         });
-
     }, [themes])
 
     const handleClose = React.useCallback(() => {
-        // === onConfirm ===
         openRef.current = false;
         setOpen(false);
         setErr(null);
         setTransactionBill(undefined);
         setLoading(false);
+        inFlightKeyRef.current = undefined
+        idemKeyRef.current = undefined
         bump('split');
         bumpReload();
         clearSelection();
         clearSelectionGods();
     }, [])
 
-    // helper: create bill sekali jalan
+    // helper: create bill sekali jalan (kirim request_key)
     const createBillOnce = (snap: NonNullable<typeof payloadRef.current>, myReq: number, expectedKey: string) =>
         window.api.invoke<typeof snap, { data: TransactionBatchItem[] }>(
             'api.transaction.batch.item:read.all',
@@ -213,6 +212,11 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
         )
             .then(({ data }) => {
                 if (!openRef.current || myReq !== reqIdRef.current) return Promise.reject({ cancelled: true })
+
+                const request_key = buildIdemKey(snap, data)
+                idemKeyRef.current = request_key
+                inFlightKeyRef.current = request_key
+
                 const BillTemporary: TransactionBill = {
                     reference: { id: snap.sessionId },
                     branch: snap.branches ?? [],
@@ -226,8 +230,10 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
                         productVariant: it.variant,
                         status: !godMode ? snap.itemsGod.some((id) => id === it.id) : true
                     })),
-                    paid: { status: false }
+                    paid: { status: false },
+                    /*meta: { request_key }*/
                 }
+
                 return window.api.invoke<typeof BillTemporary, { data: TransactionBill }>(
                     'api.transaction.bills:create',
                     BillTemporary
@@ -236,17 +242,16 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
             .then(({ data }) => {
                 if (!openRef.current || myReq !== reqIdRef.current) return Promise.reject({ cancelled: true })
 
-                // ==== STALE GUARD: tolak jika ID sama dgn sesi sebelumnya ATAU terlalu tua dari waktu open ====
                 const idSameAsLast = data?.id && data.id === lastBillIdRef.current
                 const createdAtMs  = data?.time_created ? new Date(data.time_created).getTime() : Date.now()
-                const tooOld       = createdAtMs + 500 < openedAtRef.current // toleransi 500ms
+                const tooOld       = createdAtMs + 500 < openedAtRef.current
 
                 if (idSameAsLast || tooOld) return Promise.reject({ stale: true, reason: idSameAsLast ? 'same_id_as_last' : 'older_than_open' })
 
-                // boleh longgar terhadap checksum (server bisa merge)
                 setTransactionBill(data)
                 lastBillIdRef.current = data?.id
                 setLoading(false)
+                inFlightKeyRef.current = undefined
             })
 
     React.useEffect(() => {
@@ -261,48 +266,56 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
         setErr(null)
         setLoading(true)
 
-        // siapkan expectedKey (santai)
         window.api.invoke<{ ids?: string[]; transaction?: string }, { data: TransactionBatchItem[] }>(
             'api.transaction.batch.item:read.all',
             { ids: snap.items, transaction: snap.txId }
         )
             .then(({ data }) => {
                 if (!openRef.current || myReq !== reqIdRef.current) return Promise.reject({ cancelled: true })
+
                 const expectedKey = foldKey(data ?? [])
-                return createBillOnce(snap, myReq, expectedKey)
-                    .catch((err) => {
-                        // sekali retry kalau stale
-                        if (err?.stale && !didRetryRef.current) {
-                            didRetryRef.current = true
-                            return new Promise((r) => setTimeout(r, 120))
-                                .then(() => createBillOnce(snap, myReq, expectedKey))
-                        }
-                        return Promise.reject(err)
-                    })
+                const wouldKey = buildIdemKey(snap!, data)
+
+                // jika masih ada flight yang sama, hentikan
+                if (inFlightKeyRef.current && inFlightKeyRef.current === wouldKey) return Promise.reject({ cancelled: true })
+
+                return createBillOnce(snap!, myReq, expectedKey)
+                    .catch((err) =>
+                        err?.stale && !didRetryRef.current
+                            ? (didRetryRef.current = true, new Promise((r) => setTimeout(r, 120)).then(() => createBillOnce(snap!, myReq, expectedKey)))
+                            : Promise.reject(err)
+                    )
             })
             .catch((error) => {
                 if (error?.cancelled) { setLoading(false); return }
+
                 const e = normalizeIpcError(error)
                 if (!openRef.current || myReq !== reqIdRef.current) { setLoading(false); return }
-                console.error(e);
-                setTransactionBill(undefined)
-                setErr({
-                    status: Boolean(e?.status),
-                    code: error?.stale ? 425 : (e?.code ?? 500), // 425 Too Early (ish) untuk signal stale
-                    msg: error?.stale
-                        ? 'Sinkronisasi tagihan belum konsisten. Coba klik lagi sebentar.'
-                        : (e?.msg ?? 'Gagal Membuat Tagihan'),
-                    extra: e?.extra
-                })
-                setLoading(false)
+
+                const isIdem = (e?.code === 409 || e?.code === 208) && idemKeyRef.current
+                const next = isIdem
+                    ? window.api.invoke<{ request_key: string }, { data: TransactionBill }>('api.transaction.bills:read.byRequestKey', { request_key: idemKeyRef.current! })
+                        .then(({ data }) => (setTransactionBill(data), setLoading(false)))
+                    : (console.error(e),
+                        setTransactionBill(undefined),
+                        setErr({
+                            status: Boolean(e?.status),
+                            code: error?.stale ? 425 : (e?.code ?? 500),
+                            msg: error?.stale ? 'Sinkronisasi tagihan belum konsisten. Coba klik lagi sebentar.' : (e?.msg ?? 'Gagal Membuat Tagihan'),
+                            extra: e?.extra
+                        }),
+                        setLoading(false))
+
+                return next
             })
     }, [open])
 
+    // 👇 tombol ikut terkunci saat loading
     const ButtonEl = (
         <Button
             variant={variant}
             color={color}
-            disabled={disabled}
+            disabled={disabled || loading}
             onClick={(e) => { e.preventDefault(); handleOpen() }}
             size="large"
             startIcon={baseIcon}
@@ -334,19 +347,19 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
     return (
         <>
             <Tooltip title={tooltip} arrow>
-                <span>
-                    {isSplitMode ? (
-                        <Badge
-                            badgeContent={items.length}
-                            invisible={items.length === 0}
-                            anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                            overlap="rectangular"
-                            sx={{ '& .MuiBadge-badge': { fontWeight: 800 } }}
-                        >
-                            {ButtonEl}
-                        </Badge>
-                    ) : ButtonEl}
-                </span>
+        <span>
+          {isSplitMode ? (
+              <Badge
+                  badgeContent={items.length}
+                  invisible={items.length === 0}
+                  anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                  overlap="rectangular"
+                  sx={{ '& .MuiBadge-badge': { fontWeight: 800 } }}
+              >
+                  {ButtonEl}
+              </Badge>
+          ) : ButtonEl}
+        </span>
             </Tooltip>
 
             <Dialog
@@ -357,12 +370,10 @@ export default function NewOrderBillModal({ items, itemsGod, mode, label = 'Buat
                 fullScreen={fullScreen}
                 disableEscapeKeyDown={true}
                 onClose={(event, reason) => {
-                    if (reason === 'backdropClick' || reason === 'escapeKeyDown')
-                        return;
-
+                    if (reason === 'backdropClick' || reason === 'escapeKeyDown') return;
                 }}
                 keepMounted={false}
-                sx={{ zIndex: (t) => (t.zIndex?.modal ?? 1300) + 1000 }} // <- kunci z-index
+                sx={{ zIndex: (t) => (t.zIndex?.modal ?? 1300) + 1000 }}
                 slotProps={{
                     paper: {
                         sx: {

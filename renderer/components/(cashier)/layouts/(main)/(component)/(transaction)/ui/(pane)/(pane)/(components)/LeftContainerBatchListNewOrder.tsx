@@ -155,7 +155,7 @@ const LeftContainerBatchListNewOrder: React.FC<{ transactionId: string }> = ({ t
         const bucketsToPrint = buckets(batch).filter(b => (b.items?.length ?? 0) > 0)
         if (!bucketsToPrint.length) return
 
-        const tasks = bucketsToPrint.map((b) => {
+        const tasks = bucketsToPrint.map(async (b) => {
             const itemIds = b.items.map(it => String(it.id))
             const payload = { printer: b.id, batch: batch.id, invoice: batch?.transaction?.invoice, itemIds, merge_variant: true }
             // @ts-ignore
