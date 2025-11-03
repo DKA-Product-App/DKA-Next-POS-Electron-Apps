@@ -415,18 +415,18 @@ export const TransactionListItemRow: React.FC<{
                                 </Stack>
 
                                 {/*<Stack direction="row" alignItems="center" gap={0.75}>
-                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
-                            <Chip
-                                size="small"
-                                icon={<PersonOutlineRounded />}
-                                label={transaction?.reference?.name?.first_name ?? transaction?.reference?.username ?? (transaction?.reference?.id ? `${transaction?.reference.id.slice(0,8)}…` : '-')}
-                                title={transaction?.reference?.id ?? ''}
-                            />
-                            <Chip size="small" label={`unpaid : ${active}`} />
-                            <Chip size="small" label={`pending : ${pending}`} />
-                            <Chip size="small" label={`paid : ${paid}`} />
-                        </Stack>
-                    </Stack>*/}
+                                    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ flex: 1, minWidth: 0 }}>
+                                        <Chip
+                                            size="small"
+                                            icon={<PersonOutlineRounded />}
+                                            label={transaction?.reference?.name?.first_name ?? transaction?.reference?.username ?? (transaction?.reference?.id ? `${transaction?.reference.id.slice(0,8)}…` : '-')}
+                                            title={transaction?.reference?.id ?? ''}
+                                        />
+                                        <Chip size="small" label={`unpaid : ${active}`} />
+                                        <Chip size="small" label={`pending : ${pending}`} />
+                                        <Chip size="small" label={`paid : ${paid}`} />
+                                    </Stack>
+                                </Stack>*/}
 
                                 {/* Timestamp asli + RoundCheckbox (kanan) */}
                                 <Stack direction="row" alignItems="center" justifyContent="space-between">
