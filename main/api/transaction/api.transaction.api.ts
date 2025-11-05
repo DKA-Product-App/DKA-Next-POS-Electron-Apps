@@ -58,7 +58,6 @@ export function Transaction(mainWindow ?: BrowserWindow) {
                 url: toPath(),
                 method: "GET",
                 params: args,
-                signal: ctrl.signal
             })
                 .then((response) => {
                     const data = response?.data;
