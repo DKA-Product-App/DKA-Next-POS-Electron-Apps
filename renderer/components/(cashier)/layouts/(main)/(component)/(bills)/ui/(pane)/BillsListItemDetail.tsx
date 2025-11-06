@@ -51,8 +51,8 @@ const fmtTimeShort = (iso?: string) =>
 
 const statusChip = (bill?: TransactionBill) => {
     const paid = bill?.paid
-    if (!paid || !paid?.status) return { color: 'warning' as const, label: 'Unpaid' }
-    return paid?.status ? { color: 'success' as const, label: 'Paid' } : { color: 'warning' as const, label: 'Unpaid' }
+    if (!paid || !paid?.status) return { color: 'error' as const, label: 'Unpaid' }
+    return paid?.status ? { color: 'success' as const, label: 'Paid' } : { color: 'error' as const, label: 'Unpaid' }
 }
 
 const first = <T,>(a?: T[] | T | null): T | undefined =>
@@ -63,11 +63,7 @@ const getInvoice = (b?: TransactionBill) => b?.transaction?.invoice ?? String(b?
 const getIssuedAt = (b?: TransactionBill) => b?.paid?.time_created || b?.transaction?.time_created
 const getPaidAt = (b?: TransactionBill) => b?.paid?.time_updated
 const getRef = (b?: TransactionBill) =>
-    b?.transaction?.table?.name
-    || b?.transaction?.table?.code
-    || b?.transaction?.order_type?.name
-    || b?.transaction?.order_type?.code
-    || undefined
+    b?.transaction?.invoice
 
 const deriveLineItems = (bill?: TransactionBill, godMode?: boolean) =>
     (bill?.items ?? [])
@@ -434,7 +430,7 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                                             {isPaid ? `Paid — ${fmtTimeShort(getPaidAt(bill))}` : `Issued — ${fmtTimeShort(getIssuedAt(bill))}`}
                                         </Typography>
                                     </Stack>
-                                    <Typography variant="body1">Ref — {ref ?? '—'}</Typography>
+                                    <Chip size="medium" color={"primary"} label={`Ref. Order — ${ref ?? '—'}`} sx={{ borderRadius: 0, fontSize: { xs: 16, md: 18 } }} />
                                 </Stack>
                             </Stack>
                         </Stack>

@@ -254,7 +254,7 @@ function Body({ tr }: { tr: Transaction }) {
             })}
         >
             <ReceiptLongRounded fontSize="medium" />
-            <Typography variant="subtitle1" fontWeight={900} sx={{ mr: 1 }}>
+            <Typography variant="h5" fontWeight={900} sx={{ mr: 1 }}>
                 # {transaction?.invoice ?? '—'}
             </Typography>
             <Chip size="medium" label={transaction?.order_type?.name ?? '-'} variant="filled"  color={'secondary'} />

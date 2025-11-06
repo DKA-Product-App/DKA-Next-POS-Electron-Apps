@@ -22,6 +22,8 @@ import {
     ApiTransactionBillResponse,
     TransactionBill
 } from "../../../../../../../../types/transaction/bill/transaction.bill.type";
+import {useSession} from "../../../../../../../../contexts/SessionProviderContext";
+import {Accounts} from "../../../../../../../../types/account/accounts.type";
 
 /* ====== Dynamic chunks ====== */
 const Shimmer = () => (
@@ -109,7 +111,7 @@ const inDateRange = (iso?: string, startIso?: string, endIso?: string) => {
     return t >= minT && t <= maxT
 }
 
-const buildPayload = (q: string, f: BillFilters, godMode: boolean) => {
+const buildPayload = (q: string, f: BillFilters, godMode: boolean, Session: Accounts) => {
     const [startIso, endIso] = normalizeRangeToIsoUtc(f.startAt, f.endAt)
 
     // total range: kirim hanya kalau bukan [0,0]
@@ -125,6 +127,7 @@ const buildPayload = (q: string, f: BillFilters, godMode: boolean) => {
     return {
         query: q || undefined,
         offset: 0,
+        reference: Session?.id ?? undefined,
         sort: { time_created: 'desc' as const },
         startAt: startIso,
         endAt: endIso,
@@ -145,6 +148,7 @@ const BillsListItem: React.FC = () => {
     const { setLayout } = useLayoutManipulatorResizable()
     const { state } = useTabNavigationHandlerContext()
     const { godMode } = useGodModeProvider()
+    const { Session } = useSession()
 
     const [query, setQuery] = useState('')
     const [activeId, setActiveId] = useState<string | null>(null)
@@ -166,7 +170,7 @@ const BillsListItem: React.FC = () => {
     // NEW: tunggu sampai widget menyatakan “hydrated”, baru boleh fetch
     const [filtersReady, setFiltersReady] = useState(false)
 
-    const payload = useMemo(() => buildPayload(query, filters, godMode), [query, filters, godMode])
+    const payload = useMemo(() => buildPayload(query, filters, godMode, Session), [query, filters, godMode, Session])
     const lastKeyRef = React.useRef<string>('')
 
     // Right pane default
@@ -175,8 +179,10 @@ const BillsListItem: React.FC = () => {
     }, [setLayout])
 
     // Ambil data — dedup by payload key + debounce — skip sebelum filtersReady
+    // Ambil data — dedup by payload key + debounce — skip sebelum filtersReady
     useEffect(() => {
         if (!filtersReady) return
+
         if (!window?.api?.invoke) {
             setFetchError('IPC bridge tidak tersedia (window.api.invoke). Pastikan preload expose API.')
             setBills([])
@@ -191,26 +197,39 @@ const BillsListItem: React.FC = () => {
         setIsFetching(true)
         setFetchError(null)
 
-        const t = setTimeout(() => {
+        const timer = window.setTimeout(() => {
             window.api.invoke('api.transaction.bills:read.all', payload)
-                .then((result: ApiTransactionBillResponse | { data: TransactionBill } | undefined) => {
+                .then((result: ApiTransactionBillResponse | { data: TransactionBill[] } | undefined) => {
                     const arr = Array.isArray((result as ApiTransactionBillResponse)?.data)
                         ? (result as ApiTransactionBillResponse).data
                         : (result as any)?.data
+
+                    console.log('RAW BILL DATA:', arr)
                     return alive ? (arr ?? []) : []
                 })
-                .then(arr => arr.map(stripSecrets))
+                .then(arr => {
+                    console.log('SANITIZED BILL DATA:', arr)
+                    return arr.map(stripSecrets)
+                })
                 .then(arr => alive ? setBills(arr) : undefined)
                 .then(() => alive ? setFetchError(null) : undefined)
                 .catch(err => {
-                    alive && setBills([])
-                    alive && setFetchError(typeof err?.message === 'string' ? err.message : 'Gagal memuat data')
+                    if (!alive) return
+                    setBills([])
+                    console.error(err)
+                    setFetchError(typeof err?.message === 'string' ? err.message : 'Gagal memuat data')
                 })
-                .finally(() => alive && setIsFetching(false))
-        }, 50)
+                .finally(() => {
+                    alive && setIsFetching(false)
+                })
+        }, 300) // debounce 300ms biar nggak terlalu sering nembak API pas filter/query berubah cepat
 
-        return () => { alive = false; clearTimeout(t) }
+        return () => {
+            alive = false
+            window.clearTimeout(timer)
+        }
     }, [payload, filtersReady])
+
 
     // Auto-select dari TabNavigationHandlerContext
     useEffect(() => {
@@ -254,7 +273,14 @@ const BillsListItem: React.FC = () => {
                 hit(b.transaction?.order_type?.code ?? '') ||
                 hit(b.branch?.[0]?.name ?? '')
 
-            const byDate = inDateRange(b.transaction?.time_created, normStartIso, normEndIso)
+            // 🔥 ambil timestamp dari field yang paling mungkin ada
+            const billTimeIso =
+                (b as any).time_created ??       // bill.time_created (paling umum)
+                (b as any).created_at ??         // kalau naming beda
+                b.transaction?.time_created ??   // fallback ke relasi kalau ada
+                undefined
+
+            const byDate = inDateRange(billTimeIso, normStartIso, normEndIso)
 
             const paidFlag = isPaidExtractor(b)
             const byPaid =
@@ -266,12 +292,10 @@ const BillsListItem: React.FC = () => {
             const byCashier = filters.cashierName === 'all' ? true : cashier === filters.cashierName
 
             const total = getTotal(b)
-            const [minT, maxT] = Array.isArray(filters.totalRange) ? filters.totalRange : [0, Number.POSITIVE_INFINITY]
             const byTotal = (() => {
                 const tr = Array.isArray(filters.totalRange) ? filters.totalRange : [0, 0]
                 const a = Number(tr[0] ?? 0)
                 const b = Number(tr[1] ?? 0)
-                // Matikan filter jika [0,0]
                 if (a === 0 && b === 0) return true
                 const minT = Math.min(a, b)
                 const maxT = Math.max(a, b)
@@ -281,6 +305,7 @@ const BillsListItem: React.FC = () => {
             return bySearch && byDate && byPaid && byCashier && byTotal
         })
     }, [bills, query, filters.paid, filters.cashierName, filters.totalRange, normStartIso, normEndIso])
+
 
     // Reset right pane saat list kosong / tak ada pilihan
     useEffect(() => {

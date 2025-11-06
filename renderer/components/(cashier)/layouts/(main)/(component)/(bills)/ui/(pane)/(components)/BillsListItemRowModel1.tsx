@@ -35,16 +35,14 @@ const BillsListItemRowModel1: React.FC<Props> = ({ bill, selected, onRowClick })
     // order type, shift, meja
     const orderLabel = bill.transaction?.order_type?.name || bill.transaction?.order_type?.code || '—'
     const shiftLabel = bill.transaction?.shift?.name
-        ? (bill.transaction?.shift?.start_time && bill.transaction?.shift?.end_time
-            ? `${bill.transaction?.shift?.name} (${bill.transaction?.shift?.start_time}–${bill.transaction?.shift?.end_time})`
-            : bill.transaction?.shift?.name)
+        ? bill.transaction?.shift?.name
         : '—'
     const tableLabel = bill.transaction?.table?.name || bill.transaction?.table?.code || '—'
 
     // status: unpaid kalau paid undefined; kalau ada pakai paid.status
     const isPaid = bill.paid ? !!bill.paid.status : false
     const statusLabel: 'paid' | 'unpaid' = isPaid ? 'paid' : 'unpaid'
-    const chipColor = isPaid ? 'success' : 'default'
+    const chipColor = isPaid ? 'success' : 'error'
 
     // waktu tampil: prioritas paid.time; fallback time_created/transaction/time item
     const paidAt = bill.paid?.time_updated
@@ -83,8 +81,8 @@ const BillsListItemRowModel1: React.FC<Props> = ({ bill, selected, onRowClick })
                     mt: 0.2,
                     p: 0.8,
                     borderRadius: 1,
-                    bgcolor: alpha(t.palette.primary.main, 0.08),
-                    color: t.palette.primary.main,
+                    bgcolor: isPaid ? alpha(t.palette.success.main, 0.08) : alpha(t.palette.error.main, 0.08),
+                    color: isPaid ? t.palette.success.main : t.palette.error.main,
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
                 })}>
                     <ReceiptLongRounded fontSize="small" />
@@ -94,17 +92,17 @@ const BillsListItemRowModel1: React.FC<Props> = ({ bill, selected, onRowClick })
                 <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
                     {/* baris atas: invoice, status, count, total */}
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                        <Typography variant="subtitle1" fontWeight={800} noWrap title={invoice}>#{invoice}</Typography>
-                        <Chip size="small" label={statusLabel} color={chipColor as any} />
+                        <Typography variant="h6" fontWeight={800} noWrap title={invoice}>#{invoice}</Typography>
+                        <Chip size="small" sx={{ borderRadius: 0, fontWeight: 900 }} label={statusLabel} color={chipColor as any} />
                         <Chip
                             size="small"
                             variant="outlined"
                             icon={<LocalMallRounded sx={{ fontSize: 14 }} />}
                             label={`${itemsCount} item${itemsCount === 1 ? '' : 's'}`}
-                            sx={{ ml: 0.25 }}
+                            sx={{ ml: 0.25, borderRadius: 0, fontWeight: 900 }}
                         />
                         <Box sx={{ flex: 1 }} />
-                        <Typography variant="subtitle1" fontWeight={800}>{displayTotal}</Typography>
+                        <Typography variant="h6" fontWeight={800}>{displayTotal}</Typography>
                     </Stack>
 
                     {/* baris info: order type, shift, meja, waktu, cashier */}

@@ -187,6 +187,7 @@ const BillListItemHeaderWidget: React.FC<Props> = ({ value, onChange, cashierOpt
     }, [draftStartAt, draftEndAt])
 
     // Auto-expand ke [0, maxTotal] saat awal/turun — TIDAK mengaktifkan filter
+    // Auto-expand ke [0, maxTotal] saat awal/turun — TIDAK mengaktifkan filter
     React.useEffect(() => {
         if (maxTotal <= 0) return
         const isZero =
@@ -200,7 +201,7 @@ const BillListItemHeaderWidget: React.FC<Props> = ({ value, onChange, cashierOpt
             const merged: BillFilters = { ...value, totalRange: nextRange, totalRangeActive: value.totalRangeActive ?? false }
             writePersist(merged)
             if (!isEqualArray(value.totalRange, nextRange) || value.totalRangeActive !== false)
-                onChange({ totalRange: nextRange, totalRangeActive: false })
+                onChange({ totalRange: nextRange, totalRangeActive: false })  // 🔥 INI yang bikin API ke-hit lagi
         }
     }, [maxTotal, value])
 

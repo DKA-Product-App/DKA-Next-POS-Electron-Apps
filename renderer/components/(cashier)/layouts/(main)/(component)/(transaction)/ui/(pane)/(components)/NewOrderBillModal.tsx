@@ -130,10 +130,9 @@ export default function NewOrderBillModal({
     const [open, setOpen] = React.useState(false)
     const [loading, setLoading] = React.useState(false)
 
-    // ==== Anti-race / single-flight guard ====
+    // ==== Anti-race guard ====
     const reqIdRef = React.useRef(0)
     const openRef = React.useRef(false)
-    const inFlightKeyRef = React.useRef<string | undefined>(undefined)
 
     // ==== Snapshot payload ====
     const payloadRef = React.useRef<{
@@ -144,10 +143,8 @@ export default function NewOrderBillModal({
         branches?: ConfigBranch[]
     } | null>(null)
 
-    // ==== Session timing & last ID (NEW) ====
-    const openedAtRef = React.useRef<number>(0)
+    // track bill terakhir (buat fallback duplicate/read)
     const lastBillIdRef = React.useRef<string | undefined>(undefined)
-    const didRetryRef = React.useRef<boolean>(false)
 
     const [fullScreen, setFullScreen] = React.useState(false)
     const theme = useTheme()
@@ -201,6 +198,7 @@ export default function NewOrderBillModal({
         return [
             `tx:${snap.txId}`,
             `sess:${snap.sessionId}`,
+            `req:${reqIdRef.current}`,            // atau ini sebagai session id
             `items:${keyFold}`,
         ]
             .filter(Boolean)
@@ -219,9 +217,6 @@ export default function NewOrderBillModal({
             branches: Session?.branches ?? [],
         }
 
-        openedAtRef.current = Date.now()
-        didRetryRef.current = false
-
         reqIdRef.current += 1
         openRef.current = true
         setTransactionBill(undefined)
@@ -231,6 +226,18 @@ export default function NewOrderBillModal({
     }
 
     /* ---------- CLOSE ---------- */
+    const handleClose = React.useCallback(() => {
+        openRef.current = false
+        setOpen(false)
+        setErr(null)
+        setTransactionBill(undefined)
+        setLoading(false)
+        bump('split')
+        bumpReload()
+        clearSelection()
+        clearSelectionGods()
+    }, [])
+
     const closeWithDialog = React.useCallback(() => {
         setSwalProps({
             show: true,
@@ -255,30 +262,16 @@ export default function NewOrderBillModal({
                 if (result?.isConfirmed) handleClose()
             },
         })
-    }, [themes])
+    }, [themes, handleClose])
 
-    const handleClose = React.useCallback(() => {
-        openRef.current = false
-        setOpen(false)
-        setErr(null)
-        setTransactionBill(undefined)
-        setLoading(false)
-        inFlightKeyRef.current = undefined
-        bump('split')
-        bumpReload()
-        clearSelection()
-        clearSelectionGods()
-    }, [])
-
-    // helper: create bill sekali jalan (kirim request_key, tanpa read.byRequestKey)
+    // helper: create bill sekali jalan (kirim request_key, TANPA logic stale yang bikin blank)
     const createBillOnce = (
         snap: NonNullable<typeof payloadRef.current>,
         myReq: number,
     ) =>
         window.api
-            .invoke<typeof snap, { data: TransactionBatchItem[] }>(
+            .invoke<{ ids?: string[]; transaction?: string }, { data: TransactionBatchItem[] }>(
                 'api.transaction.batch.item:read.all',
-                // @ts-ignore
                 { ids: snap.items, transaction: snap.txId },
             )
             .then(({ data }) => {
@@ -286,7 +279,6 @@ export default function NewOrderBillModal({
                     return Promise.reject({ cancelled: true })
 
                 const request_key = buildIdemKey(snap, data)
-                inFlightKeyRef.current = request_key
 
                 const BillTemporary: TransactionBill = {
                     reference: { id: snap.sessionId },
@@ -316,22 +308,9 @@ export default function NewOrderBillModal({
                 if (!openRef.current || myReq !== reqIdRef.current)
                     return Promise.reject({ cancelled: true })
 
-                const idSameAsLast = data?.id && data.id === lastBillIdRef.current
-                const createdAtMs = data?.time_created
-                    ? new Date(data.time_created).getTime()
-                    : Date.now()
-                const tooOld = createdAtMs + 500 < openedAtRef.current
-
-                if (idSameAsLast || tooOld)
-                    return Promise.reject({
-                        stale: true,
-                        reason: idSameAsLast ? 'same_id_as_last' : 'older_than_open',
-                    })
-
-                setTransactionBill(data)
                 lastBillIdRef.current = data?.id
+                setTransactionBill(data)
                 setLoading(false)
-                inFlightKeyRef.current = undefined
             })
 
     React.useEffect(() => {
@@ -349,38 +328,37 @@ export default function NewOrderBillModal({
         setErr(null)
         setLoading(true)
 
-        window.api
-            .invoke<{ ids?: string[]; transaction?: string }, { data: TransactionBatchItem[] }>(
-                'api.transaction.batch.item:read.all',
-                { ids: snap.items, transaction: snap.txId },
-            )
-            .then(({ data }) => {
-                if (!openRef.current || myReq !== reqIdRef.current)
-                    return Promise.reject({ cancelled: true })
-
-                const wouldKey = buildIdemKey(snap!, data)
-
-                // jika masih ada flight yang sama, hentikan
-                if (inFlightKeyRef.current && inFlightKeyRef.current === wouldKey)
-                    return Promise.reject({ cancelled: true })
-
-                return createBillOnce(snap!, myReq).catch((err) =>
-                    err?.stale && !didRetryRef.current
-                        ? ((didRetryRef.current = true),
-                            new Promise((r) => setTimeout(r, 120)).then(() =>
-                                createBillOnce(snap!, myReq),
-                            ))
-                        : Promise.reject(err),
-                )
-            })
+        createBillOnce(snap, myReq)
             .catch((error) => {
+                // kalau request sudah tidak relevan (modal ditutup / request lama)
                 if (error?.cancelled) {
+                    // fallback: kalau sudah pernah ada bill, tampilkan lagi
+                    if (openRef.current && lastBillIdRef.current) {
+                        setTransactionBill({ id: lastBillIdRef.current } as TransactionBill)
+                    }
                     setLoading(false)
                     return
                 }
 
                 const e = normalizeIpcError(error)
+
                 if (!openRef.current || myReq !== reqIdRef.current) {
+                    setLoading(false)
+                    return
+                }
+
+                // 🔧 FIX: kalau backend kirim info bill yang sudah ada (duplicate create),
+                // kita langsung pakai id-nya dan render, bukan dibiarkan blank/error.
+                const duplicateBillId =
+                    e?.extra?.data?.id ??
+                    e?.extra?.billId ??
+                    e?.extra?.id ??
+                    lastBillIdRef.current
+
+                if (duplicateBillId) {
+                    lastBillIdRef.current = duplicateBillId
+                    setTransactionBill({ id: duplicateBillId } as TransactionBill)
+                    setErr(null)
                     setLoading(false)
                     return
                 }
@@ -389,10 +367,10 @@ export default function NewOrderBillModal({
                 setTransactionBill(undefined)
                 setErr({
                     status: Boolean(e?.status),
-                    code: error?.stale ? 425 : e?.code ?? 500,
-                    msg: error?.stale
-                        ? 'Sinkronisasi tagihan belum konsisten. Coba klik lagi sebentar.'
-                        : e?.msg ?? 'Gagal Membuat Tagihan',
+                    code: e?.code ?? 500,
+                    msg:
+                        e?.msg ??
+                        'Gagal Membuat Tagihan',
                     extra: e?.extra,
                 })
                 setLoading(false)
@@ -441,21 +419,21 @@ export default function NewOrderBillModal({
     return (
         <>
             <Tooltip title={tooltip} arrow>
-        <span>
-          {isSplitMode ? (
-              <Badge
-                  badgeContent={items.length}
-                  invisible={items.length === 0}
-                  anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                  overlap="rectangular"
-                  sx={{ '& .MuiBadge-badge': { fontWeight: 800 } }}
-              >
-                  {ButtonEl}
-              </Badge>
-          ) : (
-              ButtonEl
-          )}
-        </span>
+                <span>
+                    {isSplitMode ? (
+                        <Badge
+                            badgeContent={items.length}
+                            invisible={items.length === 0}
+                            anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                            overlap="rectangular"
+                            sx={{ '& .MuiBadge-badge': { fontWeight: 800 } }}
+                        >
+                            {ButtonEl}
+                        </Badge>
+                    ) : (
+                        ButtonEl
+                    )}
+                </span>
             </Tooltip>
 
             <Dialog
