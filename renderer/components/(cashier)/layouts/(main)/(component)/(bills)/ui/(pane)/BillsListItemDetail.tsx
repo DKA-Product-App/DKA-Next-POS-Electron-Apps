@@ -583,6 +583,12 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                                                 <Typography variant="h6" sx={{ flex: 1, color: '#fff' }} fontWeight={900}>Grand Total</Typography>
                                                 <Typography variant="h4" fontWeight={900} sx={{ color: '#fff' }}>{fmtIDR(grandTotal)}</Typography>
                                             </Stack>
+                                            {isPaid && method?.need_tender && (
+                                                <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
+                                                    <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Uang Kembali</Typography>
+                                                    <Typography variant="h6" fontWeight={900}>{fmtIDR(Number(bill.paid?.tender) - grandTotal)}</Typography>
+                                                </Stack>
+                                            )}
                                             {!isPaid && !!method?.need_tender && tenderMode === 'ready' && (
                                                 <>
                                                     <Divider sx={{ my: 1.25 }} />
