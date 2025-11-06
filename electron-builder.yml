@@ -97,12 +97,12 @@ snap:
     - desktop
 
 # ⬇️ Data writable: tetap di luar ASAR
-extraFiles:
+#extraFiles:
 #  - from: ./uploads
 #    to: uploads
 #    filter:
 #      - "**/*"
-  - from: ./database
-    to: database
-    filter:
-      - "**/*"
+#  - from: ./database
+#    to: database
+#    filter:
+#      - "**/*"
