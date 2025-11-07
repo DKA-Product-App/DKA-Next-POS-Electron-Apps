@@ -89,7 +89,7 @@ export default function Overview() {
             startAt,
             endAt,
             reference: Session?.id,
-            god_mode: godMode,
+            god_mode: true,
         })
             .then(async (result) => {
                 setPayloadCount(result);
@@ -97,7 +97,7 @@ export default function Overview() {
             .catch((error) => {
                 setPayloadCount(undefined)
             })
-    }, [godMode, Session])
+    }, [Session])
 
     useEffect(() => {
         setMounted(true);
