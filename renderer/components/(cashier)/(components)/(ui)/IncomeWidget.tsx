@@ -45,7 +45,7 @@ export default function IncomeWidget({ timeVariant = 'h5', justifySelf = 'center
             startAt,
             endAt,
             reference: Session?.id,
-            god_mode: true,
+            god_mode: godMode,
         })
             .then(async (result) => {
                 console.log('Header Income Diperbarui', result)
@@ -55,7 +55,7 @@ export default function IncomeWidget({ timeVariant = 'h5', justifySelf = 'center
                 console.log('Header Income Gagal Diperbarui', error)
                 setPayloadCount(undefined)
             })
-    }, [Session])
+    }, [godMode, Session])
 
     useEffect(() => {
         setMounted(true)
