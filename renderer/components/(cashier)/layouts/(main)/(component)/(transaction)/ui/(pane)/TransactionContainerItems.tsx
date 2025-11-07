@@ -376,7 +376,7 @@ function Body({ tr }: { tr: Transaction }) {
                 </Box>
 
                 <Stack direction="row" gap={1.25} alignItems="center" sx={{ pr: 4 }}>
-                    <OrderVoidModal transaction={transaction} />
+                    {/*<OrderVoidModal transaction={transaction} />
                     <NewOrderBillModal
                         items={isSplitMode ? selectedIdList : ids.unpaid}
                         itemsGod={selectedIdListGod}
@@ -384,7 +384,7 @@ function Body({ tr }: { tr: Transaction }) {
                         label={isSplitMode ? 'Checkout Split' : 'Checkout Semua'}
                         variant="contained"
                         transaction={transaction}
-                    />
+                    />*/}
                 </Stack>
             </Stack>
         </Paper>
