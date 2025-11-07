@@ -68,7 +68,7 @@ jobs:
       - name: Publish single Release
         uses: ncipollo/release-action@v1
         with:
-          tag: release
+          tag: cashier
           name: "Stage Cashier"
           allowUpdates: true
           draft: true
