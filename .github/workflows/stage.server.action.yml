@@ -68,7 +68,7 @@ jobs:
       - name: Publish single Release
         uses: ncipollo/release-action@v1
         with:
-          tag: release
+          tag: server
           name: "Server"
           allowUpdates: true
           draft: true
