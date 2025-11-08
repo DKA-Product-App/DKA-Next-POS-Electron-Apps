@@ -33,21 +33,24 @@ import {useGodModeProvider} from "../../../../../../context/GodModeProviderConte
 import {TransactionBill} from "../../../../../../../../types/transaction/bill/transaction.bill.type";
 import {ConfigPaymentMethod} from "../../../../../../../../types/config/data/payment.method.type";
 import {DevicePrinter} from "../../../../../../../../types/config/device/device.printer.type";
+import moment from "moment-timezone";
+import "moment/locale/id"
 
 /* ================================= THEME ACCENTS ================================= */
 const PURPLE_GRAD = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)'
 const RED_GRAD = 'linear-gradient(90deg,rgba(180, 58, 58, 1) 0%, rgba(233, 34, 54, 1) 40%, rgba(253, 29, 29, 1) 50%, rgba(252, 93, 69, 1) 100%)';
 const GRAND_GRAD = 'linear-gradient(90deg,rgba(10,224,7,1) 0%, rgba(7,168,61,1) 51%, rgba(44,135,138,1) 100%)'
 const ACCENT = 'linear-gradient(90deg, #7C3AED, #6366F1 45%, #8B5CF6)'
-
+moment.locale('id')
 /* ================================= HELPERS ================================= */
+
 const fmtIDR = (n?: number | string) =>
     typeof n === 'number' || (typeof n === 'string' && n !== '')
         ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(n))
         : 'Rp —'
 
-const fmtTimeShort = (iso?: string) =>
-    iso ? new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '—'
+const nameJoin = (n?: { first_name?: string; last_name?: string }) =>
+    [n?.first_name, n?.last_name].filter(Boolean).join(' ').trim()
 
 const statusChip = (bill?: TransactionBill) => {
     const paid = bill?.paid
@@ -354,14 +357,14 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
     }
 
     React.useEffect(() => {
-       window?.api.invoke?.<any, AxiosResponse<DevicePrinter[]>>("api.config.device.printer:read.all", {})
-           .then(async ({ data }) => {
-               if (config?.printer.defaultPrinter === undefined) set({ printer : { defaultPrinter: data?.[0] }})
-               setPrinterList(data);
-           })
-           .catch((error) => {
-               setPrinterList([])
-           })
+        window?.api.invoke?.<any, AxiosResponse<DevicePrinter[]>>("api.config.device.printer:read.all", {})
+            .then(async ({ data }) => {
+                if (config?.printer.defaultPrinter === undefined) set({ printer : { defaultPrinter: data?.[0] }})
+                setPrinterList(data);
+            })
+            .catch((error) => {
+                setPrinterList([])
+            })
     },[])
     const onPrintHandle = ({ enableNotify = false, cashdraw = false } : { enableNotify?: boolean, cashdraw?: boolean }) => {
         if (!config?.printer.defaultPrinter) return
@@ -419,18 +422,23 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                                     <Typography variant="h5" fontWeight={900} noWrap sx={{ letterSpacing: 0.2 }}>
                                         #{' '}{bill?.bill}
                                     </Typography>
-                                    <Chip size="small" color={st.color} label={st.label} sx={{ borderRadius: 0, fontSize: { xs: 12, md: 13 } }} />
-                                    <Chip size="small" variant="outlined" label={`${itemsCount} item${itemsCount === 1 ? '' : 's'} • ${qtyTotal} qty`} sx={{ borderRadius: 0, fontSize: { xs: 12, md: 13 } }} />
-                                </Stack>
-
-                                <Stack direction="row" spacing={2} flexWrap="wrap" sx={{ color: 'text.secondary' }}>
-                                    <Stack direction="row" spacing={0.75} alignItems="center">
-                                        <AccessTimeRounded sx={{ fontSize: 18 }} />
+                                    <Chip size="medium" color={st.color} label={st.label} sx={{ borderRadius: 4, fontSize: 16 }} />
+                                    <Chip size="medium" color={'secondary'} label={`${itemsCount} item${itemsCount === 1 ? '' : 's'} • ${qtyTotal} qty`} sx={{ borderRadius: 4, fontSize: 16 }} />
+                                    <Chip size="medium" color={"warning"} label={`Ref. Order — ${ref ?? 'Tidak Ada Kaitan Pesanan'}  — ${nameJoin(bill?.transaction?.reference?.name)}`} sx={{ borderRadius: 4, fontSize: 16 }} />
+                                    <Chip size="medium" color={"primary"} icon={<AccessTimeRounded sx={{ fontSize: 18 }} />} label={
                                         <Typography variant="body1">
-                                            {isPaid ? `Paid — ${fmtTimeShort(getPaidAt(bill))}` : `Issued — ${fmtTimeShort(getIssuedAt(bill))}`}
+                                            Issued — {moment(getIssuedAt(bill)).format("HH:mm dddd, DD-MM-YYYY")} — {nameJoin(bill?.reference?.name)}
                                         </Typography>
-                                    </Stack>
-                                    <Chip size="medium" color={"primary"} label={`Ref. Order — ${ref ?? '—'}`} sx={{ borderRadius: 0, fontSize: { xs: 16, md: 18 } }} />
+                                    } sx={{ borderRadius: 4, fontSize: { xs: 12, md: 13 } }} />
+                                    {
+                                        isPaid && (
+                                            <Chip size="medium" color={"success"} icon={<AccessTimeRounded sx={{ fontSize: 18 }} />} label={
+                                                <Typography variant="body1">
+                                                    Paid — {moment(getPaidAt(bill)).format("HH:mm dddd, DD-MM-YYYY")}
+                                                </Typography>
+                                            } sx={{ borderRadius: 4, fontSize: { xs: 12, md: 13 } }} />
+                                        )
+                                    }
                                 </Stack>
                             </Stack>
                         </Stack>
