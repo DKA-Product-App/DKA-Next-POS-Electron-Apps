@@ -3,10 +3,10 @@ name: Action Compile Development Windows CI/CD
 on:
   push:
     branches:
-      - stage
+      - standar
   pull_request:
     branches:
-      - stage
+      - standar
 
 env:
   WA_CHAT_ID: '120363038030543096@g.us'
@@ -42,8 +42,8 @@ jobs:
       - name: Publish single Release
         uses: ncipollo/release-action@v1
         with:
-          tag: release
-          name: "Development"
+          tag: standar
+          name: "Standar"
           allowUpdates: true
           draft: true
           prerelease: true
@@ -68,8 +68,8 @@ jobs:
       - name: Publish single Release
         uses: ncipollo/release-action@v1
         with:
-          tag: release
-          name: "Development"
+          tag: standar
+          name: "Standar"
           allowUpdates: true
           draft: true
           prerelease: true
