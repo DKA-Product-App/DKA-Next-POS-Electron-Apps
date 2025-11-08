@@ -11,7 +11,9 @@ import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
 import ScheduleRounded from '@mui/icons-material/ScheduleRounded'
 import {useMemo} from "react";
 import {TransactionBill} from "../../../../../../../../../types/transaction/bill/transaction.bill.type";
-
+import moment from "moment-timezone";
+import "moment/locale/id"
+moment.locale('id')
 type Props = {
     bill: TransactionBill
     selected?: boolean
@@ -45,8 +47,8 @@ const BillsListItemRowModel1: React.FC<Props> = ({ bill, selected, onRowClick })
     const chipColor = isPaid ? 'success' : 'error'
 
     // waktu tampil: prioritas paid.time; fallback time_created/transaction/time item
-    const paidAt = bill.paid?.time_updated
-    const issuedAt = bill.time_created || bill.transaction?.time_created || bill.items?.[0]?.time_created
+    const paidAt = moment(bill.paid?.time_updated).format("HH:mm dddd, DD-MM-YYYY")
+    const issuedAt = moment(bill.time_created).format("HH:mm dddd, DD-MM-YYYY")
     const displayTime = paidAt ?? issuedAt
 
     const subTotal = sum(bill.items.map(i => Number(i.sub_total)));
@@ -125,22 +127,18 @@ const BillsListItemRowModel1: React.FC<Props> = ({ bill, selected, onRowClick })
                             <Typography variant="body2" noWrap title={tableLabel}>{tableLabel}</Typography>
                         </Stack>
 
-                        {/* Waktu (paid/issued) */}
-                        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
-                            <AccessTimeRounded sx={{ fontSize: 16 }} />
-                            <Typography
-                                variant="body2"
-                                noWrap
-                                title={paidAt ? `Dibayar: ${paidAt}` : (issuedAt ? `Dibuat: ${issuedAt}` : '')}
-                            >
-                                {fmtTime(displayTime)}
-                            </Typography>
-                        </Stack>
+
 
                         <Box sx={{ flex: 1 }} />
 
                         {/* Kasir */}
                         <Typography variant="body2" noWrap title={cashier}>{cashier}</Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={1.25} sx={{ color: 'text.secondary', alignItems: 'center', flexWrap: 'wrap' }}>
+                        {/* Waktu (paid/issued) */}
+                        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                            <Chip size="small" sx={{ borderRadius: 0, fontWeight: 900 }} icon={<AccessTimeRounded sx={{ fontSize: 16 }} />} label={displayTime} />
+                        </Stack>
                     </Stack>
                 </Stack>
             </Stack>
