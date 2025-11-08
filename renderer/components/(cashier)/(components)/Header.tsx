@@ -140,7 +140,7 @@ export default function Header({branchName = 'Main Branch', registerName = 'REG-
                 <Stack direction="row" spacing={3} sx={{ justifySelf: 'center', alignItems: 'center', minWidth: 0 }}>
                     {/* Center: Time */}
 
-                    <IncomeWidget timeVariant="h5" justifySelf="center" />
+                    {/*<IncomeWidget timeVariant="h5" justifySelf="center" />*/}
                 </Stack>
 
                 {/* KANAN: Status + Mode + Kasir */}

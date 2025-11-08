@@ -178,6 +178,10 @@ const BillsListItem: React.FC = () => {
         setLayout(prev => ({ ...(prev ?? {}), right: <BillsRightEmpty /> }))
     }, [setLayout])
 
+    useEffect(() => {
+        setActiveId(null);
+    }, [godMode]);
+
     // Ambil data — dedup by payload key + debounce — skip sebelum filtersReady
     // Ambil data — dedup by payload key + debounce — skip sebelum filtersReady
     useEffect(() => {
