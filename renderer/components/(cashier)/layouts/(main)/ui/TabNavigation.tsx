@@ -41,7 +41,7 @@ const LABELS: Record<string, string> = {
 const TABS: TabDef[] = [
     { key: 'orders', label: 'Pesanan', icon: <ReceiptLongRounded sx={{ fontSize: 18 }} />, render: () => <Transaction /> },
     // label bisa undefined, tapi nanti difallback ke LABELS di render
-    { key: 'bills',  label: "History",     icon: <RequestQuoteRounded  sx={{ fontSize: 18 }} />, render: () => <Bills /> },
+    /*{ key: 'bills',  label: "History",     icon: <RequestQuoteRounded  sx={{ fontSize: 18 }} />, render: () => <Bills /> },*/
 ];
 
 /* ===== Component ===== */
