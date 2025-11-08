@@ -27,7 +27,6 @@ const nameJoin = (n?: { first_name?: string; last_name?: string }) =>
     [n?.first_name, n?.last_name].filter(Boolean).join(' ').trim()
 
 const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0)
-const fmtTime = (iso?: string) => iso ? new Date(iso).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'
 
 const BillsListItemRowModel1: React.FC<Props> = ({ bill, selected, onRowClick }) => {
     // ====== derive semua dari bill ======
