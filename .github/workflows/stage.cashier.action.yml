@@ -46,7 +46,7 @@ jobs:
           name: "Cashier"
           allowUpdates: true
           draft: true
-          prerelease: true
+          prerelease: false
           artifacts: dist/*.exe
       #- name: Upload Windows artifact
       #  uses: actions/upload-artifact@v4
