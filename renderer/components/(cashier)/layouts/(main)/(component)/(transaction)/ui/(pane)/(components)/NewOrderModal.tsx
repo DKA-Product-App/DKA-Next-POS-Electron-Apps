@@ -312,12 +312,12 @@ const NewOrderModal: React.FC<Props> = ({ onCreated }) => {
         const maxIndex = steps.length - 1
         if (activeStep > maxIndex) setActiveStep(maxIndex)
         setTableId(undefined)
-    }, [steps.length, activeStep])
+    }, [steps.length])
 
     // auto next kalau meja sudah dipilih (Dine In)
     useEffect(() => {
-        if (tableId && needTable && activeStep === 1) handleNext()
-    }, [tableId, needTable, activeStep, handleNext])
+        handleNext();
+    }, [tableId, setTableId]);
 
     /* ---------- content per step ---------- */
     const renderStepContent = () => {
