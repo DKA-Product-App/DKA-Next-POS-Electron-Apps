@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { alpha, Box, Chip, Paper, Stack, Tooltip, Typography } from '@mui/material'
+import { alpha, Box, Chip, IconButton, Paper, Stack, Tooltip, Typography } from '@mui/material'
 import Image, { ImageLoader } from 'next/image'
 import Skeleton from '@mui/material/Skeleton'
 import { motion } from 'framer-motion'
@@ -16,10 +16,16 @@ import HourglassBottomRounded from '@mui/icons-material/HourglassBottomRounded'
 import GppBadRounded from '@mui/icons-material/GppBadRounded'          // voided
 import PendingActionsRounded from '@mui/icons-material/PendingActionsRounded' // pending void
 import LockRounded from '@mui/icons-material/LockRounded'               // closed
+import CallSplitRounded from '@mui/icons-material/CallSplitRounded' // NEW: Split Icon
 
-import {ImgWithSkeleton, OverlayTone} from "../../../../../../../../../../utils/ImageProcessingIPC";
-import {useGodModeProvider} from "../../../../../../../../context/GodModeProviderContext";
-import {TransactionBatchItem} from "../../../../../../../../../../types/transaction/batch/transaction.batch.item.type";
+import dynamic from "next/dynamic"
+
+const SplitQtyDialog = dynamic(() => import('./SplitQtyDialog'), { ssr: false })
+
+import { ImgWithSkeleton, OverlayTone } from "../../../../../../../../../../utils/ImageProcessingIPC";
+import { useGodModeProvider } from "../../../../../../../../context/GodModeProviderContext";
+import { TransactionBatchItem } from "../../../../../../../../../../types/transaction/batch/transaction.batch.item.type";
+import { useTx } from "../../context/TransactionContext";
 
 const MotionPaper = motion(Paper)
 
@@ -58,6 +64,8 @@ const StatusBadge: React.FC<{
     </Tooltip>
 )
 
+import AddRounded from '@mui/icons-material/AddRounded'
+import RemoveRounded from '@mui/icons-material/RemoveRounded'
 
 type Props = {
     item: TransactionBatchItem
@@ -74,16 +82,20 @@ type Props = {
     isApprovedVoid?: boolean
     isPendingPaid?: boolean
     isPaid?: boolean
-
     onToggle: (it: TransactionBatchItem) => void;
     onToggleGod?: (it: TransactionBatchItem) => void
 }
 
 const GRADIENT = 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)';
 
-const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPriceLabel, selected, selectedGodMode, disabled, isClosed, isPendingVoid, isApprovedVoid, isPendingPaid, isPaid, onToggle, onToggleGod }) => {
+const RightContainerBatchDetailRow: React.FC<Props> = ({
+    item, totalLabel, qtyPriceLabel, selected, selectedGodMode, disabled,
+    isClosed, isPendingVoid, isApprovedVoid, isPendingPaid, isPaid,
+    onToggle, onToggleGod,
+}) => {
     const hasNote = Boolean(item.note?.trim()?.length)
     const { godMode } = useGodModeProvider()
+    const { bumpReload } = useTx()
     /** Gambar rules:
      * Closed       : grayscale + GRAY overlay (override apapun)
      * Voided       : grayscale + RED overlay
@@ -102,22 +114,29 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPr
 
     const GRADIENT_TRIGGER = (!selectedGodMode) ? 'linear-gradient(90deg, #6366F1, #8B5CF6 35%, #EC4899)' : 'linear-gradient(90deg,rgba(180, 58, 58, 1) 0%, rgba(233, 34, 54, 1) 40%, rgba(253, 29, 29, 1) 50%, rgba(252, 93, 69, 1) 100%)'
 
+    const [isSplitDialogOpen, setSplitDialogOpen] = React.useState(false)
+
+    // Override toggle: if split mode, initialize to full remaining or toggle off
+    // But mostly rely on manual qty adjustment or click = full/zero logic
+    const handleCardClick = (e: React.MouseEvent) => {
+        e.preventDefault()
+        if (disabled) return
+        onToggle(item)
+    }
+
+
     return (
         <MotionPaper
             variant="outlined"
             whileTap={disabled ? undefined : { scale: 0.99 }}
-            onClick={(e) => {
-                e.preventDefault()              // blok menu konteks bawaan
-                if (disabled) return;
-                onToggle(item);
-            }}
+            onClick={handleCardClick}
 
             // Right click (klik kanan)
             onContextMenu={(e) => {
                 e.preventDefault()              // blok menu konteks bawaan
                 if (godMode) return;
                 if (disabled) return
-                onToggleGod(item)
+                onToggleGod!(item)
             }}
             aria-disabled={disabled || undefined}
             sx={{
@@ -181,13 +200,34 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPr
                     sx={{ position: 'absolute', bottom: 8, left: 8, color: '#fff', background: GRADIENT, boxShadow: 1, '& .MuiChip-icon': { color: 'inherit' } }}
                 />
 
-                {/* Check bulat kanan bawah */}
-                {
-                    !disabled ? (
+
+
+                {/* SPLIT QTY CONTROL & Checkbox */}
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ position: 'absolute', bottom: 8, right: 8 }}>
+                    {/* SPLIT ICON BUTTON */}
+                    {!disabled && item.qty > 1 && (
+                        <Box
+                            sx={{
+                                width: 28, height: 28, borderRadius: '50%',
+                                bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider',
+                                display: 'grid', placeItems: 'center', cursor: 'pointer',
+                                boxShadow: 1, color: 'text.secondary',
+                                '&:hover': { bgcolor: 'action.hover', color: 'primary.main' }
+                            }}
+                            onClick={(e) => {
+                                e.stopPropagation() // Prevent card toggle
+                                setSplitDialogOpen(true)
+                            }}
+                        >
+                            <CallSplitRounded sx={{ fontSize: 18 }} />
+                        </Box>
+                    )}
+
+                    {/* CHECKMARK */}
+                    {!disabled ? (
                         <Box
                             aria-label={selected ? 'dipilih' : 'tidak dipilih'}
                             sx={{
-                                position: 'absolute', bottom: 8, right: 8,
                                 width: 20, height: 20, borderRadius: '50%',
                                 border: '2px solid', borderColor: selected ? 'success.main' : 'divider',
                                 bgcolor: selected ? 'success.main' : 'background.paper',
@@ -197,8 +237,8 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPr
                         >
                             {selected && <CheckRounded sx={{ fontSize: 14 }} />}
                         </Box>
-                    ) : null
-                }
+                    ) : null}
+                </Stack>
             </Box>
 
             <Box sx={{ p: 1.25, display: 'grid', gap: .5, flexGrow: 1 }}>
@@ -253,6 +293,34 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPr
                     )}
                 </Box>
 
+
+
+                {/* Dialog Component */}
+                {isSplitDialogOpen && (
+                    <SplitQtyDialog
+                        open={isSplitDialogOpen}
+                        onClose={() => setSplitDialogOpen(false)}
+                        onConfirm={(qty) => {
+                            // API Request to Split Item
+                            window.api.invoke('api.transaction.batch.item:update.one', {
+                                params: { id: item.id },
+                                data: { split_qty: qty }
+                            })
+                                .then(() => {
+                                    // toast.success("Item berhasil di-split")
+                                    bumpReload() // Refresh list
+                                })
+                                .catch((err: any) => {
+                                    console.error(err)
+                                    // toast.error(err?.message || "Gagal split item")
+                                })
+                        }}
+                        maxQty={item.qty} // Fallback to full qty
+                        initialQty={1}    // Default to 1
+                        itemName={item.product?.name}
+                    />
+                )}
+
                 {/* Qty x Price — Total */}
                 <Stack direction="row" alignItems="center" justifyContent="space-between" mt={1} sx={{ justifySelf: 'stretch', width: '100%' }}>
                     <Typography variant="body2" color="text.secondary">{qtyPriceLabel}</Typography>
@@ -260,7 +328,7 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({ item, totalLabel, qtyPr
                 </Stack>
             </Box>
 
-            <Box sx={{ height: 3, background: GRADIENT_TRIGGER}} />
+            <Box sx={{ height: 3, background: GRADIENT_TRIGGER }} />
         </MotionPaper>
     )
 }
