@@ -1,7 +1,6 @@
 # dependencies
 node_modules
 .idea
-README.md
 # logs
 *.log
 
