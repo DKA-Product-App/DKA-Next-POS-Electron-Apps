@@ -20,6 +20,10 @@
 
 ### Refactor / Revert
 - **Lingkup Kasir**: Revert total perubahan pagination eksperimental di `BillsListItem` dan `TransactionListItem`.
+
+### Git Log (Detail)
+- feat: implement server-side pagination, date filtering and fix UI bugs [Commit: 9ec332e]
+- fix(pos): prevent double request on bills list load by respecting totalRangeActive [Commit: 04ec8e4]
 </details>
 
 <details>
@@ -27,4 +31,7 @@
 
 ### Fitur Baru
 - **Split Bill**: Implementasi dialog dan logika `Split Quantity` pada item transaksi (Komit: `b1c584a`).
+
+### Git Log (Detail)
+- feat: implement split quantity dialog and logic [Commit: b1c584a]
 </details>
