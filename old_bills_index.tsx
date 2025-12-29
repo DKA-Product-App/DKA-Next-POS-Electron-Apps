@@ -1,15 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterMoment } from '@mui/x-date-pickers/AdapterMoment';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import moment from 'moment'; // Import moment for date handling
-
 import {
     Box, Button, Chip, Stack, Typography, Avatar,
     Menu, MenuItem, ListItemIcon, ListItemText,
-    TextField, IconButton, // Add TextField for DatePicker renderInput and IconButton
 } from '@mui/material';
 import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import AddRounded from '@mui/icons-material/AddRounded';
@@ -19,13 +13,11 @@ import PrintRounded from '@mui/icons-material/PrintRounded';            // Bill
 import ArrowDropDownRounded from '@mui/icons-material/ArrowDropDownRounded';
 import PictureAsPdfRounded from '@mui/icons-material/PictureAsPdfRounded';
 import TableViewRounded from '@mui/icons-material/TableViewRounded';
-import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
 
 import {
     MaterialReactTable,
     useMaterialReactTable,
     type MRT_ColumnDef,
-    type MRT_ExpandedState,
 } from 'material-react-table';
 
 import { mkConfig, generateCsv, download } from 'export-to-csv';
@@ -369,8 +361,8 @@ const handleExportPDF = (tree: TxRow[]) => {
     });
 
     const head = [[
-        'Level', 'Invoice', 'Bill', 'Order Type', 'Title (Item)',
-        'Qty', 'Price', 'Sub-Total', 'Tax %', 'Paid', 'Tx Grand', 'Bill Grand',
+        'Level','Invoice','Bill','Order Type','Title (Item)',
+        'Qty','Price','Sub-Total','Tax %','Paid','Tx Grand','Bill Grand',
     ]];
 
     const body = rows.map((r) => ([
@@ -401,8 +393,8 @@ const handleExportPDF = (tree: TxRow[]) => {
         foot,
         showFoot: 'lastPage',               // <<— hanya tampil di halaman terakhir
         styles: { fontSize: 9, cellPadding: 2 },
-        headStyles: { fillColor: [33, 150, 243] },
-        footStyles: { fillColor: [33, 150, 243] },
+        headStyles: { fillColor: [33,150,243] },
+        footStyles: { fillColor: [33,150,243] },
         margin: { top: 12, left: 8, right: 8, bottom: 10 },
         theme: 'grid',
         didParseCell: (data) => {
@@ -410,10 +402,10 @@ const handleExportPDF = (tree: TxRow[]) => {
                 const level = data.row.raw?.[0];
                 if (level === 'TRANSACTION') {
                     data.cell.styles.fontStyle = 'bold';
-                    data.cell.styles.fillColor = [240, 248, 255];
+                    data.cell.styles.fillColor = [240,248,255];
                 } else if (level === 'BILL') {
                     data.cell.styles.fontStyle = 'bold';
-                    data.cell.styles.fillColor = [248, 248, 248];
+                    data.cell.styles.fillColor = [248,248,248];
                 } else if (level === 'ITEM' && data.column.index === 5) {
                     data.cell.text = ['   • ' + (data.cell.text?.[0] ?? '')];
                 }
@@ -430,20 +422,6 @@ export default function TransactionsWithBillsTree() {
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
 
-    // Pagination State
-    const [pagination, setPagination] = React.useState({
-        pageIndex: 0,
-        pageSize: 15, // Default page size
-    });
-    const [rowCount, setRowCount] = React.useState(0); // Total items from server
-
-    // Date Filter State
-    const [startDate, setStartDate] = React.useState<moment.Moment | null>(moment().startOf('day'));
-    const [endDate, setEndDate] = React.useState<moment.Moment | null>(moment().endOf('day'));
-
-    // Expansion State
-    const [expanded, setExpanded] = React.useState<MRT_ExpandedState>({});
-
     // state untuk export dropdown
     const [exportAnchor, setExportAnchor] = React.useState<null | HTMLElement>(null);
     const openExport = (e: React.MouseEvent<HTMLButtonElement>) => setExportAnchor(e.currentTarget);
@@ -451,33 +429,12 @@ export default function TransactionsWithBillsTree() {
 
     const fetchAll = React.useCallback(() => {
         if (!window?.api?.invoke) { setError('Bridge tidak tersedia'); setRows([]); return; }
-
         setLoading(true);
-        const { pageIndex, pageSize } = pagination;
-        const payload: any = {
-            page: pageIndex + 1, // API 1-based
-            limit: pageSize,
-        };
-
-        if (startDate && endDate) {
-            payload.startAt = startDate.format('YYYY-MM-DD HH:mm:ss');
-            payload.endAt = endDate.format('YYYY-MM-DD HH:mm:ss');
-        }
-
         window.api
-            .invoke<any, ApiBillsResponse>('api.transaction.bills:read.all', payload)
-            .then((res: any) => {
+            .invoke<any, ApiBillsResponse>('api.transaction.bills:read.all', {})
+            .then((res) => {
                 const data = Array.isArray(res?.data) ? res.data : [];
                 setRows(mapToTree(data));
-
-                // Handle pagination meta
-                if (res?.meta?.total) {
-                    setRowCount(res.meta.total);
-                } else {
-                    // Fallback check if full data returned (backward compat or small data)
-                    setRowCount(data.length);
-                }
-
                 setError(null);
             })
             .catch((err: any) => {
@@ -486,7 +443,7 @@ export default function TransactionsWithBillsTree() {
                 setRows([]);
             })
             .finally(() => setLoading(false));
-    }, [pagination.pageIndex, pagination.pageSize, startDate, endDate]);
+    }, []);
 
     React.useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -561,24 +518,13 @@ export default function TransactionsWithBillsTree() {
     const table = useMaterialReactTable({
         columns,
         data: rows as AnyRow[],
-        getRowId: (row) => row.id,
         enableExpanding: true,
         enableExpandAll: false,
         paginateExpandedRows: false,
-        filterFromLeafRows: true, // Revert to true to match 'original' code as requested by user
-        autoResetExpanded: false,
-        getSubRows: (row: AnyRow) => {
-            const sub = (row as TxRow).subRows ?? (row as BillRow).subRows;
-            return sub && sub.length > 0 ? sub : undefined;
-        },
+        filterFromLeafRows: true,
+        getSubRows: (row: AnyRow) => (row as TxRow).subRows ?? (row as BillRow).subRows ?? undefined,
         initialState: { density: 'comfortable' },
-        state: {
-            showProgressBars: loading,
-            pagination,
-            expanded, // Pass expanded state
-        },
-        onExpandedChange: setExpanded, // Handle expansion change
-
+        state: { showProgressBars: loading },
         columnFilterDisplayMode: 'popover',
         paginationDisplayMode: 'pages',
         positionToolbarAlertBanner: 'bottom',
@@ -586,12 +532,6 @@ export default function TransactionsWithBillsTree() {
         enableStickyHeader: true,
         muiTablePaperProps: { sx: { display: 'flex', flexDirection: 'column', flex: 1 } },
         muiTableContainerProps: { sx: { flex: 1 } },
-
-        // Manual Server-Side Pagination Config
-        manualPagination: true,
-        rowCount,
-        onPaginationChange: setPagination,
-
         renderTopToolbarCustomActions: () => (
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ width: '100%', gap: 1 }}>
                 <Box>
@@ -603,31 +543,7 @@ export default function TransactionsWithBillsTree() {
                     ) : null}
                 </Box>
 
-                <Stack direction="row" spacing={1} alignItems="center">
-                    {/* Date Pickers */}
-                    <LocalizationProvider dateAdapter={AdapterMoment}>
-                        <Stack direction="row" spacing={1}>
-                            <DatePicker
-                                label="Start Date"
-                                value={startDate}
-                                onChange={(newValue) => {
-                                    setStartDate(newValue);
-                                    setPagination((prev) => ({ ...prev, pageIndex: 0 })); // Reset to page 1
-                                }}
-                                slotProps={{ textField: { size: 'small', sx: { width: 150 } } }}
-                            />
-                            <DatePicker
-                                label="End Date"
-                                value={endDate}
-                                onChange={(newValue) => {
-                                    setEndDate(newValue);
-                                    setPagination((prev) => ({ ...prev, pageIndex: 0 })); // Reset to page 1
-                                }}
-                                slotProps={{ textField: { size: 'small', sx: { width: 150 } } }}
-                            />
-                        </Stack>
-                    </LocalizationProvider>
-
+                <Stack direction="row" spacing={1}>
                     <Button variant="outlined" startIcon={<RefreshRounded />} onClick={fetchAll}>Refresh</Button>
 
                     {/* === Export Dropdown === */}

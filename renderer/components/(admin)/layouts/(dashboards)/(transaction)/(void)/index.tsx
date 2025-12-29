@@ -30,6 +30,11 @@ import { useState } from 'react';
 import { useSession } from '../../../../../../contexts/SessionProviderContext';
 import { useThemeCharger } from '../../../../../../contexts/ThemeCharger';
 
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterMoment } from '@mui/x-date-pickers/AdapterMoment';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import moment from 'moment'; // Import moment for date handling
+
 /* ========== Types (API) ========== */
 type ApiName = { first_name?: string; last_name?: string };
 type ApiRef = { id: string; name?: ApiName; username?: string };
@@ -141,6 +146,17 @@ export default function OrderVoidsTree() {
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
 
+    // Pagination State
+    const [pagination, setPagination] = React.useState({
+        pageIndex: 0,
+        pageSize: 15,
+    });
+    const [rowCount, setRowCount] = React.useState(0);
+
+    // Date Filter State
+    const [startDate, setStartDate] = React.useState<moment.Moment | null>(moment().startOf('day'));
+    const [endDate, setEndDate] = React.useState<moment.Moment | null>(moment().endOf('day'));
+
     const { mode } = useThemeCharger();
     const { Session } = useSession();
 
@@ -159,8 +175,21 @@ export default function OrderVoidsTree() {
             return;
         }
         setLoading(true);
+
+        const { pageIndex, pageSize } = pagination;
+        const payload: any = {
+            void: true,
+            page: pageIndex + 1,
+            limit: pageSize,
+        };
+
+        if (startDate && endDate) {
+            payload.startAt = startDate.format('YYYY-MM-DD HH:mm:ss');
+            payload.endAt = endDate.format('YYYY-MM-DD HH:mm:ss');
+        }
+
         window.api
-            .invoke(EVT_READ, { void: true })
+            .invoke(EVT_READ, payload)
             .then((result: any) => {
                 const data = (result?.data ?? []) as ApiOrderVoidItem[];
                 const mapped: VoidParentRow[] = data.map((it) => {
@@ -204,6 +233,14 @@ export default function OrderVoidsTree() {
                 });
 
                 setRows(mapped);
+
+                // Handle pagination meta
+                if (result?.meta?.total) {
+                    setRowCount(result.meta.total);
+                } else {
+                    setRowCount(data.length);
+                }
+
                 setError(null);
             })
             .catch((err: any) => {
@@ -212,7 +249,7 @@ export default function OrderVoidsTree() {
                 setError(err?.msg ?? 'Gagal memuat data void. Periksa koneksi jaringan/server.');
             })
             .finally(() => setLoading(false));
-    }, [Session?.id]);
+    }, [Session?.id, pagination.pageIndex, pagination.pageSize, startDate, endDate]);
 
     React.useEffect(() => {
         fetchVoids();
@@ -248,9 +285,9 @@ export default function OrderVoidsTree() {
                     <div><b>NO Order:</b> ${row.invoice}</div>
                     <div style="margin-top:8px"><b>Reason dari kasir:</b></div>
                     <div style="white-space:pre-wrap;border:1px solid #ddd;padding:8px;border-radius:8px;margin-top:4px;">${(cashierReason || '—')
-                .toString()
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')}</div>
+                    .toString()
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')}</div>
                 </div>`,
             confirmButtonText: 'Setujui',
             showCancelButton: true,
@@ -551,7 +588,14 @@ export default function OrderVoidsTree() {
         paginateExpandedRows: false,
 
         // baseline template v2
-        state: { showProgressBars: loading },
+        state: {
+            showProgressBars: loading,
+            pagination,
+        },
+        manualPagination: true,
+        rowCount,
+        onPaginationChange: setPagination,
+
         columnFilterDisplayMode: 'popover',
         paginationDisplayMode: 'pages',
         positionToolbarAlertBanner: 'bottom',
@@ -570,7 +614,32 @@ export default function OrderVoidsTree() {
                         <Typography variant="body2" color="error.main">{error}</Typography>
                     ) : null}
                 </Box>
-                <Stack direction="row" spacing={1}>
+
+                <Stack direction="row" spacing={1} alignItems="center">
+                    {/* Date Pickers */}
+                    <LocalizationProvider dateAdapter={AdapterMoment}>
+                        <Stack direction="row" spacing={1}>
+                            <DatePicker
+                                label="Start Date"
+                                value={startDate}
+                                onChange={(newValue) => {
+                                    setStartDate(newValue);
+                                    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+                                }}
+                                slotProps={{ textField: { size: 'small', sx: { width: 150 } } }}
+                            />
+                            <DatePicker
+                                label="End Date"
+                                value={endDate}
+                                onChange={(newValue) => {
+                                    setEndDate(newValue);
+                                    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+                                }}
+                                slotProps={{ textField: { size: 'small', sx: { width: 150 } } }}
+                            />
+                        </Stack>
+                    </LocalizationProvider>
+
                     <Button variant="outlined" onClick={fetchVoids}>Refresh</Button>
                 </Stack>
             </Stack>

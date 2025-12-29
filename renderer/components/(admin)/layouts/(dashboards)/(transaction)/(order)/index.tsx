@@ -22,10 +22,21 @@ import PaidRounded from '@mui/icons-material/PaidRounded';
 import ScheduleRounded from '@mui/icons-material/ScheduleRounded';
 
 import {
+    MaterialReactTable,
+    useMaterialReactTable,
+    type MRT_ColumnDef,
+} from 'material-react-table';
+
+import {
     DataTable,
     Column,
     useNonPassiveWheel,
 } from './(components)/TablesLayoutConstructor';
+
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterMoment } from '@mui/x-date-pickers/AdapterMoment';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import moment from 'moment'; // Import moment for date handling
 
 /* ========= Types dari response ========= */
 type ApiName = { first_name?: string; last_name?: string };
@@ -251,6 +262,17 @@ export default function TransactionOrders() {
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
 
+    // Pagination State
+    const [pagination, setPagination] = React.useState({
+        pageIndex: 0,
+        pageSize: 15,
+    });
+    const [rowCount, setRowCount] = React.useState(0);
+
+    // Date Filter State
+    const [startDate, setStartDate] = React.useState<moment.Moment | null>(moment().startOf('day'));
+    const [endDate, setEndDate] = React.useState<moment.Moment | null>(moment().endOf('day'));
+
     // Popover: Batches
     const [batchAnchor, setBatchAnchor] = React.useState<HTMLElement | null>(null);
     const [batchTitle, setBatchTitle] = React.useState<string>('');
@@ -316,8 +338,20 @@ export default function TransactionOrders() {
             return;
         }
         setLoading(true);
+
+        const { pageIndex, pageSize } = pagination;
+        const payload: any = {
+            page: pageIndex + 1,
+            limit: pageSize,
+        };
+
+        if (startDate && endDate) {
+            payload.startAt = startDate.format('YYYY-MM-DD HH:mm:ss');
+            payload.endAt = endDate.format('YYYY-MM-DD HH:mm:ss');
+        }
+
         window.api
-            .invoke('api.transaction:read.all', {})
+            .invoke('api.transaction:read.all', payload)
             .then((result: any) => {
                 const data = (result?.data ?? []) as ApiTransactionOrder[];
 
@@ -401,6 +435,14 @@ export default function TransactionOrders() {
                 });
 
                 setRows(mapped);
+
+                // Handle pagination meta
+                if (result?.meta?.total) {
+                    setRowCount(result.meta.total);
+                } else {
+                    setRowCount(data.length);
+                }
+
                 setError(null);
             })
             .catch((err: any) => {
@@ -409,167 +451,162 @@ export default function TransactionOrders() {
                 setError(err?.msg ?? 'Gagal memuat transaksi. Periksa Koneksi Jaringan / Server');
             })
             .finally(() => setLoading(false));
-    }, []);
+    }, [pagination.pageIndex, pagination.pageSize, startDate, endDate]);
 
     React.useEffect(() => { fetchTxns(); }, [fetchTxns]);
 
-    const columns: Column<RowTxn>[] = [
+    const columns = React.useMemo<MRT_ColumnDef<RowTxn>[]>(() => [
         {
-            key: 'invoiceCell',
-            label: 'INVOICE',
-            sortable: true,
-            width: 240,
-            minWidth: 220,
-            headerFilter: { type: 'text' },
+            accessorKey: 'invoice',
+            header: 'INVOICE',
+            size: 180,
+            Cell: ({ row }) => row.original.invoiceCell,
         },
         {
-            key: 'orderType',
-            label: 'Info',
-            sortable: true,
-            width: 220,
-            minWidth: 200,
-            headerFilter: { type: 'text' },
-            render: (r) => (
-                <Typography variant="body2" noWrap title={`${r.orderType ?? ''}${r.tableCode ? ` • ${r.tableCode}` : ''}`}>
-                    <strong>{r.orderType ?? '—'}</strong>{r.tableCode ? ` • ${r.tableCode}` : ''} •  {r.shiftName ?? '—'}
-                </Typography>
-            ),
+            accessorKey: 'branchName',
+            header: 'BRANCH',
+            size: 120,
+            Cell: ({ cell }) => cell.getValue<string>() || '—',
         },
         {
-            key: 'createdBy',
-            label: 'KASIR',
-            sortable: true,
-            width: 180,
-            minWidth: 160,
-            headerFilter: { type: 'text' },
-            render: (r) => (
-                <Chip size="small" variant="outlined" label={r.createdBy ?? '—'} sx={{ borderRadius: 2, maxWidth: 160 }} />
-            ),
-        },
-        /* ===== Status: dipisah kolom ===== */
-        {
-            key: 'closedAt',
-            label: 'CLOSED AT',
-            sortable: true,
-            width: 190,
-            minWidth: 160,
-            render: (r) =>
-                r.closedAt ? (
-                    <Chip size="small" icon={<ScheduleRounded />} label={fmtDateTime(r.closedAt)} variant="outlined" sx={{ borderRadius: 2 }} />
-                ) : (
-                    <Typography variant="body2" color="text.secondary">—</Typography>
-                ),
+            accessorKey: 'orderType',
+            header: 'ORDER TYPE',
+            size: 120,
+            Cell: ({ cell }) => <Chip size="small" label={cell.getValue<string>() || '—'} variant="outlined" />,
         },
         {
-            key: 'paidState',
-            label: 'PAID',
-            sortable: false,
-            align: 'center',
-            width: 120,
-            minWidth: 110,
-            render: (r) => (
+            accessorKey: 'tableCode',
+            header: 'TABLE',
+            size: 100,
+            Cell: ({ cell }) => <Chip size="small" label={cell.getValue<string>() || '—'} variant="filled" />,
+        },
+        {
+            accessorKey: 'shiftName',
+            header: 'SHIFT',
+            size: 120,
+            Cell: ({ cell }) => cell.getValue<string>() || '—',
+        },
+        {
+            accessorKey: 'createdBy',
+            header: 'CASHIER',
+            size: 140,
+            Cell: ({ cell }) => cell.getValue<string>() || '—',
+        },
+        {
+            accessorKey: 'fullyPaid',
+            header: 'STATUS',
+            size: 120,
+            Cell: ({ cell }) => (
                 <Chip
                     size="small"
-                    icon={<PaidRounded />}
-                    label={r.fullyPaid ? 'Paid' : 'Pending'}
-                    color={r.fullyPaid ? 'success' : 'default'}
-                    variant="outlined"
+                    label={cell.getValue() ? 'PAID' : 'UNPAID'}
+                    color={cell.getValue() ? 'success' : 'default'}
+                    variant="filled"
                     sx={{ borderRadius: 2 }}
                 />
             ),
         },
         {
-            key: 'successPaidCount',
-            label: 'PAID',
-            sortable: true,
-            align: 'center',
-            width: 110,
-            minWidth: 100,
-            render: (r) => (
-                <Chip size="small" label={r.successPaidCount} color={r.successPaidCount ? 'success' : 'default'} variant="outlined" sx={{ borderRadius: 2 }} />
+            accessorKey: 'successPaidCount',
+            header: 'PAID ✅',
+            size: 100,
+            muiTableBodyCellProps: { align: 'center' },
+            Cell: ({ cell }) => (
+                <Chip size="small" label={cell.getValue<number>()} color={cell.getValue() ? 'success' : 'default'} variant="outlined" sx={{ borderRadius: 2 }} />
             ),
         },
         {
-            key: 'pendingPaidCount',
-            label: 'PAID ⏳',
-            sortable: true,
-            align: 'center',
-            width: 150,
-            minWidth: 130,
-            render: (r) => (
-                <Chip size="small" label={r.pendingPaidCount} color={r.pendingPaidCount ? 'warning' : 'default'} variant="outlined" sx={{ borderRadius: 2 }} />
+            accessorKey: 'pendingPaidCount',
+            header: 'PAID ⏳',
+            size: 100,
+            muiTableBodyCellProps: { align: 'center' },
+            Cell: ({ cell }) => (
+                <Chip size="small" label={cell.getValue<number>()} color={cell.getValue() ? 'warning' : 'default'} variant="outlined" sx={{ borderRadius: 2 }} />
             ),
         },
         {
-            key: 'voidedCount',
-            label: 'VOIDED',
-            sortable: true,
-            align: 'center',
-            width: 110,
-            minWidth: 100,
-            render: (r) => (
-                <Chip size="small" label={r.voidedCount} color={r.voidedCount ? 'error' : 'default'} variant="outlined" sx={{ borderRadius: 2 }} />
+            accessorKey: 'voidedCount',
+            header: 'VOID ❌',
+            size: 110,
+            muiTableBodyCellProps: { align: 'center' },
+            Cell: ({ cell }) => (
+                <Chip size="small" label={cell.getValue<number>()} color={cell.getValue() ? 'error' : 'default'} variant="outlined" sx={{ borderRadius: 2 }} />
             ),
         },
         {
-            key: 'pendingVoidCount',
-            label: 'VOID ⏳',
-            sortable: true,
-            align: 'center',
-            width: 140,
-            minWidth: 120,
-            render: (r) => (
-                <Chip size="small" label={r.pendingVoidCount} color={r.pendingVoidCount ? 'warning' : 'default'} variant="outlined" sx={{ borderRadius: 2 }} />
+            accessorKey: 'pendingVoidCount',
+            header: 'VOID ⏳',
+            size: 140,
+            muiTableBodyCellProps: { align: 'center' },
+            Cell: ({ cell }) => (
+                <Chip size="small" label={cell.getValue<number>()} color={cell.getValue() ? 'warning' : 'default'} variant="outlined" sx={{ borderRadius: 2 }} />
             ),
         },
         {
-            key: 'batchesCount',
-            label: 'BATCHES',
-            sortable: true,
-            align: 'center',
-            width: 120,
-            minWidth: 110,
-            render: (r) => (
+            accessorKey: 'batchesCount',
+            header: 'BATCHES',
+            size: 120,
+            muiTableBodyCellProps: { align: 'center' },
+            Cell: ({ row }) => (
                 <Button
                     size="small"
                     variant="outlined"
-                    onClick={(e) => openBatches(e, r.invoice, r.batches)}
+                    onClick={(e) => openBatches(e, row.original.invoice, row.original.batches)}
                     sx={{ borderRadius: 2, minWidth: 0, px: 1.25 }}
                     startIcon={<LayersRounded />}
                 >
-                    {r.batchesCount}
+                    {row.original.batchesCount}
                 </Button>
             ),
         },
         {
-            key: 'itemsCount',
-            label: 'ITEMS',
-            sortable: true,
-            align: 'center',
-            width: 110,
-            minWidth: 100,
-            render: (r) => (
+            accessorKey: 'itemsCount',
+            header: 'ITEMS',
+            size: 110,
+            muiTableBodyCellProps: { align: 'center' },
+            Cell: ({ row }) => (
                 <Button
                     size="small"
                     variant="outlined"
-                    onClick={(e) => openItems(e, r.invoice, r.batches, r.bills)}
+                    onClick={(e) => openItems(e, row.original.invoice, row.original.batches, row.original.bills)}
                     sx={{ borderRadius: 2, minWidth: 0, px: 1.25 }}
                     startIcon={<ShoppingCartRounded />}
-                    disabled={r.itemsCount === 0}
+                    disabled={row.original.itemsCount === 0}
                 >
-                    {r.itemsCount}
+                    {row.original.itemsCount}
                 </Button>
             ),
         },
         {
-            key: 'billsCount',
-            label: 'BILLS',
-            sortable: true,
-            align: 'center',
-            width: 90,
-            minWidth: 80,
+            accessorKey: 'billsCount',
+            header: 'BILLS',
+            size: 90,
+            muiTableBodyCellProps: { align: 'center' },
         },
-    ];
+    ], [openBatches, openItems]);
+
+
+    const table = useMaterialReactTable({
+        columns,
+        data: rows,
+        initialState: { density: 'comfortable' },
+
+        state: {
+            showProgressBars: loading,
+            pagination,
+        },
+        manualPagination: true,
+        rowCount,
+        onPaginationChange: setPagination,
+
+        columnFilterDisplayMode: 'popover',
+        paginationDisplayMode: 'pages',
+        positionToolbarAlertBanner: 'bottom',
+        enableRowSelection: false,
+        enableStickyHeader: true,
+        muiTablePaperProps: { sx: { display: 'flex', flexDirection: 'column', flex: 1 } },
+        muiTableContainerProps: { sx: { flex: 1 } },
+    });
 
     return (
         <Box
@@ -592,18 +629,38 @@ export default function TransactionOrders() {
                         <Typography variant="body2" color="error.main">{error}</Typography>
                     ) : null}
                 </Box>
-                <Stack direction="row" spacing={1}>
+
+                <Stack direction="row" spacing={1} alignItems="center">
+                    {/* Date Pickers */}
+                    <LocalizationProvider dateAdapter={AdapterMoment}>
+                        <Stack direction="row" spacing={1}>
+                            <DatePicker
+                                label="Start Date"
+                                value={startDate}
+                                onChange={(newValue) => {
+                                    setStartDate(newValue);
+                                    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+                                }}
+                                slotProps={{ textField: { size: 'small', sx: { width: 150 } } }}
+                            />
+                            <DatePicker
+                                label="End Date"
+                                value={endDate}
+                                onChange={(newValue) => {
+                                    setEndDate(newValue);
+                                    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+                                }}
+                                slotProps={{ textField: { size: 'small', sx: { width: 150 } } }}
+                            />
+                        </Stack>
+                    </LocalizationProvider>
+
                     <Button variant="outlined" onClick={fetchTxns}>Refresh</Button>
                 </Stack>
             </Stack>
 
             {/* Table */}
-            <DataTable<RowTxn>
-                columns={columns}
-                rows={rows}
-                initialRowsPerPage={15}
-                enableSelection={false}
-            />
+            <MaterialReactTable table={table} />
 
             {/* Popover: Batches */}
             <Popover

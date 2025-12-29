@@ -22,9 +22,10 @@ import { useTransactionEventTrigger } from './context/TransactionEventTriggerCon
 import { useSession } from '../../../../../../../../contexts/SessionProviderContext'
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useFunctionKeyCtx } from '../../../../../../../../contexts/FunctionKeyProviderContext'
-import {Transaction} from "../../../../../../../../types/transaction/transaction.type";
+import { Transaction } from "../../../../../../../../types/transaction/transaction.type";
 import normalizeIpcError from "../../../../../../../../helpers/electronMessageErrorEsctration";
-import {TransactionBatch} from "../../../../../../../../types/transaction/batch/transaction.batch.type";
+import { TransactionBatch } from "../../../../../../../../types/transaction/batch/transaction.batch.type";
+import page from '../../../../../../../../app/auth/page'
 
 // ===== Const =====
 const TZ_OFFSET = '+08:00' // Asia/Makassar
@@ -336,20 +337,20 @@ const TransactionListItem: React.FC = () => {
         })
     }
 
-    const deletedTransaction = async (id : string) => {
+    const deletedTransaction = async (id: string) => {
         return window.api.invoke("api.transaction:delete.one", { id });
     }
 
-    const onPickJoinBill : (payload: { transaction: Transaction[]; selectedTransaction: Transaction }) => void = (payload) => {
+    const onPickJoinBill: (payload: { transaction: Transaction[]; selectedTransaction: Transaction }) => void = (payload) => {
         /** Sortir items. **/
         const batches = payload.transaction.flatMap((tx) => tx.batches)
             .filter((batches) => batches.transaction.id !== payload?.selectedTransaction.id)
 
-        const removedInvoiceBatches : TransactionBatch[] = batches.map((data) => {
-            const refactor : TransactionBatch = {
+        const removedInvoiceBatches: TransactionBatch[] = batches.map((data) => {
+            const refactor: TransactionBatch = {
                 ...data,
-                transaction : {
-                    id : payload?.selectedTransaction?.id
+                transaction: {
+                    id: payload?.selectedTransaction?.id
                 }
             };
             delete refactor.batch;
@@ -357,7 +358,7 @@ const TransactionListItem: React.FC = () => {
             return refactor;
         })
 
-        window?.api?.invoke?.<Transaction[], { data : Transaction[] | Transaction }>("api.transaction.batch:create", removedInvoiceBatches)
+        window?.api?.invoke?.<Transaction[], { data: Transaction[] | Transaction }>("api.transaction.batch:create", removedInvoiceBatches)
             .then(async () => {
                 const trunkDeleteTransaction = payload.transaction.filter((data) => data.id !== payload?.selectedTransaction.id);
                 const promiseDelete = trunkDeleteTransaction.map((tx) => deletedTransaction(tx.id));

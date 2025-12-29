@@ -36,10 +36,15 @@ import {
 import { useEffect } from 'react';
 import { useFunctionKeyCtx } from '../../../../../contexts/FunctionKeyProviderContext';
 
-// Perfect Scrollbar
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
-import {useGodModeProvider} from "../../../context/GodModeProviderContext";
+import { useGodModeProvider } from "../../../context/GodModeProviderContext";
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterMoment } from '@mui/x-date-pickers/AdapterMoment';
+import moment, { Moment } from 'moment';
+import 'moment/locale/id';
+moment.locale('id');
 
 const MotionCard = motion(Card);
 const rupiah = (n: number) =>
@@ -78,36 +83,96 @@ export default function Overview() {
     const [mode, setMode] = React.useState<Mode>('sample80');
     const { godMode, setGodMode } = useGodModeProvider();
 
+    // DATE FILTER
+    const [startDate, setStartDate] = React.useState<Moment | null>(moment().startOf('month'));
+    const [endDate, setEndDate] = React.useState<Moment | null>(moment().endOf('month'));
+    const [stats, setStats] = React.useState<any>(null);
+    const [loading, setLoading] = React.useState(false);
+
     useEffect(() => {
         setMode(() => (godMode ? 'sample50' : 'sample80'));
     }, [godMode]);
 
-    // ====== DEFINISI 2 SAMPLE TETAP ======
-    // sample80: lastMonth=72jt (naik 11.11%), margin 38%
-    // sample50: lastMonth=55jt (turun 9.09%), margin 32%
+    // FETCH REAL DATA
+    const fetchData = React.useCallback(() => {
+        if (!startDate || !endDate) return;
+        setLoading(true);
+        // @ts-ignore
+        window.api.invoke('api.transaction.bills:statistics', {
+            startAt: startDate.format(),
+            endAt: endDate.format(),
+            interval: 'day',
+            god_mode: godMode
+        })
+            .then((res: any) => {
+                setStats(res);
+            })
+            .catch((err: any) => {
+                console.error("Fetch stats error", err);
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    }, [startDate, endDate, godMode]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    // TRANSFORM DATA
     const SAMPLE = React.useMemo(() => {
-        if (mode === 'sample50') {
-            const month = 50_000_000;
-            const lastMonth = 55_000_000;
-            const week = 12_500_000; // ~25% dari bulan
-            const today = 2_000_000;
-            const orders = 220;
-            const done = 160;
-            const active = 45;
-            const margin = 0.32;
-            return { month, week, today, orders, done, active, lastMonth, margin, seed: 5050 };
+        // Default values
+        let res = { month: 0, week: 0, today: 0, orders: 0, done: 0, active: 0, lastMonth: 0, margin: 0, seed: 1 };
+
+        if (stats && stats.data && stats.data.summary) {
+            const summary = stats.data.summary;
+            const chart = stats.data.chart || [];
+
+            // Total from API (Selected Range)
+            res.orders = Number(summary.totalOrders ?? 0);
+            res.done = res.orders; // Assume paid = done
+
+            // Calculate Today, Week, Month from CHART data (if range covers it)
+            // Note: Chart data keys are based on interval (day/month/year).
+            // Assuming interval='day' and format YYYY-MM-DD from backend.
+
+            const now = moment();
+            const todayStr = now.format('YYYY-MM-DD');
+            const weekStart = now.clone().startOf('isoWeek').format('YYYY-MM-DD'); // or last 7 days?
+            const monthStart = now.clone().startOf('month').format('YYYY-MM-DD');
+
+            // 1. Today
+            // Find entry with date == todayStr
+            // Backend sends date key. Let's check format. It seems backend sends "YYYY-MM-DD" for day interval.
+            const todayEntry = chart.find((c: any) => c.date === todayStr);
+            res.today = Number(todayEntry?.revenue ?? 0);
+
+            // 2. Week (This Week)
+            // Filter chart entries where date >= weekStart
+            res.week = chart
+                .filter((c: any) => c.date >= weekStart && c.date <= todayStr)
+                .reduce((acc: number, cur: any) => acc + Number(cur.revenue ?? 0), 0);
+
+            // 3. Month (This Month) or Total Selected if range is month
+            // If user selected "This Month", summary.totalRevenue IS this month.
+            // But let's verify if chart data allows calculating "Month to date"
+            res.month = chart
+                .filter((c: any) => c.date >= monthStart && c.date <= todayStr) // Month to Date
+                .reduce((acc: number, cur: any) => acc + Number(cur.revenue ?? 0), 0);
+
+            // Fallback: If Filter is NOT current month/week, these values might be 0. 
+            // Better behavior: If filter is Custom, "Pendapatan Bulan Ini" card might be misleading if we only show 0.
+            // But the user requested "Restore old UI". 
+            // Old UI labels: Today, Week, Month.
+            // Let's stick to calculating from the available data. If data is not there (e.g. range is last year), then today/week/month is 0, which is correct relative to "Now".
+            // WAIT. If I select Last Month, "Pendapatan Hari Ini" (Today) SHOULD be 0. Correct.
+            // "Pendapatan Bulan Ini" (Current Month) SHOULD be 0. Correct.
+            // But maybe user wants "Total Pendapatan (Range)"? 
+            // User complained "widgets changed". So I MUST put back the labels.
         }
-        // sample80
-        const month = 80_000_000;
-        const lastMonth = 72_000_000;
-        const week = 18_000_000; // ~22.5% dari bulan
-        const today = 2_400_000;
-        const orders = 320;
-        const done = 260;
-        const active = 50;
-        const margin = 0.38;
-        return { month, week, today, orders, done, active, lastMonth, margin, seed: 8080 };
-    }, [mode]);
+
+        return res;
+    }, [mode, stats]);
 
     // ====== STAT CARDS ATAS ======
     const itemsTop: Item[] = [
@@ -123,26 +188,12 @@ export default function Overview() {
 
     // ====== GRAFIK (sinkron dgn cards) ======
     const chartData: ChartPoint[] = React.useMemo(() => {
-        const revToday = getVal('Pendapatan Hari Ini');
-        const revWeek = Math.max(0, getVal('Pendapatan Minggu Ini'));
-        const revMonth = Math.max(0, getVal('Pendapatan Bulan Ini'));
-
-        const rng = makeRng(SAMPLE.seed);
-
-        // 7 hari terakhir → 6 hari + hari ke-7 = today, sum = week
-        const last6Total = Math.max(0, revWeek - revToday);
-        const last6 = distribute(6, last6Total, rng);
-        const last7 = [...last6, revToday];
-
-        // Target 14 hari proporsional dari bulan (14/30)
-        const target14 = Math.max(0, Math.round((revMonth * 14) / 30));
-        const sumLast7 = last7.reduce((a, b) => a + b, 0);
-        const first7Total = Math.max(0, target14 - sumLast7);
-        const first7 = distribute(7, first7Total, rng);
-
-        const all14 = [...first7, ...last7];
-        return all14.map((v, i) => ({ d: String(i + 1).padStart(2, '0'), rev: v }));
-    }, [mode, SAMPLE, itemsTop]);
+        if (!stats || !stats.data || !stats.data.chart) return [];
+        return stats.data.chart.map((c: any) => ({
+            d: moment(c.date).format('DD/MM'), // Format tanggal axis
+            rev: c.revenue
+        }));
+    }, [stats]);
 
     // ====== METRICS BAWAH GRAFIK ======
     const monthNow = SAMPLE.month;
@@ -183,6 +234,29 @@ export default function Overview() {
                 style={{ height: '100%' }}
             >
                 <Box sx={{ p: 2 }}>
+
+                    {/* FILTER SECTION */}
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }} alignItems="center">
+                        <LocalizationProvider dateAdapter={AdapterMoment}>
+                            <DatePicker
+                                label="Start Date"
+                                value={startDate}
+                                onChange={(newValue) => setStartDate(newValue)}
+                                slotProps={{ textField: { size: 'small' } }}
+                            />
+                            <Typography>—</Typography>
+                            <DatePicker
+                                label="End Date"
+                                value={endDate}
+                                onChange={(newValue) => setEndDate(newValue)}
+                                slotProps={{ textField: { size: 'small' } }}
+                            />
+                        </LocalizationProvider>
+                        <Typography variant="caption" color="text.secondary">
+                            *Menampilkan data {stats?.chart?.length ?? 0} hari
+                        </Typography>
+                    </Stack>
+
                     <Grid2 container spacing={2}>
                         {/* ====== STAT CARDS ATAS ====== */}
                         {itemsTop.map((it, i) => (
