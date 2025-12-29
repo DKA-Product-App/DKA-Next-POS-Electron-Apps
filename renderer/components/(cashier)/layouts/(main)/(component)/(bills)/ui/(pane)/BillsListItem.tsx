@@ -22,8 +22,8 @@ import {
     ApiTransactionBillResponse,
     TransactionBill
 } from "../../../../../../../../types/transaction/bill/transaction.bill.type";
-import {useSession} from "../../../../../../../../contexts/SessionProviderContext";
-import {Accounts} from "../../../../../../../../types/account/accounts.type";
+import { useSession } from "../../../../../../../../contexts/SessionProviderContext";
+import { Accounts } from "../../../../../../../../types/account/accounts.type";
 
 /* ====== Dynamic chunks ====== */
 const Shimmer = () => (
@@ -53,6 +53,7 @@ export type BillFilters = {
     paid: 'all' | 'paid' | 'unpaid'
     cashierName: string     // 'all' artinya semua
     totalRange: number[]    // [min, max] IDR
+    totalRangeActive?: boolean
 }
 
 /* ====== Utils ====== */
@@ -89,7 +90,7 @@ const getTotal = (b: TransactionBill): number => {
 /** pastikan start <= end; kembalikan ISO UTC */
 const normalizeRangeToIsoUtc = (startAt?: string, endAt?: string) => {
     const s = startAt ? new Date(startAt) : undefined
-    const e = endAt   ? new Date(endAt)   : undefined
+    const e = endAt ? new Date(endAt) : undefined
     if (!s && !e) return [undefined, undefined] as const
     let sMs = s ? s.getTime() : Number.NEGATIVE_INFINITY
     let eMs = e ? e.getTime() : Number.POSITIVE_INFINITY
@@ -104,9 +105,9 @@ const normalizeRangeToIsoUtc = (startAt?: string, endAt?: string) => {
 const inDateRange = (iso?: string, startIso?: string, endIso?: string) => {
     if (!startIso && !endIso) return true
     if (!iso) return false
-    const t  = new Date(iso).getTime()
-    const s  = startIso ? new Date(startIso).getTime() : Number.NEGATIVE_INFINITY
-    const e  = endIso   ? new Date(endIso).getTime()   : Number.POSITIVE_INFINITY
+    const t = new Date(iso).getTime()
+    const s = startIso ? new Date(startIso).getTime() : Number.NEGATIVE_INFINITY
+    const e = endIso ? new Date(endIso).getTime() : Number.POSITIVE_INFINITY
     const [minT, maxT] = s > e ? [e, s] : [s, e]
     return t >= minT && t <= maxT
 }
@@ -117,7 +118,8 @@ const buildPayload = (q: string, f: BillFilters, godMode: boolean, Session: Acco
     // total range: kirim hanya kalau bukan [0,0]
     let minTotal: number | undefined
     let maxTotal: number | undefined
-    if (Array.isArray(f.totalRange) && (f.totalRange[0] !== 0 || f.totalRange[1] !== 0)) {
+    // Fix: tambahkan pengecekan f.totalRangeActive agar tidak double hit saat auto-expand
+    if (f.totalRangeActive && Array.isArray(f.totalRange) && (f.totalRange[0] !== 0 || f.totalRange[1] !== 0)) {
         const a = Number(f.totalRange[0] ?? 0)
         const b = Number(f.totalRange[1] ?? 0)
         minTotal = Math.min(a, b)
@@ -315,17 +317,19 @@ const BillsListItem: React.FC = () => {
 
     useEffect(() => {
         console.log(filtered);
-    },[filtered])
+    }, [filtered])
 
     const handleSelect = (bill: TransactionBill) => {
         setActiveId(prev => {
             const next = prev === bill.id ? null : bill.id
-            setLayout(p => ({ ...(p ?? {}), right: next ?
+            setLayout(p => ({
+                ...(p ?? {}), right: next ?
                     <BillListItemDetail
                         billId={bill.id}
                         onPaySuccess={() => setReloadKey(k => k + 1)}
                     /> :
-                    <BillsRightEmpty /> }))
+                    <BillsRightEmpty />
+            }))
             return next
         })
     }
