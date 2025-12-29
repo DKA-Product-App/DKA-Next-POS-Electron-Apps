@@ -21,6 +21,21 @@
 ### Refactor / Revert
 - **Lingkup Kasir**: Revert total perubahan pagination eksperimental di `BillsListItem` dan `TransactionListItem`.
 
+
+### Rincian Implementasi & Task
+**Backend (Server)**:
+- Update endpoint `ReadAll` pada service transaksi untuk mendukung parameter `page` dan `limit`.
+- Mengembalikan metadata pagination (`total`, `page`, `lastPage`) jika parameter pagination dikirim.
+
+**Frontend (POS)**:
+- **Admin**:
+  - Implementasi state lokal (`pageIndex`, `pageSize`) pada komponen Order, Bills, dan Void.
+  - Integrasi dengan `MaterialReactTable` menggunakan mode `manualPagination`.
+  - Penambahan Date Picker untuk filter server-side (`startAt`, `endAt`).
+  - Konfigurasi default tanggal ke "Hari Ini" (Start of Day - End of Day).
+- **Cashier**:
+  - Revert perubahan pagination pada list transaksi kasir untuk menjaga stabilitas.
+
 ### Git Log (Detail)
 - feat: implement server-side pagination, date filtering and fix UI bugs [Commit: 9ec332e]
 - fix(pos): prevent double request on bills list load by respecting totalRangeActive [Commit: 04ec8e4]
