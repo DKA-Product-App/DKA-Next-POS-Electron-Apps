@@ -1,20 +1,30 @@
-# Riwayat Perubahan (Changelog) - 2025-12-29
+# Riwayat Perubahan (Changelog)
 
-## Fitur Baru (3 Hari Terakhir)
+<details open>
+<summary><strong>29 Desember 2025</strong></summary>
+
+### Fitur Baru
 - **Tabel Transaksi Admin (Bills, Orders, Void)**:
-  - Implementasi **Server-Side Pagination** (Manual) untuk menangani data besar dengan lebih efisien.
+  - Implementasi **Server-Side Pagination** (Manual) untuk menangani data besar.
   - Penambahan **Filter Rentang Tanggal** (Start - End), default ke "Hari Ini".
-  - Integrasi `MaterialReactTable` untuk standarisasi tampilan data.
-- **Split Bill**: Implementasi dialog dan logika untuk memecah kuantitas item (Split Quantity) (Komit: `b1c584a` - 28 Des).
+  - Integrasi `MaterialReactTable` untuk standarisasi tampilan.
 
-## Perbaikan (Fixes)
+### Perbaikan (Fixes)
 - **Admin Bills**: Memperbaiki masalah expand baris (Tree View) dengan manajemen state eksplisit.
-- **BackWidget**: Memperbaiki `AbortError` yang terjadi saat komponen di-unmount.
+- **BackWidget**: Memperbaiki `AbortError` saat komponen di-unmount.
 - **Admin Orders**:
-  - Mengganti varian `Chip` yang tidak valid (`soft`) menjadi `filled`/`outlined`.
-  - Memperbarui definisi kolom agar kompatibel dengan library baru.
-  - Membersihkan kode sampah yang menyebabkan error syntax.
-- **Daftar Tagihan (Kasir)**: Mencegah request ganda saat memuat data dengan memvalidasi state `totalRangeActive` (Komit: `04ec8e4`).
+  - Mengganti varian `Chip` `soft` menjadi `filled`/`outlined` (validasi MUI).
+  - Refactor definisi kolom untuk kompatibilitas tipe.
+  - Menghapus kode residu yang menyebabkan error syntax.
+- **Daftar Tagihan (Kasir)**: Fix request ganda saat load dengan validasi `totalRangeActive` (Komit: `04ec8e4`).
 
-## Refactor / Revert
-- **Lingkup Kasir**: Mengembalikan sepenuhnya perubahan eksperimental pagination di `BillsListItem` dan `TransactionListItem` ke perilaku client-side semula (sesuai permintaan untuk tidak mengubah konsep awal).
+### Refactor / Revert
+- **Lingkup Kasir**: Revert total perubahan pagination eksperimental di `BillsListItem` dan `TransactionListItem`.
+</details>
+
+<details>
+<summary><strong>28 Desember 2025</strong></summary>
+
+### Fitur Baru
+- **Split Bill**: Implementasi dialog dan logika `Split Quantity` pada item transaksi (Komit: `b1c584a`).
+</details>
