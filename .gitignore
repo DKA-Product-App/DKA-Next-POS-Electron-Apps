@@ -3,9 +3,11 @@ node_modules
 .idea
 # logs
 *.log
-
+yarn.lock
+bun.lock
 # next.js
 .next
+.vscode
 next-env.d.ts
 
 # build
