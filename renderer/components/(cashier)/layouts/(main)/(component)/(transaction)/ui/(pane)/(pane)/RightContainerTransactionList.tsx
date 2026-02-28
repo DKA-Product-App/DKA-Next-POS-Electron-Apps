@@ -32,7 +32,7 @@ const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ tr
     const { matchItem } = useFilterOrderHeader()
 
     const fetchItems = (seq: number) => {
-        window.api.invoke('api.transaction.batch.item:read.all', { transaction: transactionId })
+        window.api.invoke('api.transaction.batch.item:read.all', { transaction: transactionId, limit: 500 })
             .then((res: any) => {
                 if (seq !== fetchSeqRef.current) return
                 const arr: TransactionBatchItem[] = res?.data ?? []
@@ -154,7 +154,7 @@ const RightContainerTransactionList: React.FC<{ transactionId: string }> = ({ tr
                             const totalLabel = rupiah(it.sub_total || it.price || 0)
 
                             return (
-                                <Grid key={it.id} size={{ xs: 12, sm: 6, md: 3, lg: 2.2 }}>
+                                <Grid key={it.id} size={{ xs: 12, sm: 6, md: 3, lg: 2.4 }}>
                                     <RightContainerBatchDetailRow
                                         item={it}
                                         totalLabel={totalLabel}

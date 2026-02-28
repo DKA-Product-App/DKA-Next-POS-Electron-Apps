@@ -270,9 +270,9 @@ export default function NewOrderBillModal({
         myReq: number,
     ) =>
         window.api
-            .invoke<{ ids?: string[]; transaction?: string }, { data: TransactionBatchItem[] }>(
+            .invoke<{ ids?: string[]; transaction?: string; limit?: number }, { data: TransactionBatchItem[] }>(
                 'api.transaction.batch.item:read.all',
-                { ids: snap.items, transaction: snap.txId },
+                { ids: snap.items, transaction: snap.txId, limit: 500 },
             )
             .then(({ data }) => {
                 if (!openRef.current || myReq !== reqIdRef.current)
