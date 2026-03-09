@@ -15,14 +15,20 @@ export type SessionConfig = {
     isRememberLoginUsername: boolean;
 };
 
+export type CashierConfig = {
+    isOverviewGodModeEnabled: boolean; // true = god mode selalu aktif, false = bisa toggle
+};
+
 export type UserConfig = {
     printer: PrinterConfig;
     session: SessionConfig;
+    cashier: CashierConfig;
 };
 
 const DEFAULT_CONFIG: UserConfig = {
     printer: { isPrintAutomatically: true, defaultPrinter: undefined },
     session: { isAutologoutShift: false, isRememberLoginUsername: true },
+    cashier: { isOverviewGodModeEnabled: true }, // default true
 };
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends Record<string, unknown> ? DeepPartial<T[K]> : T[K] };
@@ -46,7 +52,8 @@ const isFullConfig = (v: unknown): v is UserConfig =>
     !!v &&
     typeof v === 'object' &&
     'printer' in (v as any) &&
-    'session' in (v as any);
+    'session' in (v as any) &&
+    'cashier' in (v as any);
 
 /* ========= Context Value (sesuai request) ========= */
 export type UserConfigContextValue = {
@@ -67,12 +74,50 @@ const Ctx = React.createContext<UserConfigContextValue | undefined>(undefined);
 export function UserConfigProvider({ children }: { children: React.ReactNode }) {
     const [config, _setConfig] = React.useState<UserConfig>(load);
     const mounted = React.useRef(false);
+    const syncedFromDb = React.useRef(false);
 
     // initial mount sync (sekali)
     React.useEffect(() => {
         if (mounted.current) return;
         mounted.current = true;
         _setConfig(load());
+    }, []);
+
+    // Sync from SQLite database on mount
+    React.useEffect(() => {
+        if (syncedFromDb.current) return;
+        
+        const syncFromDatabase = async () => {
+            try {
+                // Initialize database config
+                await window?.api?.invoke?.('database.config:init', {});
+                
+                // Get god mode config from database
+                const result = await window?.api?.invoke?.('database.config:get', 'is_cashier_overview_god_mode');
+                
+                if (result?.status && result?.data !== undefined) {
+                    const isEnabled = result.data === 'true';
+                    _setConfig(prev => {
+                        const updated = {
+                            ...prev,
+                            cashier: {
+                                ...prev.cashier,
+                                isOverviewGodModeEnabled: isEnabled,
+                            },
+                        };
+                        save(updated);
+                        return updated;
+                    });
+                }
+                syncedFromDb.current = true;
+            } catch (error) {
+                console.error('Failed to sync config from database:', error);
+            }
+        };
+
+        if (typeof window !== 'undefined' && window?.api?.invoke) {
+            syncFromDatabase();
+        }
     }, []);
 
     // cross-tab sync
