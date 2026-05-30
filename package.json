@@ -47,6 +47,8 @@
     "styled-components": "^6.1.19"
   },
   "devDependencies": {
+    "@electron/node-gyp": "^10.2.0-electron.2",
+    "@electron/rebuild": "^4.0.4",
     "@types/node": "^20.11.16",
     "@types/react": "^18.2.52",
     "autoprefixer": "^10.4.19",
