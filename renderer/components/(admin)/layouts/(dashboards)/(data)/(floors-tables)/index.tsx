@@ -297,14 +297,46 @@ export default function TablesTree() {
             column.display({
                 id: 'actions',
                 header: 'ACTIONS',
-                size: 40,
+                size: 160,
                 enableColumnFilter: false,
                 enableSorting: false,
                 Cell: ({ row }) => {
                     if (row.depth !== 0) return null;
                     const r = row.original as TableParentRow;
+                    const isLocked = r.state === 'OCCUPIED' || r.state === 'RESERVED';
+
+                    const handleRelease = () => {
+                        if (!window.api) return;
+                        setLoading(true);
+                        window.api.invoke('api.config.data.floors.tables:update.one', {
+                            params: { id: r.id },
+                            data: { state: 'AVAILABLE' }
+                        })
+                        .then(() => {
+                            fetchTables();
+                        })
+                        .catch((err: any) => {
+                            console.error(err);
+                            setError(err?.msg || 'Gagal membuka meja');
+                        })
+                        .finally(() => {
+                            setLoading(false);
+                        });
+                    };
+
                     return (
-                        <Stack direction="row" spacing={0.5} justifyContent="flex-start">
+                        <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
+                            {isLocked && (
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="warning"
+                                    onClick={handleRelease}
+                                    sx={{ textTransform: 'none', py: 0.25 }}
+                                >
+                                    Buka Meja
+                                </Button>
+                            )}
                             <DeleteModal id={r.id} name={r.name} onDeleted={fetchTables} />
                         </Stack>
                     );
