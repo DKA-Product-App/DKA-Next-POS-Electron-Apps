@@ -12,6 +12,7 @@ export interface TransactionBillPaid {
     id?: string;
     status?: boolean;
     tender?: string;             // "108900.00"
+    change?: string;             // "19900.00"
     time_created?: string;
     time_updated?: string;
     time_deleted?: string | null;

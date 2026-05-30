@@ -204,8 +204,23 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
     const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0)
     const itemsSubtotal = useMemo(() => items.length ? sum(items.map(i => Number(i.sub_total ?? 0))) : 0, [items])
     const taxRate = 0.10
-    const tax = useMemo(() => Math.max(0, Math.round(itemsSubtotal * taxRate)), [itemsSubtotal])
-    const grandTotal = useMemo(() => Math.max(0, itemsSubtotal + tax), [itemsSubtotal, tax])
+
+    /* ---------------- VOUCHER / DISCOUNT STATE ---------------- */
+    const [voucherCode, setVoucherCode] = useState<string>('')
+    const [voucherType, setVoucherType] = useState<'percentage' | 'fixed'>('fixed')
+    const [voucherValue, setVoucherValue] = useState<number>(0)
+
+    const discountAmount = useMemo(() => {
+        if (!voucherValue) return 0
+        if (voucherType === 'percentage') {
+            return Math.min(itemsSubtotal, Math.round(itemsSubtotal * (voucherValue / 100)))
+        } else {
+            return Math.min(itemsSubtotal, voucherValue)
+        }
+    }, [itemsSubtotal, voucherType, voucherValue])
+
+    const tax = useMemo(() => Math.max(0, Math.round((itemsSubtotal - discountAmount) * taxRate)), [itemsSubtotal, discountAmount])
+    const grandTotal = useMemo(() => Math.max(0, (itemsSubtotal - discountAmount) + tax), [itemsSubtotal, discountAmount, tax])
 
     const invoice = useMemo(() => getInvoice(bill), [bill])
     const ref = useMemo(() => getRef(bill), [bill])
@@ -238,7 +253,14 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
     useEffect(() => {
         // @ts-ignore
         window.api.invoke('api.transaction.bills:read.one', { id: billId })
-            .then(({ data }) => setBill(data))
+            .then(({ data }) => {
+                setBill(data)
+                if (data) {
+                    setVoucherCode(data.voucher_code ?? '')
+                    setVoucherType(data.voucher_type ?? 'fixed')
+                    setVoucherValue(Number(data.voucher_value) ?? 0)
+                }
+            })
             .catch(console.error)
     }, [billId])
 
@@ -335,15 +357,30 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
     // ✅ After-pay: update then refetch bill to get latest server state
     const onPay = () => {
         if (!method || isPaid) return
+        // 1) Update voucher details on the bill record first
         // @ts-ignore
-        window.api.invoke('api.transaction.bills.paid:update.one', {
-            params: { id: bill?.paid?.id },
+        window.api.invoke('api.transaction.bills:update.one', {
+            params: { id: bill?.id },
             data: {
-                payment_method: method.id,
-                tender: Number(cashStr) ?? 0,
-                status: true
+                voucher_code: voucherCode || null,
+                voucher_type: voucherType || null,
+                voucher_value: voucherValue ?? 0,
+                discount_amount: discountAmount ?? 0,
             }
         })
+            .then(() => 
+                // 2) Update payment detail on paid record
+                // @ts-ignore
+                window.api.invoke('api.transaction.bills.paid:update.one', {
+                    params: { id: bill?.paid?.id },
+                    data: {
+                        payment_method: method.id,
+                        tender: Number(cashStr) ?? 0,
+                        change: Math.max(0, (Number(cashStr) ?? 0) - grandTotal),
+                        status: true
+                    }
+                })
+            )
             .then(({ data }) =>
                 // @ts-ignore
                 window.api.invoke('api.transaction.bills:read.one', { id: billId })
@@ -574,6 +611,47 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                                         </>
                                     )}
 
+                                    {/* Discount Input Form */}
+                                    {!isPaid && (
+                                        <Box sx={{ mb: 1.5, p: 1.25, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'action.hover' }}>
+                                            <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1.25, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                🏷️ Berikan Diskon
+                                            </Typography>
+                                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                                <ButtonGroup size="small">
+                                                    <Button
+                                                        variant={voucherType === 'fixed' ? 'contained' : 'outlined'}
+                                                        onClick={() => setVoucherType('fixed')}
+                                                        sx={{ fontWeight: 800, width: 50 }}
+                                                    >
+                                                        Rp
+                                                    </Button>
+                                                    <Button
+                                                        variant={voucherType === 'percentage' ? 'contained' : 'outlined'}
+                                                        onClick={() => setVoucherType('percentage')}
+                                                        sx={{ fontWeight: 800, width: 50 }}
+                                                    >
+                                                        %
+                                                    </Button>
+                                                </ButtonGroup>
+                                                <TextField
+                                                    size="small"
+                                                    type="number"
+                                                    label={voucherType === 'percentage' ? 'Persen Diskon' : 'Nominal Diskon'}
+                                                    value={voucherValue || ''}
+                                                    onChange={(e) => setVoucherValue(Math.max(0, Number(e.target.value)))}
+                                                    placeholder={voucherType === 'percentage' ? '10' : '5000'}
+                                                    sx={{ flex: 1 }}
+                                                    InputProps={voucherType === 'fixed' ? {
+                                                        startAdornment: <InputAdornment position="start">Rp</InputAdornment>
+                                                    } : {
+                                                        endAdornment: <InputAdornment position="end">%</InputAdornment>
+                                                    }}
+                                                />
+                                            </Stack>
+                                        </Box>
+                                    )}
+
                                     {/* Totals (IDLE/READY/Non-tender/Paid) */}
                                     {showTotals && (
                                         <>
@@ -581,6 +659,31 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                                                 <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Subtotal</Typography>
                                                 <Typography variant="h6" fontWeight={900}>{fmtIDR(itemsSubtotal)}</Typography>
                                             </Stack>
+
+                                            {/* Pre-payment discount display */}
+                                            {discountAmount > 0 && !isPaid && (
+                                                <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
+                                                    <Typography variant="subtitle1" sx={{ flex: 1 }} color="success.main" fontWeight={900}>
+                                                        Potongan Diskon
+                                                    </Typography>
+                                                    <Typography variant="h6" color="success.main" fontWeight={900}>
+                                                        - {fmtIDR(discountAmount)}
+                                                    </Typography>
+                                                </Stack>
+                                            )}
+
+                                            {/* Paid discount display from database */}
+                                            {isPaid && Number(bill?.discount_amount) > 0 && (
+                                                <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
+                                                    <Typography variant="subtitle1" sx={{ flex: 1 }} color="success.main" fontWeight={900}>
+                                                        Potongan Diskon
+                                                    </Typography>
+                                                    <Typography variant="h6" color="success.main" fontWeight={900}>
+                                                        - {fmtIDR(Number(bill.discount_amount))}
+                                                    </Typography>
+                                                </Stack>
+                                            )}
+
                                             <Divider />
                                             <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
                                                 <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Pajak (10%)</Typography>

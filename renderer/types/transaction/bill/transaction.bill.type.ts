@@ -22,6 +22,10 @@ export interface TransactionBill {
     transaction?: Transaction;
     items?: TransactionBillItem[];
     paid?: TransactionBillPaid;
+    voucher_code?: string | null;
+    voucher_type?: "percentage" | "fixed" | null;
+    voucher_value?: number;
+    discount_amount?: number;
     meta?: {
         request_key?: string;
     }
