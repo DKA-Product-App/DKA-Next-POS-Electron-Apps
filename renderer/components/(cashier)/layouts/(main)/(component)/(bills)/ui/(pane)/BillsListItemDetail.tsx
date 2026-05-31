@@ -49,6 +49,14 @@ const fmtIDR = (n?: number | string) =>
         ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(n))
         : 'Rp —'
 
+/** Input kasir ID: titik/koma = pemisah ribuan (99.000 → 99000), bukan desimal */
+const parseCashInput = (raw: string): number => {
+    const digitsOnly = raw.trim().replace(/[^\d]/g, '')
+    if (!digitsOnly) return 0
+    const n = Number(digitsOnly)
+    return Number.isFinite(n) ? n : 0
+}
+
 const nameJoin = (n?: { first_name?: string; last_name?: string }) =>
     [n?.first_name, n?.last_name].filter(Boolean).join(' ').trim()
 
@@ -236,8 +244,17 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
     const [showTotals, setShowTotals] = useState<boolean>(true)
     const [cashStr, setCashStr] = useState<string>('')
 
-    const cash = cashStr === '' ? 0 : Number(cashStr.replaceAll('.', '').replaceAll(',', ''))
+    const cash = parseCashInput(cashStr)
     const change = Math.max(0, cash - grandTotal)
+
+    const paidChangeAmount = useMemo(() => {
+        const stored = bill?.paid?.change
+        if (stored != null && stored !== '' && Number.isFinite(Number(stored))) {
+            return Math.max(0, Number(stored))
+        }
+        const tender = Number(bill?.paid?.tender ?? 0)
+        return Math.max(0, tender - grandTotal)
+    }, [bill?.paid?.change, bill?.paid?.tender, grandTotal])
     const cashRef = useRef<HTMLInputElement>(null)
 
     // 2) State: langsung simpan objek printer
@@ -357,6 +374,8 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
     // ✅ After-pay: update then refetch bill to get latest server state
     const onPay = () => {
         if (!method || isPaid) return
+        const tenderAmount = cash
+        const changeAmount = Math.max(0, cash - grandTotal)
         // 1) Update voucher details on the bill record first
         // @ts-ignore
         window.api.invoke('api.transaction.bills:update.one', {
@@ -375,8 +394,8 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                     params: { id: bill?.paid?.id },
                     data: {
                         payment_method: method.id,
-                        tender: Number(cashStr) ?? 0,
-                        change: Math.max(0, (Number(cashStr) ?? 0) - grandTotal),
+                        tender: tenderAmount,
+                        change: changeAmount,
                         status: true
                     }
                 })
@@ -697,7 +716,7 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                                             {isPaid && (
                                                 <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
                                                     <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Uang Kembali</Typography>
-                                                    <Typography variant="h6" fontWeight={900}>{fmtIDR(Number(bill.paid?.tender) - grandTotal)}</Typography>
+                                                    <Typography variant="h6" fontWeight={900}>{fmtIDR(paidChangeAmount)}</Typography>
                                                 </Stack>
                                             )}
                                             {!isPaid && !!method?.need_tender && tenderMode === 'ready' && (
