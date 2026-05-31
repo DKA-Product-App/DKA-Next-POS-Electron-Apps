@@ -4,6 +4,7 @@ Welcome AI Assistant! This document provides an overview of the POS (Point of Sa
 
 ---
 
+
 ## 🚀 Project Overview
 * **Name:** Athena POS Electron App
 * **Type:** Desktop App (Electron + Next.js + React)
