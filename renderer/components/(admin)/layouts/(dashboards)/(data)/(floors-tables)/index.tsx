@@ -330,7 +330,7 @@ export default function TablesTree() {
                         setLoading(true);
                         window.api.invoke('api.config.data.floors.tables:update.one', {
                             params: { id: r.id },
-                            data: { state: 'AVAILABLE' }
+                            data: { state: 'AVAILABLE', force: true },
                         })
                             .then(() => {
                                 fetchTables();
@@ -367,7 +367,7 @@ export default function TablesTree() {
                             show: true,
                             icon: 'warning',
                             title: 'Buka meja ini?',
-                            html: `Meja <b>${r.name}</b> akan diset ke <b>AVAILABLE</b>.<br/>Transaksi yang masih aktif akan memblokir aksi ini.`,
+                            html: `Meja <b>${r.name}</b> akan diset ke <b>AVAILABLE</b>.<br/>Transaksi aktif di meja ini akan ditutup otomatis.`,
                             showCancelButton: true,
                             confirmButtonText: 'Ya, buka meja',
                             cancelButtonText: 'Batal',

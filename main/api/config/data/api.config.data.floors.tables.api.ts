@@ -122,14 +122,14 @@ export function ApiConfigDataFloorsTables(mainWindow?: BrowserWindow) {
     });
 
     // UPDATE ONE
-    mainWindow?.webContents?.ipc?.handle?.("api.config.data.floors.tables:update.one", (_event, args) => {
+    mainWindow?.webContents?.ipc?.handle?.("api.config.data.floors.tables:update.one", (_event, { params, data }) => {
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/floors/tables/:id`);
         return new Promise(async (resolve, reject) => {
             const ApiRequestInstance = await getApi();
             return ApiRequestInstance({
-                url: toPath(args),
+                url: toPath(params),
                 method: "PATCH",
-                data: args,
+                data,
             })
                 .then((response) => {
                     return resolve({ ...response.data });
