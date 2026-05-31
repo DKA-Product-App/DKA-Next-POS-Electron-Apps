@@ -121,8 +121,27 @@ export function ApiConfigDataFloorsTables(mainWindow?: BrowserWindow) {
         });
     });
 
-    // UPDATE ONE
-    mainWindow?.webContents?.ipc?.handle?.("api.config.data.floors.tables:update.one", (_event, { params, data }) => {
+    // UPDATE ONE — standar: { params: { id }, data }; legacy: { id, ...fields }
+    mainWindow?.webContents?.ipc?.handle?.("api.config.data.floors.tables:update.one", (_event, payload: {
+        params?: { id?: string };
+        data?: Record<string, unknown>;
+        id?: string;
+    }) => {
+        const params = payload?.params ?? (payload?.id ? { id: payload.id } : undefined);
+        const data =
+            payload?.data ??
+            (payload
+                ? Object.fromEntries(
+                    Object.entries(payload).filter(([k]) => k !== "id" && k !== "params" && k !== "data"),
+                )
+                : undefined);
+
+        if (!params?.id) {
+            return Promise.reject(
+                new Error(JSON.stringify({ status: false, code: 400, msg: "id is required" })),
+            );
+        }
+
         const toPath = compile(`/v${ApiConfig.version}/resources/config/data/floors/tables/:id`);
         return new Promise(async (resolve, reject) => {
             const ApiRequestInstance = await getApi();
