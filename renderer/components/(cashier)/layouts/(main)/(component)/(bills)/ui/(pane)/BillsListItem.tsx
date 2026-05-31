@@ -24,6 +24,7 @@ import {
 } from "../../../../../../../../types/transaction/bill/transaction.bill.type";
 import { useSession } from "../../../../../../../../contexts/SessionProviderContext";
 import { Accounts } from "../../../../../../../../types/account/accounts.type";
+import { resolveBillGrandTotal } from '../../../../../../../../utils/billGrandTotal';
 
 /* ====== Dynamic chunks ====== */
 const Shimmer = () => (
@@ -81,10 +82,9 @@ const getCashierName = (b: TransactionBill) =>
 
 const getTotal = (b: TransactionBill): number => {
     const anyB = b as any
-    if (typeof anyB?.total === 'number') return anyB.total
-    if (typeof anyB?.total === 'string') return Number(anyB.total) || 0
-    const items = Array.isArray(b.items) ? b.items : []
-    return items.map(i => Number((i as any)?.sub_total || 0)).reduce((a, c) => a + c, 0)
+    if (typeof anyB?.grand_total === 'number') return anyB.grand_total
+    if (typeof anyB?.grand_total === 'string') return Number(anyB.grand_total) || 0
+    return resolveBillGrandTotal(b)
 }
 
 /** pastikan start <= end; kembalikan ISO UTC */

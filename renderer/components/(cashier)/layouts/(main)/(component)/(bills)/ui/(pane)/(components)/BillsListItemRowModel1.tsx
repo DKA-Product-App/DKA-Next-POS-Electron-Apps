@@ -9,8 +9,8 @@ import LocalMallRounded from '@mui/icons-material/LocalMallRounded'
 import LayersRounded from '@mui/icons-material/LayersRounded'
 import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
 import ScheduleRounded from '@mui/icons-material/ScheduleRounded'
-import {useMemo} from "react";
 import {TransactionBill} from "../../../../../../../../../types/transaction/bill/transaction.bill.type";
+import { resolveBillGrandTotal } from '../../../../../../../../../utils/billGrandTotal';
 import moment from "moment-timezone";
 import "moment/locale/id"
 moment.locale('id')
@@ -25,8 +25,6 @@ const toIDR = (money?: string) =>
 
 const nameJoin = (n?: { first_name?: string; last_name?: string }) =>
     [n?.first_name, n?.last_name].filter(Boolean).join(' ').trim()
-
-const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0)
 
 const BillsListItemRowModel1: React.FC<Props> = ({ bill, selected, onRowClick }) => {
     // ====== derive semua dari bill ======
@@ -50,11 +48,7 @@ const BillsListItemRowModel1: React.FC<Props> = ({ bill, selected, onRowClick })
     const issuedAt = moment(bill.time_created).format("HH:mm dddd, DD-MM-YYYY")
     const displayTime = paidAt ?? issuedAt
 
-    const subTotal = sum(bill.items.map(i => Number(i.sub_total)));
-    const taxRate = 0.10
-    const tax = useMemo(() => Math.max(0, Math.round(subTotal * taxRate)), [subTotal])
-    // total: ambil dari server, fallback hitung items
-    const displayTotal = toIDR((bill.items?.length ? String(tax + subTotal) : '0'))
+    const displayTotal = toIDR(String(resolveBillGrandTotal(bill)))
 
     // jumlah items (panjang array items)
     const itemsCount = bill.items?.length ?? 0
