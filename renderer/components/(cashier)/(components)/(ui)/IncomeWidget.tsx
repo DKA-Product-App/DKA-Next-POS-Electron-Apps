@@ -8,6 +8,7 @@ import {
 } from '../../layouts/(main)/(component)/(transaction)/ui/(pane)/context/TransactionEventTriggerContext'
 import * as moment from 'moment-timezone'
 import { useSession } from "../../../../contexts/SessionProviderContext";
+import { useGodModeProvider } from '../../context/GodModeProviderContext';
 import { parseIdrValue } from '../../../../utils/parseIdrValue';
 
 const fmtIncome = (n?: number | string) =>
@@ -26,6 +27,7 @@ export default function IncomeWidget({ timeVariant = 'h5', justifySelf = 'center
     const [mounted, setMounted] = React.useState(false)
     const { token, reason } = useTransactionEventTrigger()
     const { Session } = useSession();
+    const { godMode } = useGodModeProvider()
     const [payloadCount, setPayloadCount] = React.useState<{
         status?: boolean
         code?: number
@@ -44,23 +46,21 @@ export default function IncomeWidget({ timeVariant = 'h5', justifySelf = 'center
         const startAt = moment.tz(tz).startOf('day').format('YYYY-MM-DD HH:mm:ss')
         const endAt   = moment.tz(tz).endOf('day').format('YYYY-MM-DD HH:mm:ss')
 
-        // Pendapatan shift = data production (primary), bukan DB slave god-mode
+        // god_mode false → primary DB (semua item); true → slave DB (item god/merah saja)
         window?.api
             ?.invoke?.('api.transaction.bills:count.all', {
             startAt,
             endAt,
             reference: Session?.id,
-            god_mode: false,
+            god_mode: godMode ?? false,
         })
             .then(async (result) => {
-                console.log('Header Income Diperbarui', result)
                 setPayloadCount(result)
             })
-            .catch((error) => {
-                console.log('Header Income Gagal Diperbarui', error)
+            .catch(() => {
                 setPayloadCount(undefined)
             })
-    }, [Session?.id])
+    }, [Session?.id, godMode])
 
     useEffect(() => {
         setMounted(true)

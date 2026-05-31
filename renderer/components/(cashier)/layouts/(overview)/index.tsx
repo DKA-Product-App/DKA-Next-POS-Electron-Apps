@@ -39,6 +39,7 @@ import { useEffect } from 'react';
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
 import {useSession} from "../../../../contexts/SessionProviderContext";
+import { useGodModeProvider } from '../../context/GodModeProviderContext';
 import { parseIdrValue } from "../../../../utils/parseIdrValue";
 import * as moment from 'moment';
 
@@ -58,6 +59,7 @@ export default function Overview() {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
     const { Session } = useSession();
+    const { godMode } = useGodModeProvider();
     const fmtIncome = (n?: number | string) =>
         new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(
             parseIdrValue(n),
@@ -92,15 +94,15 @@ export default function Overview() {
             startAt,
             endAt,
             reference: Session?.id,
-            god_mode: false,
+            god_mode: godMode ?? false,
         })
             .then(async (result) => {
                 setPayloadCount(result);
             })
-            .catch((error) => {
+            .catch(() => {
                 setPayloadCount(undefined)
             })
-    }, [Session?.id])
+    }, [Session?.id, godMode])
 
     useEffect(() => {
         setMounted(true);
@@ -123,10 +125,6 @@ export default function Overview() {
         { label: 'Total Bill Saat Ini', value: `${payloadCount?.data?.counts?.bill}`, icon: <CalendarViewWeekRounded />, isCurrency: true },
         { label: 'Total Item', value: `${payloadCount?.data?.counts?.items}`, icon: <CalendarMonthRounded />, isCurrency: true },
     ], [payloadCount]);
-
-    useEffect(() => {
-        console.log(payloadCount);
-    }, [payloadCount]);
 
     return (
         <Box sx={{ height: '100%', minHeight: 0, overflow: 'hidden' }}>
