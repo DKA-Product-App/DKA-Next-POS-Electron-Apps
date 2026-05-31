@@ -97,7 +97,7 @@ const TransactionListItem: React.FC = () => {
     // 🔑 Refresh key dari tombol "Coba lagi" atau event lain
     const [reloadKey, setReloadKey] = useState(0)
 
-    const { token, reason } = useTransactionEventTrigger()
+    const { token, reason, bump } = useTransactionEventTrigger()
     const lastReasonRef = useRef<string | null>(null)
 
     // ⏳ & ❌ State untuk fetch
@@ -364,9 +364,12 @@ const TransactionListItem: React.FC = () => {
                 const promiseDelete = trunkDeleteTransaction.map((tx) => deletedTransaction(tx.id));
                 return Promise.all(promiseDelete)
             })
-            .then(async (res) => {
-                void refetch();
-                void softRefetch();
+            .then(async () => {
+                clearMultiSelect()
+                setSingleSelectedId(payload?.selectedTransaction?.id)
+                bump('batch')
+                void refetch()
+                void softRefetch()
             })
             .catch(async (error) => {
                 const e = normalizeIpcError(error);
