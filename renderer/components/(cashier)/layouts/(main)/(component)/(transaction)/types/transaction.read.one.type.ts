@@ -40,7 +40,10 @@ export interface TxBillsSectionGeneric<TMoney extends MoneyRaw | MoneyPretty> {
     count: number;
     items: TxBillsItemsGeneric<TMoney>;
     taxTotalOnActive: TMoney;
+    /** Grand total item status true saja (god/slave). */
     grandTotalActive: TMoney;
+    /** Grand total semua item bill (status true + false). */
+    grandTotalAll: TMoney;
     byBill: BillSummaryGeneric<TMoney>[];
 }
 

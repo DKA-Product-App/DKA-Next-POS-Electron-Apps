@@ -11,6 +11,8 @@ import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded'
 import ScheduleRounded from '@mui/icons-material/ScheduleRounded'
 import {TransactionBill} from "../../../../../../../../../types/transaction/bill/transaction.bill.type";
 import { resolveBillGrandTotal } from '../../../../../../../../../utils/billGrandTotal';
+import { countBillLineItems } from '../../../../../../../../../utils/billLineItems';
+import { useGodModeProvider } from '../../../../../../../context/GodModeProviderContext';
 import moment from "moment-timezone";
 import "moment/locale/id"
 moment.locale('id')
@@ -27,6 +29,7 @@ const nameJoin = (n?: { first_name?: string; last_name?: string }) =>
     [n?.first_name, n?.last_name].filter(Boolean).join(' ').trim()
 
 const BillsListItemRowModel1: React.FC<Props> = ({ bill, selected, onRowClick }) => {
+    const { godMode } = useGodModeProvider()
     // ====== derive semua dari bill ======
     const invoice = String(bill.bill ?? '')
     const cashier = nameJoin(bill.reference?.name) || bill.reference?.username || '—'
@@ -50,8 +53,7 @@ const BillsListItemRowModel1: React.FC<Props> = ({ bill, selected, onRowClick })
 
     const displayTotal = toIDR(String(resolveBillGrandTotal(bill)))
 
-    // jumlah items (panjang array items)
-    const itemsCount = bill.items?.length ?? 0
+    const { itemsCount } = countBillLineItems(bill, godMode)
 
     return (
         <ListItemButton

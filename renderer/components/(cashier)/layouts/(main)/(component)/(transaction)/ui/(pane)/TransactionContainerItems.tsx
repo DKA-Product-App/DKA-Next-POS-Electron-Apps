@@ -212,7 +212,7 @@ function Body({ tr }: { tr: Transaction }) {
 
     const isSplitMode = (selectedItemIds?.size ?? 0) > 0
 
-    /** Item yang boleh di-checkout: belum lunas (unpaid + pending di bill unpaid) */
+    /** Checkout semua: unpaid + yang sudah di bill unpaid (pendingPaid). Modal reuse bill unpaid, bukan create duplikat. */
     const checkoutAllIds = React.useMemo(
         () => Array.from(new Set([...(ids.unpaid ?? []), ...(ids.pendingPaid ?? [])])),
         [ids.unpaid, ids.pendingPaid],

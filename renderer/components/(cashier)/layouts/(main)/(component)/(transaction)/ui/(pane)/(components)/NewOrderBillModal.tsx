@@ -29,6 +29,7 @@ import { ConfigBranch } from '../../../../../../../../../types/config/base/branc
 import { TransactionBill } from '../../../../../../../../../types/transaction/bill/transaction.bill.type'
 import { TransactionBatchItem } from '../../../../../../../../../types/transaction/batch/transaction.batch.item.type'
 import { Transaction } from '../../../../../../../../../types/transaction/transaction.type'
+import { findReusableUnpaidBillId } from '../../../../../../../../../utils/billLineItems'
 
 // ⬇️ opsional: hindari reuse SSR
 const BillListItemDetail = dynamic(
@@ -343,6 +344,18 @@ export default function NewOrderBillModal({
         setErr(null)
         setLoading(true)
 
+        const reusableBillId =
+            !isSplitMode
+                ? findReusableUnpaidBillId(transaction, snap.items)
+                : undefined
+
+        if (reusableBillId) {
+            lastBillIdRef.current = reusableBillId
+            setTransactionBill({ id: reusableBillId } as TransactionBill)
+            setLoading(false)
+            return
+        }
+
         createBillOnce(snap, myReq)
             .catch((error) => {
                 // kalau request sudah tidak relevan (modal ditutup / request lama)
@@ -390,7 +403,7 @@ export default function NewOrderBillModal({
                 })
                 setLoading(false)
             })
-    }, [open])
+    }, [open, isSplitMode, transaction])
 
     // 👇 hanya kunci tombol saat dialog terbuka & masih loading
     const ButtonEl = (
@@ -426,10 +439,6 @@ export default function NewOrderBillModal({
             {label}
         </Button>
     )
-
-    useEffect(() => {
-        console.log(transactionBill)
-    }, [transactionBill])
 
     return (
         <>

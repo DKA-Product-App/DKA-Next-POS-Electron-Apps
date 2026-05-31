@@ -31,6 +31,7 @@ import {useThemeCharger} from "../../../../../../../../contexts/ThemeCharger";
 import {useUserConfig} from "../../../../../../../../contexts/UserConfigContext";
 import {useGodModeProvider} from "../../../../../../context/GodModeProviderContext";
 import {TransactionBill} from "../../../../../../../../types/transaction/bill/transaction.bill.type";
+import { deriveLineItems } from '../../../../../../../../utils/billLineItems';
 import {ConfigPaymentMethod} from "../../../../../../../../types/config/data/payment.method.type";
 import {DevicePrinter} from "../../../../../../../../types/config/device/device.printer.type";
 import moment from "moment-timezone";
@@ -98,25 +99,6 @@ const getIssuedAt = (b?: TransactionBill) => b?.paid?.time_created || b?.transac
 const getPaidAt = (b?: TransactionBill) => b?.paid?.time_updated
 const getRef = (b?: TransactionBill) =>
     b?.transaction?.invoice
-
-const deriveLineItems = (bill?: TransactionBill, godMode?: boolean) =>
-    (bill?.items ?? [])
-        .filter(wrap => godMode ? wrap.status === true : true) // godMode on: cuma yang status true
-        .map((wrap) => {
-            const it = wrap.productVariant
-            return {
-                id: String(wrap.id ?? Math.random()),
-                qty: Number(wrap.qty ?? 0),
-                price: Number((wrap.price ?? 0) as number),
-                sub_total: Number((wrap.sub_total ?? 0) as number),
-                bill: bill?.bill ?? "# -",
-                status: wrap.status,
-                time_created: wrap.time_created,
-                time_updated: wrap.time_updated,
-                reference: wrap.reference,
-                variant: it,
-            }
-        })
 
 /* ================================== SUB-COMPONENTS ================================== */
 type ApiResponse<T> = { status: boolean; code: number; msg: string; data: T }
