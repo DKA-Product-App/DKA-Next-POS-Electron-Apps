@@ -26,6 +26,8 @@ import { ImgWithSkeleton, OverlayTone } from "../../../../../../../../../../util
 import { useGodModeProvider } from "../../../../../../../../context/GodModeProviderContext";
 import { TransactionBatchItem } from "../../../../../../../../../../types/transaction/batch/transaction.batch.item.type";
 import { useTx } from "../../context/TransactionContext";
+import { useThemeCharger } from "../../../../../../../../../../contexts/ThemeCharger";
+import SweetAlert2, { SweetAlert2Props } from "react-sweetalert2";
 
 const MotionPaper = motion(Paper)
 
@@ -96,6 +98,8 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({
     const hasNote = Boolean(item.note?.trim()?.length)
     const { godMode } = useGodModeProvider()
     const { bumpReload } = useTx()
+    const { mode } = useThemeCharger()
+    const [splitSwal, setSplitSwal] = React.useState<SweetAlert2Props>({ show: false })
     /** Gambar rules:
      * Closed       : grayscale + GRAY overlay (override apapun)
      * Voided       : grayscale + RED overlay
@@ -126,6 +130,8 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({
 
 
     return (
+        <>
+        <SweetAlert2 {...splitSwal} didClose={() => setSplitSwal((p) => ({ ...p, show: false }))} />
         <MotionPaper
             variant="outlined"
             whileTap={disabled ? undefined : { scale: 0.99 }}
@@ -301,18 +307,40 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({
                         open={isSplitDialogOpen}
                         onClose={() => setSplitDialogOpen(false)}
                         onConfirm={(qty) => {
-                            // API Request to Split Item
                             window.api.invoke('api.transaction.batch.item:update.one', {
                                 params: { id: item.id },
                                 data: { split_qty: qty }
                             })
                                 .then(() => {
-                                    // toast.success("Item berhasil di-split")
-                                    bumpReload() // Refresh list
+                                    bumpReload()
+                                    setSplitSwal({
+                                        show: true,
+                                        icon: 'success',
+                                        theme: mode,
+                                        title: 'Item di-split',
+                                        text: `${qty} qty dipisah. Perbarui tagihan jika item sudah masuk bill.`,
+                                        timer: 3500,
+                                        showConfirmButton: false,
+                                    })
                                 })
-                                .catch((err: any) => {
+                                .catch((err: unknown) => {
                                     console.error(err)
-                                    // toast.error(err?.message || "Gagal split item")
+                                    let msg = 'Gagal split item'
+                                    try {
+                                        const e = err as { message?: string }
+                                        if (e?.message) {
+                                            const parsed = JSON.parse(e.message) as { msg?: string }
+                                            msg = parsed?.msg ?? e.message
+                                        }
+                                    } catch { /* keep default */ }
+                                    setSplitSwal({
+                                        show: true,
+                                        icon: 'error',
+                                        theme: mode,
+                                        title: 'Gagal split',
+                                        text: msg,
+                                        confirmButtonText: 'Tutup',
+                                    })
                                 })
                         }}
                         maxQty={item.qty} // Fallback to full qty
@@ -330,6 +358,7 @@ const RightContainerBatchDetailRow: React.FC<Props> = ({
 
             <Box sx={{ height: 3, background: GRADIENT_TRIGGER }} />
         </MotionPaper>
+        </>
     )
 }
 

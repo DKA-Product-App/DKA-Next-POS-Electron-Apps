@@ -38,8 +38,8 @@ import { useEffect } from 'react';
 // Perfect Scrollbar
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
-import {useGodModeProvider} from "../../context/GodModeProviderContext";
 import {useSession} from "../../../../contexts/SessionProviderContext";
+import { useEffectiveGodMode } from "../../../../hooks/useEffectiveGodMode";
 import * as moment from 'moment';
 
 const MotionCard = motion(Card);
@@ -58,7 +58,12 @@ export default function Overview() {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
     const { Session } = useSession();
-    const { godMode, setGodMode } = useGodModeProvider();
+    const effectiveGodMode = useEffectiveGodMode();
+
+    const fmtIncome = (n?: number) =>
+        new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(
+            Number.isFinite(Number(n)) ? Number(n) : 0,
+        );
 
     const [mounted, setMounted] = React.useState(false)
     const [ payloadCount, setPayloadCount ] = React.useState<{ status?: boolean, code?: number, msg?: string; data?: {
@@ -89,7 +94,7 @@ export default function Overview() {
             startAt,
             endAt,
             reference: Session?.id,
-            god_mode: godMode,
+            god_mode: effectiveGodMode,
         })
             .then(async (result) => {
                 setPayloadCount(result);
@@ -97,7 +102,7 @@ export default function Overview() {
             .catch((error) => {
                 setPayloadCount(undefined)
             })
-    }, [godMode, Session])
+    }, [effectiveGodMode, Session])
 
     useEffect(() => {
         setMounted(true);
@@ -111,12 +116,12 @@ export default function Overview() {
         if (mounted){
             fetchTotal()
         }
-    }, [mounted, godMode]);
+    }, [mounted, effectiveGodMode, fetchTotal]);
 
 
     // ====== STAT CARDS ATAS ======
     const itemsTop: Item[] = React.useMemo(() => [
-        { label: 'Pendapatan Shift Saat Ini', value: `Rp. ${payloadCount?.data?.summary?.bruto?.total}`, icon: <TodayRounded />, isCurrency: true },
+        { label: 'Pendapatan Shift Saat Ini', value: fmtIncome(payloadCount?.data?.summary?.bruto?.total), icon: <TodayRounded />, isCurrency: true },
         { label: 'Total Bill Saat Ini', value: `${payloadCount?.data?.counts?.bill}`, icon: <CalendarViewWeekRounded />, isCurrency: true },
         { label: 'Total Item', value: `${payloadCount?.data?.counts?.items}`, icon: <CalendarMonthRounded />, isCurrency: true },
     ], [payloadCount]);

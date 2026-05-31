@@ -57,6 +57,29 @@ const parseCashInput = (raw: string): number => {
     return Number.isFinite(n) ? n : 0
 }
 
+/** `bill.tax` dari server: 0.1 = 10%, atau 10 = 10% */
+const resolveTaxRate = (tax?: number | null): number => {
+    if (tax == null || Number.isNaN(Number(tax))) return 0.1
+    const n = Number(tax)
+    return n > 1 ? n / 100 : n
+}
+
+const parseApiError = (error: unknown): string => {
+    try {
+        const e = error as { data?: { msg?: string }; message?: string }
+        if (e?.data?.msg) return e.data.msg
+        if (typeof e?.message === 'string') {
+            try {
+                const parsed = JSON.parse(e.message) as { msg?: string }
+                if (parsed?.msg) return parsed.msg
+            } catch {
+                return e.message
+            }
+        }
+    } catch { /* ignore */ }
+    return 'Terjadi kesalahan. Periksa koneksi dan coba lagi.'
+}
+
 const nameJoin = (n?: { first_name?: string; last_name?: string }) =>
     [n?.first_name, n?.last_name].filter(Boolean).join(' ').trim()
 
@@ -211,7 +234,7 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
 
     const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0)
     const itemsSubtotal = useMemo(() => items.length ? sum(items.map(i => Number(i.sub_total ?? 0))) : 0, [items])
-    const taxRate = 0.10
+    const taxRate = useMemo(() => resolveTaxRate(bill?.tax), [bill?.tax])
 
     /* ---------------- VOUCHER / DISCOUNT STATE ---------------- */
     const [voucherCode, setVoucherCode] = useState<string>('')
@@ -227,7 +250,7 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
         }
     }, [itemsSubtotal, voucherType, voucherValue])
 
-    const tax = useMemo(() => Math.max(0, Math.round((itemsSubtotal - discountAmount) * taxRate)), [itemsSubtotal, discountAmount])
+    const tax = useMemo(() => Math.max(0, Math.round((itemsSubtotal - discountAmount) * taxRate)), [itemsSubtotal, discountAmount, taxRate])
     const grandTotal = useMemo(() => Math.max(0, (itemsSubtotal - discountAmount) + tax), [itemsSubtotal, discountAmount, tax])
 
     const invoice = useMemo(() => getInvoice(bill), [bill])
@@ -275,7 +298,7 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                 if (data) {
                     setVoucherCode(data.voucher_code ?? '')
                     setVoucherType(data.voucher_type ?? 'fixed')
-                    setVoucherValue(Number(data.voucher_value) ?? 0)
+                    setVoucherValue(Number(data.voucher_value) || 0)
                 }
             })
             .catch(console.error)
@@ -371,45 +394,84 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
 
     const printLabel = isPaid ? 'Print Bukti Pembayaran' : 'Print Tagihan'
 
-    // ✅ After-pay: update then refetch bill to get latest server state
-    const onPay = () => {
-        if (!method || isPaid) return
+    const showPayError = React.useCallback((error: unknown, step: 'diskon' | 'bayar') => {
+        const detail = parseApiError(error)
+        const hint = step === 'diskon'
+            ? 'Pembayaran dibatalkan. Diskon belum disimpan.'
+            : 'Diskon mungkin sudah tersimpan di server, tetapi pembayaran gagal. Periksa tagihan sebelum mencoba lagi.'
+        setSwalProps({
+            show: true,
+            icon: 'error',
+            theme: mode,
+            title: step === 'diskon' ? 'Gagal menyimpan diskon' : 'Gagal memproses pembayaran',
+            text: `${detail}\n\n${hint}`,
+            confirmButtonText: 'Tutup',
+            didOpen: (popupEl) => {
+                const container = (popupEl as HTMLElement)?.closest('.swal2-container') as HTMLElement | null
+                container?.style.setProperty('z-index', '20000', 'important')
+            },
+        })
+        window.api.invoke('api.transaction.bills:read.one', { id: billId })
+            .then(({ data }) => { if (data) setBill(data) })
+            .catch(() => undefined)
+    }, [mode, billId])
+
+    const onPay = async () => {
+        if (!method || isPaid || !bill?.id || !bill?.paid?.id) {
+            if (!bill?.paid?.id) {
+                setSwalProps({
+                    show: true,
+                    icon: 'error',
+                    theme: mode,
+                    title: 'Tagihan tidak valid',
+                    text: 'Data pembayaran (paid) tidak ditemukan. Muat ulang tagihan.',
+                    confirmButtonText: 'Tutup',
+                })
+            }
+            return
+        }
         const tenderAmount = cash
         const changeAmount = Math.max(0, cash - grandTotal)
-        // 1) Update voucher details on the bill record first
-        // @ts-ignore
-        window.api.invoke('api.transaction.bills:update.one', {
-            params: { id: bill?.id },
-            data: {
-                voucher_code: voucherCode || null,
-                voucher_type: voucherType || null,
-                voucher_value: voucherValue ?? 0,
-                discount_amount: discountAmount ?? 0,
-            }
-        })
-            .then(() => 
-                // 2) Update payment detail on paid record
-                // @ts-ignore
-                window.api.invoke('api.transaction.bills.paid:update.one', {
-                    params: { id: bill?.paid?.id },
-                    data: {
-                        payment_method: method.id,
-                        tender: tenderAmount,
-                        change: changeAmount,
-                        status: true
-                    }
-                })
-            )
-            .then(({ data }) =>
-                // @ts-ignore
-                window.api.invoke('api.transaction.bills:read.one', { id: billId })
-            )
-            .then(({ data }) => {
-                onPaySuccess?.();
-                setBill(data);
-                if (config?.printer?.isPrintAutomatically) onPrintHandle({ cashdraw: true });
+        const billPayload = {
+            voucher_code: voucherCode || null,
+            voucher_type: voucherType || null,
+            voucher_value: voucherValue ?? 0,
+            discount_amount: discountAmount ?? 0,
+            tax: taxRate,
+        }
+
+        try {
+            // @ts-ignore
+            await window.api.invoke('api.transaction.bills:update.one', {
+                params: { id: bill.id },
+                data: billPayload,
             })
-            .catch(console.error)
+        } catch (error) {
+            console.error(error)
+            showPayError(error, 'diskon')
+            return
+        }
+
+        try {
+            // @ts-ignore
+            await window.api.invoke('api.transaction.bills.paid:update.one', {
+                params: { id: bill.paid.id },
+                data: {
+                    payment_method: method.id,
+                    tender: tenderAmount,
+                    change: changeAmount,
+                    status: true,
+                },
+            })
+            // @ts-ignore
+            const { data } = await window.api.invoke('api.transaction.bills:read.one', { id: billId })
+            onPaySuccess?.()
+            setBill(data)
+            if (config?.printer?.isPrintAutomatically) onPrintHandle({ cashdraw: true })
+        } catch (error) {
+            console.error(error)
+            showPayError(error, 'bayar')
+        }
     }
 
     React.useEffect(() => {
@@ -705,7 +767,7 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
 
                                             <Divider />
                                             <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
-                                                <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Pajak (10%)</Typography>
+                                                <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Pajak ({Math.round(taxRate * 100)}%)</Typography>
                                                 <Typography variant="h6" fontWeight={900}>{fmtIDR(tax)}</Typography>
                                             </Stack>
                                             <Divider sx={{ my: 1 }} />

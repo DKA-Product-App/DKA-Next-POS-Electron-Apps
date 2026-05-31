@@ -21,6 +21,8 @@ import {
 } from 'material-react-table';
 import DeleteModal from './(components)/DeleteModal';
 import NewModal from "./(components)/NewModal";
+import SweetAlert2, { SweetAlert2Props } from 'react-sweetalert2';
+import { useThemeCharger } from '../../../../../../contexts/ThemeCharger';
 
 /* ========= Types dari response ========= */
 type ApiAccountRef = {
@@ -101,8 +103,26 @@ const fmtDim = (d?: TableDimension) =>
     d ? `${d.width}×${d.height}${Number.isFinite(d.rotate) && d.rotate !== 0 ? ` • rot ${d.rotate}°` : ''}` : '—';
 
 /* ========= Component ========= */
+const parseApiError = (err: unknown): string => {
+    try {
+        const e = err as { data?: { msg?: string }; message?: string };
+        if (e?.data?.msg) return e.data.msg;
+        if (typeof e?.message === 'string') {
+            try {
+                const parsed = JSON.parse(e.message) as { msg?: string };
+                if (parsed?.msg) return parsed.msg;
+            } catch {
+                return e.message;
+            }
+        }
+    } catch { /* ignore */ }
+    return 'Gagal membuka meja';
+};
+
 export default function TablesTree() {
     const column = createMRTColumnHelper<TableParentRow | TableChildRow>();
+    const { mode } = useThemeCharger();
+    const [swalProps, setSwalProps] = React.useState<SweetAlert2Props>({ show: false });
 
     const [rows, setRows] = React.useState<TableParentRow[]>([]);
     const [loading, setLoading] = React.useState(false);
@@ -305,22 +325,56 @@ export default function TablesTree() {
                     const r = row.original as TableParentRow;
                     const isLocked = r.state === 'OCCUPIED' || r.state === 'RESERVED';
 
-                    const handleRelease = () => {
+                    const releaseTable = () => {
                         if (!window.api) return;
                         setLoading(true);
                         window.api.invoke('api.config.data.floors.tables:update.one', {
                             params: { id: r.id },
                             data: { state: 'AVAILABLE' }
                         })
-                        .then(() => {
-                            fetchTables();
-                        })
-                        .catch((err: any) => {
-                            console.error(err);
-                            setError(err?.msg || 'Gagal membuka meja');
-                        })
-                        .finally(() => {
-                            setLoading(false);
+                            .then(() => {
+                                fetchTables();
+                                setSwalProps({
+                                    show: true,
+                                    icon: 'success',
+                                    theme: mode,
+                                    title: 'Meja dibuka',
+                                    text: `${r.name} sekarang AVAILABLE.`,
+                                    timer: 2500,
+                                    showConfirmButton: false,
+                                });
+                            })
+                            .catch((err: unknown) => {
+                                console.error(err);
+                                const msg = parseApiError(err);
+                                setError(msg);
+                                setSwalProps({
+                                    show: true,
+                                    icon: 'error',
+                                    theme: mode,
+                                    title: 'Gagal membuka meja',
+                                    text: msg,
+                                    confirmButtonText: 'Tutup',
+                                });
+                            })
+                            .finally(() => {
+                                setLoading(false);
+                            });
+                    };
+
+                    const handleRelease = () => {
+                        setSwalProps({
+                            show: true,
+                            icon: 'warning',
+                            title: 'Buka meja ini?',
+                            html: `Meja <b>${r.name}</b> akan diset ke <b>AVAILABLE</b>.<br/>Transaksi yang masih aktif akan memblokir aksi ini.`,
+                            showCancelButton: true,
+                            confirmButtonText: 'Ya, buka meja',
+                            cancelButtonText: 'Batal',
+                            reverseButtons: true,
+                            theme: mode,
+                            focusCancel: true,
+                            onConfirm: releaseTable,
                         });
                     };
 
@@ -392,6 +446,7 @@ export default function TablesTree() {
 
     return (
         <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <SweetAlert2 {...swalProps} didClose={() => setSwalProps((prev) => ({ ...prev, show: false }))} />
             <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
                 <MaterialReactTable table={table} />
             </Box>

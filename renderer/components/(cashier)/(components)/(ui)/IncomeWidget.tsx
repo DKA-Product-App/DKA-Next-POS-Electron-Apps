@@ -6,10 +6,14 @@ import { useEffect } from 'react'
 import {
     useTransactionEventTrigger,
 } from '../../layouts/(main)/(component)/(transaction)/ui/(pane)/context/TransactionEventTriggerContext'
-import { useGodModeProvider } from '../../context/GodModeProviderContext'
 import * as moment from 'moment-timezone'
 import { useSession } from "../../../../contexts/SessionProviderContext";
-import { useUserConfig } from "../../../../contexts/UserConfigContext";
+import { useEffectiveGodMode } from "../../../../hooks/useEffectiveGodMode";
+
+const fmtIncome = (n?: number) =>
+    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(
+        Number.isFinite(Number(n)) ? Number(n) : 0,
+    );
 
 type TimeWidgetProps = {
     /** Font size jam utama */
@@ -22,8 +26,7 @@ export default function IncomeWidget({ timeVariant = 'h5', justifySelf = 'center
     const [mounted, setMounted] = React.useState(false)
     const { token, reason } = useTransactionEventTrigger()
     const { Session } = useSession();
-    const { godMode } = useGodModeProvider()
-    const { config } = useUserConfig()
+    const effectiveGodMode = useEffectiveGodMode()
     const [payloadCount, setPayloadCount] = React.useState<{
         status?: boolean
         code?: number
@@ -42,10 +45,6 @@ export default function IncomeWidget({ timeVariant = 'h5', justifySelf = 'center
         const startAt = moment.tz(tz).startOf('day').format('YYYY-MM-DD HH:mm:ss')
         const endAt   = moment.tz(tz).endOf('day').format('YYYY-MM-DD HH:mm:ss')
 
-        // Jika isOverviewGodModeEnabled = true, selalu kirim god_mode: true
-        // Jika false, gunakan nilai dari toggle (godMode state)
-        const effectiveGodMode = config.cashier.isOverviewGodModeEnabled ? true : godMode
-
         window?.api
             ?.invoke?.('api.transaction.bills:count.all', {
             startAt,
@@ -61,7 +60,7 @@ export default function IncomeWidget({ timeVariant = 'h5', justifySelf = 'center
                 console.log('Header Income Gagal Diperbarui', error)
                 setPayloadCount(undefined)
             })
-    }, [godMode, Session, config.cashier.isOverviewGodModeEnabled])
+    }, [effectiveGodMode, Session])
 
     useEffect(() => {
         setMounted(true)
@@ -70,7 +69,7 @@ export default function IncomeWidget({ timeVariant = 'h5', justifySelf = 'center
 
     useEffect(() => {
         if (mounted) void fetchTotal()
-    }, [token, reason, mounted, godMode, fetchTotal, config.cashier.isOverviewGodModeEnabled])
+    }, [token, reason, mounted, fetchTotal, effectiveGodMode])
 
     return (
         <Box
@@ -86,7 +85,7 @@ export default function IncomeWidget({ timeVariant = 'h5', justifySelf = 'center
                 suppressHydrationWarning
                 sx={{ fontWeight: 600, letterSpacing: 1, fontVariantNumeric: 'tabular-nums' }}
             >
-                Rp. {payloadCount?.data?.summary?.bruto?.total}
+                {fmtIncome(payloadCount?.data?.summary?.bruto?.total)}
             </Typography>
 
             <Typography

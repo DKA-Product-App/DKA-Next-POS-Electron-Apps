@@ -11,7 +11,7 @@ export type GodModeProviderCtx = {
 const GodModeProviderContext = React.createContext<GodModeProviderCtx | undefined>(undefined);
 
 export function GodModeProviderProvider({ children }: { children: React.ReactNode }) {
-    const [godMode, setGodMode] = React.useState<boolean | null>(null);
+    const [godMode, setGodMode] = React.useState<boolean | null>(false);
 
     const value = React.useMemo(() => ({ godMode, setGodMode }), [godMode]);
 
