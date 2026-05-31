@@ -58,6 +58,13 @@ const parseCashInput = (raw: string): number => {
     return Number.isFinite(n) ? n : 0
 }
 
+/** Format digit ke grouping titik (100000 → 100.000) */
+const formatIdrInput = (raw: string): string => {
+    const digits = raw.replace(/\D/g, '')
+    if (!digits) return ''
+    return new Intl.NumberFormat('id-ID').format(Number(digits))
+}
+
 /** `bill.tax` dari server: 0.1 = 10%, atau 10 = 10% */
 const resolveTaxRate = (tax?: number | null): number => {
     if (tax == null || Number.isNaN(Number(tax))) return 0.1
@@ -202,7 +209,7 @@ const PaymentMethodsPicker: React.FC<{
 }
 
 /* ================================= MAIN ================================= */
-type TenderMode = 'idle' | 'entry' | 'ready'
+type TenderMode = 'idle' | 'ready'
 
 const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean, onPaySuccess?: () => void; cancelBill?: () => void; }> = ({ billId, isHideTransaction, onPaySuccess, cancelBill }) => {
     const [bill, setBill] = useState<TransactionBill | undefined>(undefined)
@@ -246,8 +253,8 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
     const [method, setMethod] = useState<ConfigPaymentMethod | null>(null)
     const [needTender, setNeedTender] = useState<boolean>(false)
     const [tenderMode, setTenderMode] = useState<TenderMode>('idle')
-    const [showTotals, setShowTotals] = useState<boolean>(true)
     const [cashStr, setCashStr] = useState<string>('')
+    const [discountStr, setDiscountStr] = useState<string>('')
 
     const cash = parseCashInput(cashStr)
     const change = Math.max(0, cash - grandTotal)
@@ -280,50 +287,61 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                 if (data) {
                     setVoucherCode(data.voucher_code ?? '')
                     setVoucherType(data.voucher_type ?? 'fixed')
-                    setVoucherValue(Number(data.voucher_value) || 0)
+                    const vv = Number(data.voucher_value) || 0
+                    setVoucherValue(vv)
+                    setDiscountStr(vv > 0 ? formatIdrInput(String(vv)) : '')
                 }
             })
             .catch(console.error)
     }, [billId])
 
-    // respond to method/isPaid changes (form logic)
-    // --> ubah jadi begini:
     useEffect(() => {
         const nt = !!method?.need_tender
         setNeedTender(nt)
 
-        if (isPaid) { setTenderMode('idle'); setShowTotals(true); return }
-
-        if (nt) {
-            setTenderMode('entry')
-            setShowTotals(false)
-            setTimeout(() => cashRef.current?.focus(), 50)
-        } else {
-            // non-tender → langsung isi tender = grandTotal (string)
-            setTenderMode('ready')
-            setShowTotals(true)
-            setCashStr(String(grandTotal))
+        if (isPaid) {
+            setTenderMode('idle')
+            return
         }
-    }, [method, isPaid, grandTotal])
+
+        if (!nt) {
+            setTenderMode('ready')
+            setCashStr(formatIdrInput(String(grandTotal)))
+        } else if (cash >= grandTotal && cash > 0) {
+            setTenderMode('ready')
+        } else {
+            setTenderMode('idle')
+        }
+    }, [method, isPaid, grandTotal, cash])
+
+    const onCashChange = (raw: string) => {
+        setCashStr(formatIdrInput(raw))
+    }
+
+    const onDiscountChange = (raw: string) => {
+        if (voucherType === 'fixed') {
+            setDiscountStr(formatIdrInput(raw))
+            setVoucherValue(parseCashInput(raw))
+        } else {
+            const digits = raw.replace(/\D/g, '')
+            setDiscountStr(digits)
+            setVoucherValue(Math.min(100, Math.max(0, Number(digits) || 0)))
+        }
+    }
 
     const onCashKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
         if (e.key === 'Enter' && cash >= grandTotal) {
             setTenderMode('ready')
-            setShowTotals(true)
-        }
-        if (e.key === 'Escape') {
-            setTenderMode('entry')
-            setShowTotals(false)
-            setCashStr('')
         }
     }
 
     useEffect(() => {
-        if (tenderMode === 'ready' && cash < grandTotal && needTender && !isPaid) {
-            setTenderMode('entry')
-            setShowTotals(false)
+        if (voucherType === 'percentage') {
+            setDiscountStr(voucherValue ? String(voucherValue) : '')
+        } else {
+            setDiscountStr(voucherValue ? formatIdrInput(String(voucherValue)) : '')
         }
-    }, [cash, grandTotal, needTender, isPaid, tenderMode])
+    }, [voucherType])
 
 
     const onCancelBill = React.useCallback(() => {
@@ -359,7 +377,7 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
             });
     }, [bill, mode])
 
-    const canPay = !isPaid && !!method && (!needTender || tenderMode === 'ready')
+    const canPay = !isPaid && !!method && (!needTender || (cash >= grandTotal && tenderMode === 'ready'))
 
     /* ---------------- ITEM GRID ---------------- */
     const ITEM_COLS = {
@@ -599,180 +617,174 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                         </PerfectScrollbar>
                     </Box>
 
-                    {/* ===== Bottom: Payment + Totals/Tender ===== */}
+                    {/* ===== Bottom: Cash + Payment + Totals ===== */}
                     <Box sx={{ px: 2.5, py: 1.5, borderTop: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
-                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 560px' }, gap: 2, alignItems: 'start' }}>
-                            {/* LEFT: Methods */}
-                            <Box sx={{ minWidth: 0 }}>
-                                <Typography variant="subtitle1" fontWeight={900} sx={{ mb: 1 }}>Pilih Pembayaran</Typography>
-                                <PaymentMethodsPicker
-                                    disabled={isPaid}
-                                    selectedId={method?.id || undefined}
-                                    onSelect={(m) => setMethod(m)}
-                                />
-                                {isPaid && <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>Bill sudah dibayar — metode dikunci mengikuti data server.</Typography>}
+                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 480px' }, gap: 2.5, alignItems: 'start' }}>
+                            {/* LEFT: Uang diterima + kembalian (sebelum metode) + metode */}
+                            <Box sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                {!isPaid && (
+                                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'action.hover' }}>
+                                        <Typography variant="subtitle1" fontWeight={900} sx={{ mb: 1.5 }}>
+                                            Uang Pelanggan
+                                        </Typography>
+                                        <TextField
+                                            inputRef={cashRef}
+                                            label="Uang Diterima"
+                                            value={cashStr}
+                                            onChange={(e) => onCashChange(e.target.value)}
+                                            onKeyDown={onCashKeyDown}
+                                            inputMode="numeric"
+                                            placeholder="0"
+                                            variant="outlined"
+                                            fullWidth
+                                            autoFocus
+                                            InputProps={{
+                                                startAdornment: <InputAdornment position="start"><Typography fontWeight={800}>Rp</Typography></InputAdornment>,
+                                                sx: { fontSize: '1.75rem', fontWeight: 800, py: 1.5, fontVariantNumeric: 'tabular-nums' },
+                                            }}
+                                            inputProps={{ sx: { textAlign: 'right', fontSize: '1.75rem', fontWeight: 800 } }}
+                                            helperText={
+                                                cash <= 0
+                                                    ? 'Masukkan nominal sebelum pilih metode pembayaran'
+                                                    : cash < grandTotal
+                                                        ? `Kurang ${fmtIDR(grandTotal - cash)}`
+                                                        : 'Uang cukup'
+                                            }
+                                            FormHelperTextProps={{ sx: { fontWeight: 700, fontSize: '0.85rem' } }}
+                                        />
+                                        <Box
+                                            sx={{
+                                                mt: 1.5,
+                                                p: 1.5,
+                                                borderRadius: 2,
+                                                border: '1px dashed',
+                                                borderColor: cash > 0 && cash < grandTotal ? 'error.main' : 'success.main',
+                                                bgcolor: (t) => cash > 0 && cash < grandTotal
+                                                    ? t.palette.error.main + '14'
+                                                    : t.palette.success.main + '14',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                            }}
+                                        >
+                                            <Typography variant="subtitle1" fontWeight={900}>
+                                                {cash > 0 && cash < grandTotal ? 'Kekurangan' : 'Kembalian'}
+                                            </Typography>
+                                            <Typography
+                                                variant="h4"
+                                                fontWeight={900}
+                                                sx={{ color: (t) => (cash > 0 && cash < grandTotal ? t.palette.error.main : t.palette.success.main), fontVariantNumeric: 'tabular-nums' }}
+                                            >
+                                                {cash > 0 && cash < grandTotal
+                                                    ? `- ${fmtIDR(grandTotal - cash)}`
+                                                    : fmtIDR(change)}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                )}
+
+                                <Box>
+                                    <Typography variant="subtitle1" fontWeight={900} sx={{ mb: 1 }}>Pilih Pembayaran</Typography>
+                                    <PaymentMethodsPicker
+                                        disabled={isPaid}
+                                        selectedId={method?.id || undefined}
+                                        onSelect={(m) => setMethod(m)}
+                                    />
+                                    {isPaid && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
+                                            Bill sudah dibayar — metode dikunci mengikuti data server.
+                                        </Typography>
+                                    )}
+                                </Box>
                             </Box>
 
-                            {/* RIGHT: Card */}
+                            {/* RIGHT: Diskon + ringkasan total */}
                             <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                <Paper variant="outlined" sx={{ width: 700, maxWidth: '100%', p: 1.25, borderRadius: 2, position: 'relative', '&::before': { content: '""', position: 'absolute', inset: 0, pointerEvents: 'none', boxShadow: '0 0 0 1px rgba(124,58,237,.35), 0 10px 28px rgba(0,0,0,.06)' } }}>
-                                    {/* Tender (ENTRY) */}
-                                    {!isPaid && !!method?.need_tender && tenderMode === 'entry' && (
-                                        <>
-                                            <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                                                <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 0.75 }}>
-                                                    Masukkan Nilai Uang Pelanggan
-                                                </Typography>
-
-                                                <Box
-                                                    sx={{
-                                                        p: 1.25,
-                                                        border: '1px dashed',
-                                                        borderColor: 'divider',
-                                                        borderRadius: 2,
-                                                        bgcolor: 'action.hover',
-                                                        flex: 1,
-                                                        display: 'flex',
-                                                        alignItems: 'center'
-                                                    }}
-                                                >
-                                                    <TextField
-                                                        inputRef={cashRef}
-                                                        label="Uang Diterima"
-                                                        value={cashStr}
-                                                        onChange={(e) => setCashStr(e.target.value.replace(/[^\d.,]/g, ''))}
-                                                        onKeyDown={onCashKeyDown}
-                                                        inputMode="numeric"
-                                                        placeholder="contoh: 100000"
-                                                        variant="outlined"
-                                                        fullWidth
-                                                        InputProps={{ startAdornment: <InputAdornment position="start">Rp</InputAdornment> }}
-                                                        helperText={!!cash ? (cash < grandTotal ? `Kurang ${fmtIDR(grandTotal - cash)}` : 'Uang cukup • tekan Enter') : 'Masukkan nominal tunai'}
-                                                        FormHelperTextProps={{ sx: { fontWeight: 700 } }}
-                                                    />
-                                                </Box>
-
-                                                {/* Footer: minus merah kalau kurang */}
-                                                <Box sx={{ mt: 'auto' }}>
-                                                    <Divider sx={{ my: 1.25 }} />
-                                                    <Stack direction="row" alignItems="center">
-                                                        <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>
-                                                            {(cash - grandTotal) < 0 ? 'Kekurangan' : 'Kembalian'}
-                                                        </Typography>
-                                                        <Typography
-                                                            variant="h5"
-                                                            fontWeight={900}
-                                                            sx={{ color: (t) => (cash - grandTotal < 0 ? t.palette.error.main : t.palette.success.main) }}
-                                                        >
-                                                            {(cash - grandTotal) < 0
-                                                                ? `- ${fmtIDR(Math.max(0, grandTotal - cash))}`
-                                                                : fmtIDR(Math.max(0, cash - grandTotal))}
-                                                        </Typography>
-                                                    </Stack>
-                                                </Box>
-                                            </Box>
-                                        </>
-                                    )}
-
-                                    {/* Discount Input Form */}
+                                <Paper variant="outlined" sx={{ width: '100%', maxWidth: 480, p: 2, borderRadius: 2, position: 'relative', '&::before': { content: '""', position: 'absolute', inset: 0, pointerEvents: 'none', boxShadow: '0 0 0 1px rgba(124,58,237,.35), 0 10px 28px rgba(0,0,0,.06)' } }}>
+                                    {/* Diskon — di atas total */}
                                     {!isPaid && (
-                                        <Box sx={{ mb: 1.5, p: 1.25, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'action.hover' }}>
-                                            <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1.25, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                🏷️ Berikan Diskon
+                                        <Box sx={{ mb: 2, pb: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                                            <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1.25 }}>
+                                                Berikan Diskon
                                             </Typography>
-                                            <Stack direction="row" spacing={1.5} alignItems="center">
-                                                <ButtonGroup size="small">
+                                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} alignItems={{ sm: 'center' }}>
+                                                <ButtonGroup size="small" sx={{ flexShrink: 0 }}>
                                                     <Button
                                                         variant={voucherType === 'fixed' ? 'contained' : 'outlined'}
                                                         onClick={() => setVoucherType('fixed')}
-                                                        sx={{ fontWeight: 800, width: 50 }}
+                                                        sx={{ fontWeight: 800, minWidth: 52 }}
                                                     >
                                                         Rp
                                                     </Button>
                                                     <Button
                                                         variant={voucherType === 'percentage' ? 'contained' : 'outlined'}
                                                         onClick={() => setVoucherType('percentage')}
-                                                        sx={{ fontWeight: 800, width: 50 }}
+                                                        sx={{ fontWeight: 800, minWidth: 52 }}
                                                     >
                                                         %
                                                     </Button>
                                                 </ButtonGroup>
                                                 <TextField
-                                                    size="small"
-                                                    type="number"
+                                                    size="medium"
                                                     label={voucherType === 'percentage' ? 'Persen Diskon' : 'Nominal Diskon'}
-                                                    value={voucherValue || ''}
-                                                    onChange={(e) => setVoucherValue(Math.max(0, Number(e.target.value)))}
-                                                    placeholder={voucherType === 'percentage' ? '10' : '5000'}
-                                                    sx={{ flex: 1 }}
+                                                    value={discountStr}
+                                                    onChange={(e) => onDiscountChange(e.target.value)}
+                                                    placeholder={voucherType === 'percentage' ? '10' : '5.000'}
+                                                    fullWidth
+                                                    inputMode="numeric"
                                                     InputProps={voucherType === 'fixed' ? {
-                                                        startAdornment: <InputAdornment position="start">Rp</InputAdornment>
+                                                        startAdornment: <InputAdornment position="start">Rp</InputAdornment>,
                                                     } : {
-                                                        endAdornment: <InputAdornment position="end">%</InputAdornment>
+                                                        endAdornment: <InputAdornment position="end">%</InputAdornment>,
                                                     }}
                                                 />
                                             </Stack>
                                         </Box>
                                     )}
 
-                                    {/* Totals (IDLE/READY/Non-tender/Paid) */}
-                                    {showTotals && (
-                                        <>
-                                            <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
-                                                <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Subtotal</Typography>
-                                                <Typography variant="h6" fontWeight={900}>{fmtIDR(itemsSubtotal)}</Typography>
-                                            </Stack>
+                                    {/* Totals */}
+                                    <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
+                                        <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Subtotal</Typography>
+                                        <Typography variant="h6" fontWeight={900}>{fmtIDR(itemsSubtotal)}</Typography>
+                                    </Stack>
 
-                                            {/* Pre-payment discount display */}
-                                            {discountAmount > 0 && !isPaid && (
-                                                <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
-                                                    <Typography variant="subtitle1" sx={{ flex: 1 }} color="success.main" fontWeight={900}>
-                                                        Potongan Diskon
-                                                    </Typography>
-                                                    <Typography variant="h6" color="success.main" fontWeight={900}>
-                                                        - {fmtIDR(discountAmount)}
-                                                    </Typography>
-                                                </Stack>
-                                            )}
+                                    {discountAmount > 0 && !isPaid && (
+                                        <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
+                                            <Typography variant="subtitle1" sx={{ flex: 1 }} color="success.main" fontWeight={900}>
+                                                Potongan Diskon
+                                            </Typography>
+                                            <Typography variant="h6" color="success.main" fontWeight={900}>
+                                                - {fmtIDR(discountAmount)}
+                                            </Typography>
+                                        </Stack>
+                                    )}
 
-                                            {/* Paid discount display from database */}
-                                            {isPaid && Number(bill?.discount_amount) > 0 && (
-                                                <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
-                                                    <Typography variant="subtitle1" sx={{ flex: 1 }} color="success.main" fontWeight={900}>
-                                                        Potongan Diskon
-                                                    </Typography>
-                                                    <Typography variant="h6" color="success.main" fontWeight={900}>
-                                                        - {fmtIDR(Number(bill.discount_amount))}
-                                                    </Typography>
-                                                </Stack>
-                                            )}
+                                    {isPaid && Number(bill?.discount_amount) > 0 && (
+                                        <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
+                                            <Typography variant="subtitle1" sx={{ flex: 1 }} color="success.main" fontWeight={900}>
+                                                Potongan Diskon
+                                            </Typography>
+                                            <Typography variant="h6" color="success.main" fontWeight={900}>
+                                                - {fmtIDR(Number(bill.discount_amount))}
+                                            </Typography>
+                                        </Stack>
+                                    )}
 
-                                            <Divider />
-                                            <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
-                                                <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Pajak ({Math.round(taxRate * 100)}%)</Typography>
-                                                <Typography variant="h6" fontWeight={900}>{fmtIDR(tax)}</Typography>
-                                            </Stack>
-                                            <Divider sx={{ my: 1 }} />
-                                            <Stack direction="row" alignItems="center" sx={{ py: 0.75, px: 1, background: (t) => t.palette.mode === 'dark' ? '#3db108' : GRAND_GRAD }}>
-                                                <Typography variant="h6" sx={{ flex: 1, color: '#fff' }} fontWeight={900}>Grand Total</Typography>
-                                                <Typography variant="h4" fontWeight={900} sx={{ color: '#fff' }}>{fmtIDR(grandTotal)}</Typography>
-                                            </Stack>
-                                            {isPaid && (
-                                                <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
-                                                    <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Uang Kembali</Typography>
-                                                    <Typography variant="h6" fontWeight={900}>{fmtIDR(paidChangeAmount)}</Typography>
-                                                </Stack>
-                                            )}
-                                            {!isPaid && !!method?.need_tender && tenderMode === 'ready' && (
-                                                <>
-                                                    <Divider sx={{ my: 1.25 }} />
-                                                    <Stack direction="row" alignItems="center">
-                                                        <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Kembalian</Typography>
-                                                        <Typography variant="h5" fontWeight={900}>{fmtIDR(Math.max(0, change))}</Typography>
-                                                    </Stack>
-                                                </>
-                                            )}
-                                        </>
+                                    <Divider sx={{ my: 0.75 }} />
+                                    <Stack direction="row" alignItems="center" sx={{ py: 0.5 }}>
+                                        <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Pajak ({Math.round(taxRate * 100)}%)</Typography>
+                                        <Typography variant="h6" fontWeight={900}>{fmtIDR(tax)}</Typography>
+                                    </Stack>
+                                    <Divider sx={{ my: 1 }} />
+                                    <Stack direction="row" alignItems="center" sx={{ py: 0.75, px: 1, borderRadius: 1.5, background: (t) => t.palette.mode === 'dark' ? '#3db108' : GRAND_GRAD }}>
+                                        <Typography variant="h6" sx={{ flex: 1, color: '#fff' }} fontWeight={900}>Grand Total</Typography>
+                                        <Typography variant="h4" fontWeight={900} sx={{ color: '#fff' }}>{fmtIDR(grandTotal)}</Typography>
+                                    </Stack>
+                                    {isPaid && (
+                                        <Stack direction="row" alignItems="center" sx={{ py: 0.75, mt: 0.5 }}>
+                                            <Typography variant="subtitle1" sx={{ flex: 1 }} fontWeight={900}>Uang Kembali</Typography>
+                                            <Typography variant="h6" fontWeight={900}>{fmtIDR(paidChangeAmount)}</Typography>
+                                        </Stack>
                                     )}
                                 </Paper>
                             </Box>
@@ -803,7 +815,7 @@ const BillListItemDetail: React.FC<{ billId: string, isHideTransaction?: boolean
                             startIcon={<AttachMoneyRounded sx={{ fontSize: 36 }} />}
                             onClick={onPay}
                             sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, fontSize: { xs: 14, md: 15 }, py: 1.1, px: 2.2 }}
-                            title={isPaid ? 'Sudah dibayar' : (method?.need_tender ? (tenderMode === 'ready' ? 'Bayar sekarang' : 'Masukkan & konfirmasi nominal (Enter)') : (method ? 'Bayar sekarang' : 'Pilih metode'))}
+                            title={isPaid ? 'Sudah dibayar' : (method?.need_tender ? (cash >= grandTotal ? 'Bayar sekarang' : 'Masukkan uang yang cukup') : (method ? 'Bayar sekarang' : 'Pilih metode'))}
                         >
                             Bayar
                         </Button>
