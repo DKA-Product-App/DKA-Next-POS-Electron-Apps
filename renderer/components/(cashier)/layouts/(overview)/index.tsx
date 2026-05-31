@@ -39,7 +39,7 @@ import { useEffect } from 'react';
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import 'react-perfect-scrollbar/dist/css/styles.css';
 import {useSession} from "../../../../contexts/SessionProviderContext";
-import { useEffectiveGodMode } from "../../../../hooks/useEffectiveGodMode";
+import { parseIdrValue } from "../../../../utils/parseIdrValue";
 import * as moment from 'moment';
 
 const MotionCard = motion(Card);
@@ -58,11 +58,9 @@ export default function Overview() {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
     const { Session } = useSession();
-    const effectiveGodMode = useEffectiveGodMode();
-
-    const fmtIncome = (n?: number) =>
+    const fmtIncome = (n?: number | string) =>
         new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(
-            Number.isFinite(Number(n)) ? Number(n) : 0,
+            parseIdrValue(n),
         );
 
     const [mounted, setMounted] = React.useState(false)
@@ -94,7 +92,7 @@ export default function Overview() {
             startAt,
             endAt,
             reference: Session?.id,
-            god_mode: effectiveGodMode,
+            god_mode: false,
         })
             .then(async (result) => {
                 setPayloadCount(result);
@@ -102,7 +100,7 @@ export default function Overview() {
             .catch((error) => {
                 setPayloadCount(undefined)
             })
-    }, [effectiveGodMode, Session])
+    }, [Session?.id])
 
     useEffect(() => {
         setMounted(true);
@@ -116,7 +114,7 @@ export default function Overview() {
         if (mounted){
             fetchTotal()
         }
-    }, [mounted, effectiveGodMode, fetchTotal]);
+    }, [mounted, fetchTotal]);
 
 
     // ====== STAT CARDS ATAS ======

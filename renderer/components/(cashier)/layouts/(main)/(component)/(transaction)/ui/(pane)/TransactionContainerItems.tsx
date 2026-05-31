@@ -33,6 +33,7 @@ import { FilterOrderHeaderProvider } from './context/FilterOrderHeaderContext'
 import FilterOrderHeader from './(components)/FilterOrderHeader'
 import TaskAltRounded from "@mui/icons-material/TaskAltRounded";
 import {useFunctionKeyCtx} from "../../../../../../../../contexts/FunctionKeyProviderContext";
+import { resolveTransactionDisplayTotal } from '../../../../../../../../utils/transactionDisplayTotal';
 import {SummarizeTxReturn} from "../../types/transaction.read.one.type";
 import {Transaction} from "../../../../../../../../types/transaction/transaction.type";
 import {TransactionBatchItem} from "../../../../../../../../types/transaction/batch/transaction.batch.item.type";
@@ -188,6 +189,10 @@ function Body({ tr }: { tr: Transaction }) {
     const [transactionMeta, setTransactionMeta ] = React.useState<SummarizeTxReturn>(undefined);
     const { setMenu, remove,  key, seq } = useFunctionKeyCtx()
     const isClosed = React.useMemo(() => Boolean(transaction?.time_closed), [transaction])
+    const displayTotal = React.useMemo(
+        () => resolveTransactionDisplayTotal(transactionMeta, isClosed),
+        [transactionMeta, isClosed],
+    )
     const itemQty = React.useMemo(() => totalItems(transaction), [transaction])
     const { counts, ids } =  React.useMemo(() => getStatusSummary(transaction), [transaction])
 
@@ -295,7 +300,7 @@ function Body({ tr }: { tr: Transaction }) {
                         {isSplitMode ? 'Total Terpilih  (Sebelum PPN)' : 'Total Transaksi (Sebelum PPN)'}
                     </Typography>
                     <Typography sx={{ lineHeight: 1, fontWeight: 900, fontSize: { xs: '2.1rem', sm: '2.2rem', md: '3.1rem' } }}>
-                        {isSplitMode ? rupiah(selectedTotal ?? 0) : rupiah(transactionMeta?.raw.batchItems.active.price ?? 0)}
+                        {isSplitMode ? rupiah(selectedTotal ?? 0) : rupiah(displayTotal)}
                     </Typography>
                     <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap mt={0.5}>
                         <Chip size="small" label={`Invoice #${transaction?.invoice ?? '—'}`} />

@@ -19,10 +19,12 @@ import {AxiosResponse} from "axios";
 import {SummarizeTxReturn} from "../../../types/transaction.read.one.type";
 import {Transaction} from "../../../../../../../../../types/transaction/transaction.type";
 import ShimmerLoadingTransactionListItemRow from "../../(loading)/ShimmerLoadingTransactionListItemRow";
+import { resolveTransactionDisplayTotal } from '../../../../../../../../../utils/transactionDisplayTotal';
+import { parseIdrValue } from '../../../../../../../../../utils/parseIdrValue';
 /* ========= Utils khusus Row ========= */
 const rupiah = (n: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
-        .format(typeof n === 'string' ? parseFloat(n) : n)
+        .format(parseIdrValue(n))
 
 
 const totalQty = (transaction: Transaction) => (transaction?.batches ?? []).reduce((acc, b) => acc + (b.items ?? []).reduce((a, i) => a + i.qty, 0), 0)
@@ -286,6 +288,10 @@ export const TransactionListItemRow: React.FC<{
     const [transaction, setTransaction ] = React.useState<Transaction>(undefined);
     const [transactionMeta, setTransactionMeta ] = React.useState<SummarizeTxReturn>(undefined);
     const isClosed = React.useMemo(() => Boolean(transaction?.time_closed), [transaction])
+    const displayTotal = React.useMemo(
+        () => resolveTransactionDisplayTotal(transactionMeta, isClosed),
+        [transactionMeta, isClosed],
+    )
 
     // ★ flags/gradients
     const hasPending = transactionMeta?.raw.batchItems?.active.count > 0
@@ -383,9 +389,9 @@ export const TransactionListItemRow: React.FC<{
                                     <Typography
                                         variant="subtitle1"
                                         fontWeight={900}
-                                        title={rupiah(transactionMeta?.raw.batchItems.active.price)}
+                                        title={rupiah(displayTotal)}
                                     >
-                                        {rupiah(transactionMeta?.raw.batchItems.active.price ?? 0)}
+                                        {rupiah(displayTotal)}
                                     </Typography>
                                 </Stack>
 

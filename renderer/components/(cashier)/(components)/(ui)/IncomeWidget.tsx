@@ -8,11 +8,11 @@ import {
 } from '../../layouts/(main)/(component)/(transaction)/ui/(pane)/context/TransactionEventTriggerContext'
 import * as moment from 'moment-timezone'
 import { useSession } from "../../../../contexts/SessionProviderContext";
-import { useEffectiveGodMode } from "../../../../hooks/useEffectiveGodMode";
+import { parseIdrValue } from '../../../../utils/parseIdrValue';
 
-const fmtIncome = (n?: number) =>
+const fmtIncome = (n?: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(
-        Number.isFinite(Number(n)) ? Number(n) : 0,
+        parseIdrValue(n),
     );
 
 type TimeWidgetProps = {
@@ -26,7 +26,6 @@ export default function IncomeWidget({ timeVariant = 'h5', justifySelf = 'center
     const [mounted, setMounted] = React.useState(false)
     const { token, reason } = useTransactionEventTrigger()
     const { Session } = useSession();
-    const effectiveGodMode = useEffectiveGodMode()
     const [payloadCount, setPayloadCount] = React.useState<{
         status?: boolean
         code?: number
@@ -45,12 +44,13 @@ export default function IncomeWidget({ timeVariant = 'h5', justifySelf = 'center
         const startAt = moment.tz(tz).startOf('day').format('YYYY-MM-DD HH:mm:ss')
         const endAt   = moment.tz(tz).endOf('day').format('YYYY-MM-DD HH:mm:ss')
 
+        // Pendapatan shift = data production (primary), bukan DB slave god-mode
         window?.api
             ?.invoke?.('api.transaction.bills:count.all', {
             startAt,
             endAt,
             reference: Session?.id,
-            god_mode: effectiveGodMode,
+            god_mode: false,
         })
             .then(async (result) => {
                 console.log('Header Income Diperbarui', result)
@@ -60,7 +60,7 @@ export default function IncomeWidget({ timeVariant = 'h5', justifySelf = 'center
                 console.log('Header Income Gagal Diperbarui', error)
                 setPayloadCount(undefined)
             })
-    }, [effectiveGodMode, Session])
+    }, [Session?.id])
 
     useEffect(() => {
         setMounted(true)
@@ -69,7 +69,7 @@ export default function IncomeWidget({ timeVariant = 'h5', justifySelf = 'center
 
     useEffect(() => {
         if (mounted) void fetchTotal()
-    }, [token, reason, mounted, fetchTotal, effectiveGodMode])
+    }, [token, reason, mounted, fetchTotal])
 
     return (
         <Box
