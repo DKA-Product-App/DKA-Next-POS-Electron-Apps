@@ -21,6 +21,7 @@ import {Transaction} from "../../../../../../../../../types/transaction/transact
 import ShimmerLoadingTransactionListItemRow from "../../(loading)/ShimmerLoadingTransactionListItemRow";
 import { resolveTransactionDisplayTotal } from '../../../../../../../../../utils/transactionDisplayTotal';
 import { parseIdrValue } from '../../../../../../../../../utils/parseIdrValue';
+import { useTransactionEventTrigger } from '../context/TransactionEventTriggerContext';
 /* ========= Utils khusus Row ========= */
 const rupiah = (n: number | string) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
@@ -32,7 +33,8 @@ const totalItems = (transaction: Transaction) => (transaction?.batches ?? []).re
 const totalBatches = (transaction: Transaction) => (transaction?.batches ?? []).length
 
 // ====== Bills-aware helpers ======
-const pickBills = (transaction: Transaction) => transaction?.bills ?? [];
+const pickBills = (transaction: Transaction) =>
+    (transaction?.bills ?? []).filter(b => !b?.time_deleted);
 const getStatusSummary = (o: Transaction) => {
     const bills = pickBills(o);
     const allTxItems = (o?.batches ?? []).flatMap(b => b?.items ?? []).filter(Boolean);
@@ -285,6 +287,7 @@ export const TransactionListItemRow: React.FC<{
     onMultiToggle?: (checked: boolean) => void
 }> = ({ transactionId, singleSelected = false, multiChecked = false, onRowClick, onMultiToggle }) => {
     
+    const { token } = useTransactionEventTrigger()
     const [transaction, setTransaction ] = React.useState<Transaction>(undefined);
     const [transactionMeta, setTransactionMeta ] = React.useState<SummarizeTxReturn>(undefined);
     const isClosed = React.useMemo(() => Boolean(transaction?.time_closed), [transaction])
@@ -336,7 +339,6 @@ export const TransactionListItemRow: React.FC<{
             id : transactionId,
         })
             .then(({ data, meta }) => {
-                console.log(data);
                 setTransaction(data);
                 setTransactionMeta(meta)
             })
@@ -345,7 +347,7 @@ export const TransactionListItemRow: React.FC<{
                 setTransaction(undefined)
                 setTransactionMeta(undefined)
             })
-    }, [transactionId]);
+    }, [transactionId, token]);
     
     return (
         <>

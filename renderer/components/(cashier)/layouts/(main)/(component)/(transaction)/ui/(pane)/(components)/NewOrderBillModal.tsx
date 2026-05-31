@@ -225,9 +225,10 @@ export default function NewOrderBillModal({
         setOpen(true)
     }
 
-    /* ---------- CLOSE ---------- */
+    /* ---------- CLOSE (batal / tutup dialog) ---------- */
     const handleClose = React.useCallback(() => {
         openRef.current = false
+        lastBillIdRef.current = undefined
         setOpen(false)
         setErr(null)
         setTransactionBill(undefined)
@@ -236,7 +237,21 @@ export default function NewOrderBillModal({
         bumpReload()
         clearSelection()
         clearSelectionGods()
-    }, [])
+    }, [bump, bumpReload, clearSelection, clearSelectionGods])
+
+    /* ---------- PAY SUCCESS ---------- */
+    const handlePaySuccess = React.useCallback(() => {
+        openRef.current = false
+        lastBillIdRef.current = undefined
+        setOpen(false)
+        setErr(null)
+        setTransactionBill(undefined)
+        setLoading(false)
+        bump('pay')
+        bumpReload()
+        clearSelection()
+        clearSelectionGods()
+    }, [bump, bumpReload, clearSelection, clearSelectionGods])
 
     const closeWithDialog = React.useCallback(() => {
         setSwalProps({
@@ -377,12 +392,12 @@ export default function NewOrderBillModal({
             })
     }, [open])
 
-    // 👇 tombol ikut terkunci saat loading
+    // 👇 hanya kunci tombol saat dialog terbuka & masih loading
     const ButtonEl = (
         <Button
             variant={variant}
             color={color}
-            disabled={disabled || loading}
+            disabled={disabled || (open && loading)}
             onClick={(e) => {
                 e.preventDefault()
                 handleOpen()
@@ -529,7 +544,7 @@ export default function NewOrderBillModal({
                                 key={`${transactionBill?.id ?? 'pending'}-${reqIdRef.current}`}
                                 billId={transactionBill?.id}
                                 cancelBill={handleClose}
-                                onPaySuccess={handleClose}
+                                onPaySuccess={handlePaySuccess}
                             />
                         ) : err ? (
                             <ErrorDataLayout

@@ -56,7 +56,8 @@ const RightContainerTransactionList = dynamic(() => import('./(pane)/RightContai
 const totalItems = (o: Transaction) =>
     (o?.batches ?? []).reduce((acc, b) => acc + (b?.items?.length ?? 0), 0)
 
-const pickBills = (o: Transaction) => Array.isArray(o?.bills) ? o.bills : []
+const pickBills = (o: Transaction) =>
+    (Array.isArray(o?.bills) ? o.bills : []).filter(b => !b?.time_deleted)
 
 const getStatusSummary = (o: Transaction) => {
     const bills = pickBills(o);
@@ -211,6 +212,12 @@ function Body({ tr }: { tr: Transaction }) {
 
     const isSplitMode = (selectedItemIds?.size ?? 0) > 0
 
+    /** Item yang boleh di-checkout: belum lunas (unpaid + pending di bill unpaid) */
+    const checkoutAllIds = React.useMemo(
+        () => Array.from(new Set([...(ids.unpaid ?? []), ...(ids.pendingPaid ?? [])])),
+        [ids.unpaid, ids.pendingPaid],
+    )
+
     React.useEffect(() => {
         if (!isClosed){
             setMenu((prev) => {
@@ -226,8 +233,6 @@ function Body({ tr }: { tr: Transaction }) {
     }, [isClosed, transaction])
 
     React.useEffect(() => {
-        setTransaction(undefined);
-        setTransactionMeta(undefined);
         window.api.invoke<{ id : string }, { data : Transaction, meta: SummarizeTxReturn }>('api.transaction:read.one', {
             id : tr.id
         })
@@ -239,7 +244,7 @@ function Body({ tr }: { tr: Transaction }) {
                 setTransaction(undefined)
                 setTransactionMeta(undefined);
             })
-    }, [tr, reloadKey])
+    }, [tr.id, reloadKey])
 
     const Header = (
         <Paper
@@ -383,7 +388,7 @@ function Body({ tr }: { tr: Transaction }) {
                 <Stack direction="row" gap={1.25} alignItems="center" sx={{ pr: 4 }}>
                     <OrderVoidModal transaction={transaction} />
                     <NewOrderBillModal
-                        items={isSplitMode ? selectedIdList : ids.unpaid}
+                        items={isSplitMode ? selectedIdList : checkoutAllIds}
                         itemsGod={selectedIdListGod}
                         mode={isSplitMode ? 'split' : 'full'}
                         label={isSplitMode ? 'Checkout Split' : 'Checkout Semua'}
